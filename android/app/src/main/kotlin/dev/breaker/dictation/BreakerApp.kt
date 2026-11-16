@@ -4,7 +4,6 @@ import android.util.Log
 import dev.breaker.dictation.audio.MicSource
 import kotlinx.coroutines.launch
 import dev.breaker.dictation.core.port.HistoryStore
-import dev.breaker.dictation.core.port.ConnectivityProbe
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.history.SqliteHistoryStore
@@ -24,7 +23,6 @@ import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.sync.PullTransport
 import dev.breaker.dictation.sync.QueuedSyncService
 import dev.breaker.dictation.sync.SyncUploader
-import dev.breaker.dictation.transport.TcpConnectivityProbe
 import dev.breaker.dictation.wiring.olderRowsTransport
 import dev.breaker.dictation.wiring.ArmedSwitch
 import dev.breaker.dictation.wiring.Background
@@ -85,24 +83,16 @@ class BreakerApp : android.app.Application() {
         QueuedSyncService.create(
             applicationContext,
             uploader = syncUploader,
-            probe = syncProbe,
+            probe = compositionRoot.probe,
             pullTransport = pullTransportForSync,
             pullSink = if (syncOn) history else null,
         )
     }
 
-    /** The connectivity probe: the real TCP probe over the stored server address, read on every probe. */
-    private val syncProbe: ConnectivityProbe by lazy {
-        TcpConnectivityProbe(
-            serverUrlProvider = { settingsStore.load().serverUrl },
-            clock = SystemClockAdapter,
-        )
-    }
-
-    /** The app's uploader: the real transport over the stored address, one addressed session per call. */
+    /** The app's uploader: the real transport over the effective address, one addressed session per call. */
     private val syncUploader: SyncUploader by lazy {
         SyncHttpUploader(
-            transport = JdkHttpTransport({ settingsStore.load().serverUrl }),
+            transport = JdkHttpTransport(compositionRoot.serverUrl),
             limits = CallLimits(10_000, 30_000, 1_048_576L),
             addressedSession = compositionRoot.addressedSession,
         )
@@ -110,7 +100,7 @@ class BreakerApp : android.app.Application() {
 
     /** The pull transport: the same pieces the uploader uses, wired only when sync is on. */
     private val pullTransportForSync: PullTransport? by lazy {
-        if (syncOn) pullTransport(settingsStore, compositionRoot.addressedSession)
+        if (syncOn) pullTransport(compositionRoot.serverUrl, compositionRoot.addressedSession)
         else null
     }
 
@@ -132,7 +122,7 @@ class BreakerApp : android.app.Application() {
     private val syncOn: Boolean by lazy { syncAllowed(applicationInfo.flags) }
 
     /** Older rows (Load more): null unless sync is on; built through OlderRowsWiring.kt. */
-    val olderHistory by lazy { olderRowsTransport(syncOn, settingsStore, compositionRoot.addressedSession, syncService, syncWorker) }
+    val olderHistory by lazy { olderRowsTransport(syncOn, compositionRoot.serverUrl, compositionRoot.addressedSession, syncService, syncWorker) }
 
     /** The store every save caller reaches: the real store wrapped by the sync decorator. */
     private val decoratedHistoryStore: SyncingHistoryStore by lazy {

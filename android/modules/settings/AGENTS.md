@@ -26,7 +26,8 @@ implementation:
   list (id, size, URL, SHA-256) and a lookup by id. No download or verify logic
   lives here; that is `stt-ondevice`'s.
 
-**Keys:** mode, model_size, server_url, api_key (the credential reference only, kept by the
+**Keys:** mode, model_size, server_url, server_address_1, server_address_2, server_address_3,
+server_last_good, api_key (the credential reference only, kept by the
 Keystore port; no secret sits behind it, by design, see Known Gotchas),
 wake_gesture_mode (the older wake_gesture_enabled key is still read, never written),
 tile_position, language, preload_model,
@@ -110,7 +111,7 @@ agents, not required: an outside contributor may write the code themselves
   unit tests prove is narrower: that the store routes the reference through the
   `Keystore` port and never writes it to the settings file. A fake port lives in the
   same process, so it cannot prove survival across process death; only a run on a device can.
-- The settings file holds **ten** of the card's eleven keys. `api_key` is deliberately
+- The settings file holds **fourteen** keys. `api_key` is deliberately
   absent: the credential reference travels through the `Keystore` port, never through
   `java.util.Properties`. A reader counting keys will find one short and that is
   correct.

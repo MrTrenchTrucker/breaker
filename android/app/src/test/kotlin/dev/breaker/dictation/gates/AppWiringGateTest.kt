@@ -12,18 +12,18 @@ import org.junit.Test
  * service controller, the switch and the tile host, the one state observer that keeps them in step
  * with the service, when the launcher activity switches the service on (only through the switch,
  * which does not arm after a switch-off the user chose), what the root's never-armed controller
- * answers, where the server address comes from and which history store and controller reach the
- * dictation component. The gate reads the real BreakerApp.kt,
- * SettingsLauncherActivity.kt and BreakerCompositionRoot.kt with comments and literal text removed
- * by the shared scanner. Each rule holds on the real file, is broken by at least two edited
- * samples, and stays quiet on harmless edits; an edit whose target text is missing fails by name,
- * so a sample cannot go quiet by a typo.
+ * answers, and where the server address comes from (EffectiveAddress.kt). The gate reads the real
+ * BreakerApp.kt, SettingsLauncherActivity.kt, BreakerCompositionRoot.kt and EffectiveAddress.kt
+ * with comments and literal text removed by the shared scanner. Each rule holds on the real file,
+ * is broken by at least two edited samples, and stays quiet on harmless edits; an edit whose
+ * target text is missing fails by name, so a sample cannot go quiet by a typo.
  */
 internal class AppWiringGateTest {
 
     private val app: String = "kotlin/dev/breaker/dictation/BreakerApp.kt"
     private val activity: String = "kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"
     private val root: String = "kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt"
+    private val address: String = "kotlin/dev/breaker/dictation/EffectiveAddress.kt"
     private val host: String = "kotlin/dev/breaker/dictation/host/TileHost.kt"
 
     /** The pattern must match the code of [file] exactly [times] times. */
@@ -64,7 +64,7 @@ internal class AppWiringGateTest {
         Rule("NEVER_ARMED_LAUNCH_REFUSES", root, """\boverride\s+fun\s+launch\s*\(\s*\)\s*:\s*LaunchResult\s*=\s*LaunchResult\s*\.\s*Refused\b"""),
         Rule("THREE_ARGUMENT_CONSTRUCTOR_NEVER_ARMED", root, """\bthis\s*\(\s*filesDir\s*,\s*historyStore\s*,\s*neverArmedController\s*\(\s*\)\s*,\s*committer\s*,\s*serverEngineFactory\s*=\s*serverEngineFactory\s*,?\s*\)"""),
         Rule("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, """\bthis\s*\(\s*filesDir\s*,\s*LazyHistoryStore\s*\(\s*history\s*\)\s*,\s*serviceController\s*,\s*committer\s*,\s*micSource\s*,\s*serverEngineFactory\s*,\s*background\s*=\s*background\s*\)"""),
-        Rule("SERVER_ADDRESS_IS_THE_SAVED_ONE", root, """\bprivate\s+val\s+serverUrl\s*:\s*\(\)\s*->\s*String\s*=\s*\{\s*settingsStore\s*\.\s*load\s*\(\s*\)\s*\.\s*serverUrl\s*\}[\s\S]*?\bserverUrlProvider\s*=\s*serverUrl\s*,"""),
+        Rule("SERVER_ADDRESS_IS_THE_SAVED_ONE", address, """\bval\s*serverUrl\s*:\s*\(\)\s*->\s*String\s*=\s*\{\s*effectiveServerUrl\s*\(\s*settingsStore\s*\.\s*load\s*\(\s*\)\s*\)\s*\{\s*address\s*->\s*probe\s*\.\s*cachedAnswer\s*\(\s*address\s*\)\s*==\s*true\s*\}\s*\}[\s\S]*?\bserverUrlProvider\s*=\s*serverUrl\s*,"""),
         Rule("COMPONENT_GETS_ROOT_HISTORY", root, """\bhistory\s*=\s*historyStore(?=\s*,)"""),
         Rule("COMPONENT_GETS_SERVICE_CONTROLLER", root, """\bcontroller\s*=\s*serviceController(?=\s*[,)])"""),
         Rule("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER", activity, """\boverride\s+fun\s+onResume\s*\(\s*\)\s*\{\s*super\s*\.\s*onResume\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*this\s*\)\s*"""),
@@ -170,9 +170,9 @@ internal class AppWiringGateTest {
         Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "LazyHistoryStore(history)", "LazyHistoryStore(history())"),
         Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory,", "LazyHistoryStore(history), neverArmedController(), committer, micSource, serverEngineFactory,"),
         Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory,", "LazyHistoryStore(history), serviceController, committer, serverEngineFactory,"), Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "serverEngineFactory,\n            background = background)", "serverEngineFactory)"), Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "background = background)", "background = InlineBackground)"),
-        Sample("SERVER_ADDRESS_IS_THE_SAVED_ONE", root, "{ settingsStore.load().serverUrl }", "{ \"https://example.invalid\" }"),
-        Sample("SERVER_ADDRESS_IS_THE_SAVED_ONE", root, "{ settingsStore.load().serverUrl }", "{ settingsStore.load().modelSize }"),
-        Sample("SERVER_ADDRESS_IS_THE_SAVED_ONE", root, "serverUrlProvider = serverUrl,", "serverUrlProvider = fixedUrl,"),
+        Sample("SERVER_ADDRESS_IS_THE_SAVED_ONE", address, "effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true }", "{ \"https://example.invalid\" }"),
+        Sample("SERVER_ADDRESS_IS_THE_SAVED_ONE", address, "effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true }", "{ settingsStore.load().modelSize }"),
+        Sample("SERVER_ADDRESS_IS_THE_SAVED_ONE", address, "serverUrlProvider = serverUrl,", "serverUrlProvider = fixedUrl,"),
         Sample("COMPONENT_GETS_ROOT_HISTORY", root, "history = historyStore,", "history = RecordingHistoryStore(),"),
         Sample("COMPONENT_GETS_ROOT_HISTORY", root, "history = historyStore,", "history = LazyHistoryStore { historyStore },"),
         Sample("COMPONENT_GETS_ROOT_HISTORY", root, "history = historyStore,", "history = otherStore,"),
@@ -217,7 +217,7 @@ internal class AppWiringGateTest {
         Quiet(root, "MicPermission { false }", "MicPermission {\n            false\n        }"),
         Quiet(root, "history = historyStore,", "history =\n            historyStore, // the store"),
         Quiet(root, "controller = serviceController,", "controller = serviceController, // the controller"),
-        Quiet(root, "{ settingsStore.load().serverUrl }", "{\n                    settingsStore.load().serverUrl\n                }"),
+        Quiet(address, "effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true }", "effectiveServerUrl( settingsStore.load() ) { address -> probe.cachedAnswer( address ) == true }"),
         Quiet(root, "LazyHistoryStore(history)", "LazyHistoryStore( history )"),
         Quiet(root, "\"credential-ref\"", "\"credential-ref permission = MicPermission { true } controller = other,\""),
         Quiet(root, "LaunchResult = LaunchResult.Refused", "LaunchResult =\n                LaunchResult.Refused"),

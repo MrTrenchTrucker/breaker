@@ -104,6 +104,11 @@ internal class SettingsIntentHandler(
             is ScreenIntent.SetThemeMode -> notice = setThemeNotice(intent.mode)
             is ScreenIntent.SetRoutingMode -> writeSetting(intent)
             is ScreenIntent.SetSetting -> writeSetting(intent)
+            // The rows are the stored list, so the row actions save through the same path.
+            is ScreenIntent.AddServerAddress -> writeSetting(intent)
+            is ScreenIntent.RemoveServerAddress -> writeSetting(intent)
+            is ScreenIntent.MoveServerAddressUp -> writeSetting(intent)
+            is ScreenIntent.MoveServerAddressDown -> writeSetting(intent)
             // The setup walk-through has its own screen and handler; this screen offers no such control.
             is ScreenIntent.Setup -> notice = Notice.NOT_ACCEPTED
             is ScreenIntent.History -> notice = Notice.NOT_ACCEPTED
@@ -163,16 +168,18 @@ internal class SettingsIntentHandler(
             }
             WriteResult.FailedToLoad -> notice = Notice.COULD_NOT_READ
             WriteResult.FailedToSave -> notice = Notice.COULD_NOT_SAVE
-            WriteResult.Refused -> notice = Notice.NOT_ACCEPTED
+            // An edit that refused is answered the same way as one the screen refused
+            // before the store: an address row keeps the address message.
+            WriteResult.Refused -> notice = refusalNotice(intent)
         }
     }
 
     /**
-     * The message for a change the screen refused: the address message for the server address key,
-     * and the general message for anything else.
+     * The message for a change the screen refused: the address message for a server
+     * address row, and the general message for anything else.
      */
     private fun refusalNotice(intent: ScreenIntent): Notice =
-        if (intent is ScreenIntent.SetSetting && intent.key == ServerAddressEntry.KEY)
+        if (intent is ScreenIntent.SetSetting && intent.key in SERVER_ROW_KEYS)
             Notice.ADDRESS_NOT_USABLE
         else
             Notice.NOT_ACCEPTED

@@ -100,12 +100,12 @@ class ServerLogoutTest {
     }
 
     @Test
-    fun `logout reads the base address once`() {
+    fun `logout reads the base address once and the list once`() {
         val rig = Rig()
         rig.vault.stored = ADA_RECORD
         rig.http.answer(200)
         rig.service().logout()
-        assertEquals(1, rig.baseReads)
+        assertEquals(2, rig.baseReads)
     }
 
     @Test

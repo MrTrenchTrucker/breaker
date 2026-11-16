@@ -121,4 +121,58 @@ class ProbeRefreshingSettingsStoreTest {
 
         assertTrue("callback must run after save has completed", saveBeforeCallback)
     }
+
+    @Test
+    fun `a changed second entry calls the callback`() {
+        val delegate = RecordingStore().apply {
+            current = AppSettings(
+                serverUrl = "https://a.test",
+                serverAddresses = listOf("https://a.test", "https://b.test"),
+            )
+        }
+        var callbackCount = 0
+        val store = ProbeRefreshingSettingsStore(delegate) { callbackCount++ }
+
+        store.save(
+            AppSettings(
+                serverUrl = "https://a.test",
+                serverAddresses = listOf("https://a.test", "https://c.test"),
+            ),
+        )
+
+        assertEquals("save must be delegated", 1, delegate.saveCount)
+        assertEquals(
+            "an edit to entry 2 changes the ordered list, so the probe must be refreshed - comparing serverUrl alone would miss it",
+            1,
+            callbackCount,
+        )
+    }
+
+    @Test
+    fun `a save that changes only the last good address does not call the callback`() {
+        val delegate = RecordingStore().apply {
+            current = AppSettings(
+                serverUrl = "https://a.test",
+                serverAddresses = listOf("https://a.test"),
+                serverLastGood = "https://old.test",
+            )
+        }
+        var callbackCount = 0
+        val store = ProbeRefreshingSettingsStore(delegate) { callbackCount++ }
+
+        store.save(
+            AppSettings(
+                serverUrl = "https://a.test",
+                serverAddresses = listOf("https://a.test"),
+                serverLastGood = "https://new.test",
+            ),
+        )
+
+        assertEquals("save must be delegated", 1, delegate.saveCount)
+        assertEquals(
+            "the entries did not change, so the probe thread recording a last good address must not start another refresh",
+            0,
+            callbackCount,
+        )
+    }
 }

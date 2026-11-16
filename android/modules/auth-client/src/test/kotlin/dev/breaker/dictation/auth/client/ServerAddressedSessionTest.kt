@@ -74,7 +74,7 @@ class ServerAddressedSessionTest {
     }
 
     @Test
-    fun `the address provider is read exactly once when a record exists and never otherwise`() {
+    fun `the base address is read once and the list once when a record exists and neither otherwise`() {
         val withRecord = mapOf(
             "same address" to rigOf(ADA_RECORD),
             "other host" to rigOf(ADA_RECORD, "https://other.example"),
@@ -83,7 +83,7 @@ class ServerAddressedSessionTest {
         )
         for ((name, rig) in withRecord) {
             rig.service().currentAddressedSession()
-            assertEquals("case " + name, 1, rig.baseReads)
+            assertEquals("case " + name, 2, rig.baseReads)
         }
         val withoutRecord = mapOf(
             "no record" to rigOf(null),
@@ -102,7 +102,7 @@ class ServerAddressedSessionTest {
         val service = twice.service()
         service.currentAddressedSession()
         service.currentAddressedSession()
-        assertEquals("two calls", 2, twice.baseReads)
+        assertEquals("two calls", 4, twice.baseReads)
     }
 
     @Test

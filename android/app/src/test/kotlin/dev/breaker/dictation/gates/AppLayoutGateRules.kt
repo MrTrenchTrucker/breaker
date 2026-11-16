@@ -18,7 +18,7 @@ open class AppLayoutGateRules {
 
     /** Main files that touch no Android type, by path below the package folder. */
     protected val plainFiles: Set<String> = setOf(
-        "AppStartPurge.kt", "BreakerCompositionRoot.kt", "FileCredentialRefHolder.kt", "PurgeScope.kt", "SystemClockAdapter.kt", "AutomaticTimeOn.kt", "PurgeBookkeepingStore.kt", "PurgeGuard.kt", "StartUpSequence.kt", "ServiceStatusHomeWire.kt",
+        "AppStartPurge.kt", "BreakerCompositionRoot.kt", "EffectiveAddress.kt", "EffectiveServerUrl.kt", "FileCredentialRefHolder.kt", "PurgeScope.kt", "SystemClockAdapter.kt", "AutomaticTimeOn.kt", "PurgeBookkeepingStore.kt", "PurgeGuard.kt", "StartUpSequence.kt", "ServiceStatusHomeWire.kt",
         "service/DictationServiceController.kt", "service/NotificationRoute.kt", "service/ReportingMicSource.kt",
         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
         "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt", "wiring/FirstRunDoneStore.kt",

@@ -2,7 +2,8 @@ package dev.breaker.dictation.ui.screen.settings
 
 /*
  * The server address the person types on the settings screen, and the one small rule
- * that decides whether it may be stored.
+ * that decides whether it may be stored. The stored form is a list of up to three
+ * addresses, in probe order ([acceptedList]); [accepted] is the rule for one entry.
  *
  * The rule is a deliberate copy of the address rule of the http module. The ui module
  * reaches only core, so it cannot call that one, and the copy is kept to the same shape:
@@ -47,6 +48,33 @@ internal object ServerAddressEntry {
         if (!isValidAuthority(authority)) return null
         if (!isValidPath(path)) return null
         return trimmed
+    }
+
+    /** The most addresses the stored list may hold. */
+    private const val MAX_ENTRIES = 3
+
+    /**
+     * The stored list for [raw], in order, or an empty list when it is refused.
+     *
+     * The order is probe priority: entry 1 is tried first. Each entry is the
+     * trimmed text [accepted] keeps; a trailing entry that is BLANK is not an
+     * entry (a person who cleared entry 2 has a one-entry list) and is dropped.
+     * Nothing else is ever dropped: a non-blank entry the rule refuses refuses
+     * the WHOLE list, trailing or not, because a typed text must never vanish
+     * silently. A list is refused whole — answered as empty — when it has more
+     * than [MAX_ENTRIES] entries, when any entry is blank or refused, or when two
+     * entries name the same address. An empty [raw] is the blank install and
+     * stays empty.
+     */
+    fun acceptedList(raw: List<String?>): List<String> {
+        val kept = raw
+            .map { it?.trim().orEmpty() }
+            .dropLastWhile { it.isEmpty() }
+        if (kept.isEmpty()) return emptyList()
+        if (kept.size > MAX_ENTRIES) return emptyList()
+        if (kept.any { it.isEmpty() || accepted(it) == null }) return emptyList()
+        if (kept.toSet().size != kept.size) return emptyList()
+        return kept
     }
 
     /**

@@ -14,4 +14,17 @@ interface SettingsStore {
 
     /** Persist [settings]. */
     fun save(settings: AppSettings)
+
+    /**
+     * Records [address] as the last good server address, changing no other setting.
+     *
+     * Called from the probe thread when a stored entry answers, so the next start begins
+     * there. The default is a read-modify-write through [load] and [save]; an implementation
+     * that serialises [save] under a lock should override it so its read and write are one
+     * serialised step. Without that, a user save landing between the read and the write is
+     * overwritten by a stale copy of the whole settings object.
+     */
+    fun recordServerLastGood(address: String) {
+        save(load().copy(serverLastGood = address))
+    }
 }

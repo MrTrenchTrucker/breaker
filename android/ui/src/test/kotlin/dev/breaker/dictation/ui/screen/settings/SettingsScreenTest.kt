@@ -75,6 +75,10 @@ class SettingsScreenTest {
         is ScreenIntent.History -> listOf(intent.action, intent.id)
         is ScreenIntent.Home -> listOf(intent.action)
         ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme, ScreenIntent.Back -> emptyList()
+        is ScreenIntent.AddServerAddress -> listOf(intent.index.toString())
+        is ScreenIntent.RemoveServerAddress -> listOf(intent.index.toString())
+        is ScreenIntent.MoveServerAddressUp -> listOf(intent.index.toString())
+        is ScreenIntent.MoveServerAddressDown -> listOf(intent.index.toString())
     }
 
     @Test

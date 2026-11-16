@@ -157,11 +157,11 @@ class ServerDevicesTest {
     }
 
     @Test
-    fun `the base address is read once when a request is sent`() {
+    fun `the base address and the list are read once each when a request is sent`() {
         val rig = Rig()
         rig.vault.stored = ADA_RECORD
         rig.http.answer(200, rowsBody)
         rig.service().devices()
-        assertEquals(1, rig.baseReads)
+        assertEquals(2, rig.baseReads)
     }
 }

@@ -26,12 +26,12 @@ internal class SignInStart(val view: android.view.View, val screen: dev.breaker.
 /** Builds the sign-in start view and its screen for [activity]; the view is not added to any column here. */
 internal fun mountSignInStart(activity: android.app.Activity, app: dev.breaker.dictation.BreakerApp): SignInStart {
     lateinit var screen: dev.breaker.dictation.wiring.SignInStartScreen
-    val view: android.view.View = dev.breaker.dictation.ui.createSignInStartView(activity, app.settingsStore, { app.settingsStore.load().serverUrl }, { screen.onTap() })
+    val view: android.view.View = dev.breaker.dictation.ui.createSignInStartView(activity, app.settingsStore, { app.compositionRoot.serverUrl() }, { screen.onTap() })
     screen = dev.breaker.dictation.wiring.SignInStartScreen(
         dev.breaker.dictation.wiring.SignInStartWiring(app.compositionRoot.signInHolder),
         view as dev.breaker.dictation.ui.SignInStartControl,
         { url -> openInBrowser(activity, url) },
-        { app.settingsStore.load().serverUrl },
+        { app.compositionRoot.serverUrl() },
     )
     listenForReturn(activity, app, screen)
     return SignInStart(view, screen)

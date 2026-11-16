@@ -22,8 +22,8 @@ import java.util.Properties
  * **What `writtenKeys()` promises.** It is called by no other test, and its own
  * doc claims it is "used by tests to prove nothing extra is written" — which
  * was false until now. The second test is that proof, and it compares three
- * ways: the keys parsed from the saved file, `writtenKeys()`, and a
- * hand-written list of the ten names as string literals. The hand-written
+ * three ways: the keys parsed from the saved file, `writtenKeys()`, and a
+ * hand-written list of the fourteen names as string literals. The hand-written
  * list is the part a two-sided comparison cannot supply: if `writtenKeys()`
  * were derived from the same settings the codec encodes, a codec that dropped a
  * blank `server_url` in both places would satisfy a file-vs-`writtenKeys()`
@@ -32,17 +32,21 @@ import java.util.Properties
 class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
 
     /**
-     * The ten key names, written out by hand.
+     * The fourteen key names, written out by hand.
      *
-     * Deliberately not `THE_TEN_KEYS` and not `writtenKeys()`: both of those
+     * Deliberately not `THE_WRITTEN_KEYS` and not `writtenKeys()`: both of those
      * live in the same shape of knowledge as the code under test, so a codec
      * that lost a key on the way out would lose it on both sides of the
      * comparison and the test would still pass. Literals break that circle.
      */
-    private val theTenNamesByHand: Set<String> = setOf(
+    private val theWrittenNamesByHand: Set<String> = setOf(
         "mode",
         "model_size",
         "server_url",
+        "server_address_1",
+        "server_address_2",
+        "server_address_3",
+        "server_last_good",
         "wake_gesture_mode",
         "tile_position",
         "language",
@@ -75,7 +79,7 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
     @Test
     fun `the credential guard reports a planted key in a file the module did not write`() {
         val props = Properties()
-        theTenNamesByHand.forEach { props.setProperty(it, "irrelevant") }
+        theWrittenNamesByHand.forEach { props.setProperty(it, "irrelevant") }
         props.setProperty("api_key", "PLANTED")
         props.setProperty("app_secret", "PLANTED")
         props.setProperty("SESSION_TOKEN", "PLANTED")
@@ -118,11 +122,11 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
      * Saved with a blank `server_url`, because a blank value is exactly the
      * case a codec can quietly drop: the key is absent-but-harmless, so nothing
      * downstream notices and no other test fails. Every other key is at a
-     * non-default value, so "all ten present" is not proven by a file of ten
-     * blanks — presence and value are asserted separately.
+     * non-default value, so "all fourteen present" is not proven by a file of
+     * fourteen blanks — presence and value are asserted separately.
      */
     @Test
-    fun `writtenKeys matches the saved file and the hand written ten names`() {
+    fun `writtenKeys matches the saved file and the hand written names`() {
         val file = newFile()
         val saved = validSettings().copy(serverUrl = "", microphoneAsked = true)
 
@@ -141,7 +145,7 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
         // comparison above from agreeing with itself.
         assertEquals(
             "the hand-written key names",
-            theTenNamesByHand,
+            theWrittenNamesByHand,
             fileKeys,
         )
 
@@ -150,6 +154,12 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
         // above on its own.
         assertTrue("server_url was dropped from the file", fileKeys.contains("server_url"))
         assertEquals("server_url must be written blank", "", raw.getProperty("server_url"))
+        // The list is empty because only serverUrl was set, so the fallback
+        // writes entry 1 blank and the other two entries blank too.
+        assertEquals("server_address_1 must be written blank", "", raw.getProperty("server_address_1"))
+        assertEquals("server_address_2 must be written blank", "", raw.getProperty("server_address_2"))
+        assertEquals("server_address_3 must be written blank", "", raw.getProperty("server_address_3"))
+        assertEquals("server_last_good must be written blank", "", raw.getProperty("server_last_good"))
 
         // Second, independent witness: the raw bytes carry the line itself, so
         // the claim does not rest on the parser agreeing with the writer.
@@ -159,7 +169,7 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
             rawText.lines().any { it == "server_url=" },
         )
 
-        // The other nine at values a file of blanks could not produce.
+        // The other keys at values a file of blanks could not produce.
         assertEquals("microphone_asked", "true", raw.getProperty("microphone_asked"))
         assertEquals("mode", "SERVER", raw.getProperty("mode"))
         assertEquals("model_size", "medium", raw.getProperty("model_size"))

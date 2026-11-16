@@ -9,6 +9,8 @@ import dev.breaker.dictation.ui.testing.FAILURE_MARKER
 import dev.breaker.dictation.ui.testing.FAILURE_URL
 import dev.breaker.dictation.ui.testing.FakeSettingsStore
 import dev.breaker.dictation.ui.testing.NONDEFAULT
+import dev.breaker.dictation.ui.testing.SINGLE
+import dev.breaker.dictation.ui.testing.TWO_ENTRIES
 import dev.breaker.dictation.ui.theme.ThemeController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -71,7 +73,7 @@ class SettingsServerAddressSaveTest {
 
     @Test
     fun `a good address is stored and read back through the store`() {
-        val f = Fixture(NONDEFAULT)
+        val f = Fixture(SINGLE)
         val after = f.handler.handle(ScreenIntent.SetSetting("server_url", "https://box.example"))
         assertEquals("https://box.example", f.store.current.serverUrl)
         assertEquals("https://box.example", f.store.load().serverUrl)
@@ -98,7 +100,7 @@ class SettingsServerAddressSaveTest {
 
     @Test
     fun `a blank box clears the address and the row shows the words for not set`() {
-        val f = Fixture(NONDEFAULT)
+        val f = Fixture(SINGLE)
         val after = f.handler.handle(ScreenIntent.SetSetting("server_url", "   "))
         assertEquals("", f.store.current.serverUrl)
         assertEquals(1, f.store.saveAttempts)
@@ -109,8 +111,34 @@ class SettingsServerAddressSaveTest {
     }
 
     @Test
+    fun `a blank first box promotes the second entry to entry 1`() {
+        val f = Fixture(TWO_ENTRIES)
+        val after = f.handler.handle(ScreenIntent.SetSetting("server_url", "   "))
+        assertEquals("the second entry is now the address", "https://b.example", f.store.current.serverUrl)
+        assertEquals(
+            "a one-entry list is the canonical single form: serverUrl alone",
+            emptyList<String>(),
+            f.store.current.serverAddresses,
+        )
+        assertEquals(1, f.store.saveAttempts)
+        assertEquals("https://b.example", after.serverField()?.text)
+        assertNull(after.noticeText())
+    }
+
+    @Test
+    fun `a blank second box drops the second entry`() {
+        val f = Fixture(TWO_ENTRIES)
+        val after = f.handler.handle(ScreenIntent.SetSetting("server_address_2", "  "))
+        assertEquals("the first entry is still the address", "https://a.example", f.store.current.serverUrl)
+        assertEquals(emptyList<String>(), f.store.current.serverAddresses)
+        assertEquals(1, f.store.saveAttempts)
+        assertEquals("https://a.example", after.serverField()?.text)
+        assertNull(after.noticeText())
+    }
+
+    @Test
     fun `the same address again is not saved a second time`() {
-        val f = Fixture(NONDEFAULT)
+        val f = Fixture(SINGLE)
         f.handler.handle(ScreenIntent.SetSetting("server_url", "https://box.example"))
         assertEquals(1, f.store.saveAttempts)
         val after = f.handler.handle(ScreenIntent.SetSetting("server_url", "https://box.example"))
@@ -137,14 +165,19 @@ class SettingsServerAddressSaveTest {
 
     @Test
     fun `a good save changes the address and no other setting`() {
-        val f = Fixture(NONDEFAULT)
+        val f = Fixture(SINGLE)
         f.handler.handle(ScreenIntent.SetSetting("server_url", "https://box.example"))
-        assertEquals(NONDEFAULT.copy(serverUrl = "https://box.example"), f.store.current)
+        // A single address is `serverUrl` alone: the canonical form keeps the list
+        // empty until there are two entries.
+        assertEquals(
+            SINGLE.copy(serverUrl = "https://box.example"),
+            f.store.current,
+        )
     }
 
     @Test
     fun `a good address after a refusal clears the notice`() {
-        val f = Fixture(NONDEFAULT)
+        val f = Fixture(SINGLE)
         val refused = f.handler.handle(ScreenIntent.SetSetting("server_url", "box.example"))
         assertEquals(refusedNotice, refused.noticeText())
         val after = f.handler.handle(ScreenIntent.SetSetting("server_url", "https://box.example"))
@@ -163,7 +196,7 @@ class SettingsServerAddressSaveTest {
 
     @Test
     fun `the same text under the address key is saved and is the control for the key test`() {
-        val f = Fixture(NONDEFAULT)
+        val f = Fixture(SINGLE)
         val after = f.handler.handle(ScreenIntent.SetSetting("server_url", "https://box.example"))
         assertEquals(1, f.store.saveAttempts)
         assertNull(after.noticeText())

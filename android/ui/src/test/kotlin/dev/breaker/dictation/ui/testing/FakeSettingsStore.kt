@@ -30,6 +30,33 @@ internal val NONDEFAULT: AppSettings = AppSettings(
     formattingEnabled = false,
     themeMode = ThemeMode.LIGHT,
     microphoneAsked = true,
+    // Two entries, not one: a one-entry list is stored as the empty list (the canonical
+    // single form), so a single address would leave this field equal to the default.
+    serverAddresses = listOf("https://srv.example.invalid:8443", "https://alt.example.invalid:8443"),
+    serverLastGood = "https://srv.example.invalid:8443",
+)
+
+/**
+ * A one-address baseline: [AppSettings.serverUrl] alone and an empty list, the canonical single
+ * form. Use this when a test varies only the address — [NONDEFAULT] is a two-entry list, so
+ * changing its `serverUrl` alone would leave it disagreeing with entry 1, which [AppSettings]
+ * refuses.
+ */
+internal val SINGLE: AppSettings = NONDEFAULT.copy(
+    serverUrl = "https://srv.example.invalid:8443",
+    serverAddresses = emptyList(),
+)
+
+/** Two addresses, the first of which is [AppSettings.serverUrl]. */
+internal val TWO_ENTRIES: AppSettings = NONDEFAULT.copy(
+    serverUrl = "https://a.example",
+    serverAddresses = listOf("https://a.example", "https://b.example"),
+)
+
+/** Three addresses, the first of which is [AppSettings.serverUrl]. */
+internal val THREE_ENTRIES: AppSettings = NONDEFAULT.copy(
+    serverUrl = "https://a.example",
+    serverAddresses = listOf("https://a.example", "https://b.example", "https://c.example"),
 )
 
 /**

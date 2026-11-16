@@ -116,6 +116,10 @@ internal class HistoryIntentHandler(
         is ScreenIntent.SetThemeMode,
         is ScreenIntent.Setup,
         is ScreenIntent.Home,
+        is ScreenIntent.AddServerAddress,
+        is ScreenIntent.RemoveServerAddress,
+        is ScreenIntent.MoveServerAddressUp,
+        is ScreenIntent.MoveServerAddressDown,
         ScreenIntent.Back,
         -> draw()
     }

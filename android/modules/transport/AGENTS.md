@@ -33,6 +33,16 @@ probe only.
 order and spelling:
 
 - `TcpConnectivityProbe`
+- `ProbeSelection`
+
+**Probe order policy (`ProbeSelection`).** A pure, stateless function
+`select(entries, lastGood, answers)` decides which configured address the app
+uses: the entries are asked in LIST ORDER (entry 1 first), the first whose
+`answers` predicate is true wins and the rest are not asked; when none answers
+the last good address is used if it is not blank, else entry 1, else the empty
+string. The last good address is never tried ahead of the list — a phone back
+home returns to the home address even when the road address still answers. No
+sockets, no clock, no state: the caller owns the probe behind `answers`.
 
 **How core uses the answer (`AppSettings.mode`, a `core.SttMode`):**
 - `AUTO` (server-primary, the default): `DictateUseCase` asks this probe once,

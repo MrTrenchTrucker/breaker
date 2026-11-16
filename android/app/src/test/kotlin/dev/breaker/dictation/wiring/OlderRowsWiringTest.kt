@@ -1,7 +1,6 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.auth.client.AddressedSession
-import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.AuthSession
 import dev.breaker.dictation.core.model.SyncReport
 import dev.breaker.dictation.core.model.TokenScope
@@ -10,7 +9,6 @@ import dev.breaker.dictation.core.model.UserRole
 import dev.breaker.dictation.core.port.OlderBound
 import dev.breaker.dictation.core.port.OlderHistory
 import dev.breaker.dictation.core.port.OlderResult
-import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.SyncService
 import dev.breaker.dictation.http.BytesReply
 import dev.breaker.dictation.http.CallRequest
@@ -38,11 +36,6 @@ class OlderRowsWiringTest {
 
     private fun session(): AddressedSession =
         AddressedSession(BASE, AuthSession("u1", "user", "token-a", UserRole.USER, setOf(TokenScope.TRANSCRIBE)))
-
-    private fun settingsStore(): SettingsStore = object : SettingsStore {
-        override fun load() = AppSettings(serverUrl = BASE)
-        override fun save(settings: AppSettings) {}
-    }
 
     /** Records, in order, every delete queued and every drain that ran. */
     private class FakeSyncService : SyncService {
@@ -112,7 +105,7 @@ class OlderRowsWiringTest {
     ): OlderHistory? =
         olderRowsTransport(
             syncOn = syncOn,
-            settingsStore = settingsStore(),
+            serverUrl = { BASE },
             addressedSession = supplier,
             syncService = service,
             worker = SyncWorker(

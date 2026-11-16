@@ -29,11 +29,11 @@ internal fun BreakerApp.serviceStatusHome(): ServiceStatusHome {
         return homes.getOrPut(app) {
             ServiceStatusHome(
                 asker = ServiceStatusProbe(
-                    transport = JdkHttpTransport({ app.settingsStore.load().serverUrl }),
+                    transport = JdkHttpTransport(app.compositionRoot.serverUrl),
                     addressedSession = app.compositionRoot.addressedSession,
                 ),
                 asked = {
-                    syncAllowed(app.applicationInfo.flags) && app.compositionRoot.sessionLive.liveNow() && app.settingsStore.load().serverUrl.isNotBlank()
+                    syncAllowed(app.applicationInfo.flags) && app.compositionRoot.sessionLive.liveNow() && app.compositionRoot.serverUrl().isNotBlank()
                 },
                 post = MainLooperPost(),
                 clock = SystemClockAdapter,

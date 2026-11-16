@@ -13,6 +13,7 @@ import dev.breaker.dictation.ui.screen.ValueField
 import dev.breaker.dictation.ui.screen.flatten
 import dev.breaker.dictation.ui.screen.onboarding.SetupTexts
 import dev.breaker.dictation.ui.testing.NONDEFAULT
+import dev.breaker.dictation.ui.testing.SINGLE
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.ThemeState
 import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
@@ -127,7 +128,7 @@ class SettingsLookTest {
     @Test
     fun `a server address of only spaces reads the same as an empty one`() {
         for (blank in listOf("", "   ")) {
-            val field = fieldOf(screen.render(NONDEFAULT.copy(serverUrl = blank), themeOf(), null), "settings.server.field")
+            val field = fieldOf(screen.render(SINGLE.copy(serverUrl = blank), themeOf(), null), "settings.server.field")
             assertEquals("blank serverUrl $blank", "(not set)", field.text)
             assertTrue("blank serverUrl $blank is muted", field.muted)
         }
