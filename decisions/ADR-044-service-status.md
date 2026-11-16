@@ -18,7 +18,7 @@ on this base; Decision 2 gives the mechanism that is ruled instead.
 
 The project owner ruled out ntfy, webhook and any third-party notifier.
 Service status is instead exposed as a light route on the server (built: `StatusRoute.kt:24`), with a single line
-on the phone Home screen and a banner on the admin web page (both planned, not built).
+on the phone Home screen (planned, not built) and a banner on the admin web page (its two modules are built, no page shows them yet).
 
 ## Decision
 
@@ -91,8 +91,8 @@ implementation; the rate-limit numbers (ADR-041 sets none yet); how "since
 when" is computed for the banner.
 
 Honesty: this ADR records the owner's ruling; the server route `GET /v1/status` is built
-(`StatusRoute.kt:24`); the phone line and the web banner are not built: no shipped phone or web code calls
-`/v1/status` (the only phone-side mention is a doc snippet, `android/modules/http/README.md:12`). The three strings.xml words are
+(`StatusRoute.kt:24`); the phone line is not built: no shipped phone code calls
+`/v1/status` (the only phone-side mention is a doc snippet, `android/modules/http/README.md:12`); the web banner has its two modules (`status-net.js` makes the call, `status-banner.js` words the lines) but no page loads them yet. The three strings.xml words are
 given verbatim by the ruling; the whisper-server mechanism is ruled in Decision 2;
 the rest of the wording is open.
 

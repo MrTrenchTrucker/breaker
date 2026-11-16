@@ -83,6 +83,19 @@ The opening function (`unseal`) is not built in this module yet, the page does n
 conversion, and the wire encoding of the encrypted body is left to the injected `encrypt` and
 `upload`; only the module's own tests call it.
 
+**Built now: the admin status banner modules (ADR-044 point 4), no page yet.** Two ES
+modules with no page around them: `status-net.js` (the one call to the server's own
+`GET /v1/status`, with the bearer token, no cookies, no cache and no body; a network
+error rejects and is caught by the future page code, and the call never retries) and
+`status-banner.js` (pure: `parseStatus` accepts only a 200 answer whose `services` is an
+array of 1..20 objects with a plain-string name and a boolean `up`, and `nextBanner`
+turns a known answer into one plain-text line per down service, remembering per service
+the first time this browser saw it down; no DOM, no fetch, no clock of its own, and the
+HH:MM formatter is injected so the module is testable). `since` is counted from when
+this browser first saw the service down, not from the server's own start of the outage.
+How these files reach a browser is still the open owner question above, so no page calls
+them yet; only the modules' own tests call them.
+
 **Hosting:**
 - `/Breaker.apk` — latest signed APK (from the git-pull build).
 - Published SHA-256 for the APK on the download page (tamper check).
@@ -262,6 +275,7 @@ The sign-in page `signin.html`, with its entry script `js/signin-page.js`. The p
 - Contract: `tests/contract/test_web_fe_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_web_fe_contract.py`
 - JavaScript (AES-GCM layer): `server/modules/web-fe/src/test/js/aesgcm.test.mjs`. Run: `python3 -m unittest discover -s tests/unit/web_fe` (the runner assembles the web-libs test tree first; `node --test` alone in the source tree fails to find the vendored libraries; needs node 20.19.0 or newer).
 - JavaScript (pending-sealed conversion): `pending-sealed.test.mjs` and `pending-sealed-net.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above.
+- JavaScript (admin status banner): `status-net.test.mjs` and `status-banner.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above.
 - JavaScript (sign-in page logic): `signin-link.test.mjs`, `signin.test.mjs`, `signin-kdf.test.mjs`, `signin-crypto.test.mjs`, `signin-flow.test.mjs`, `signin-edge.test.mjs`, `signin-net.test.mjs`, `signin-logout.test.mjs`, `signin-page.test.mjs` and `signin-wire.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above. The fixtures for them are in `signin-fixtures.mjs`, `signin-page-fixtures.mjs` and `signin-vectors.mjs`, helpers and not test files. With the AES-GCM tests and the three devices test files (`devices-net.test.mjs`, `devices.test.mjs`, `devices-view.test.mjs`) the runner runs the whole set, and the count of passing tests it must report is pinned in `tests/unit/web_fe/test_aesgcm_js.py`, which is the one place the count lives.
 - Runner: `tests/unit/web_fe/test_aesgcm_js.py` runs those tests, fails (never skips) when node is missing or older than 20.19.0, and pins the number of passing tests. Run: `python3 -m unittest discover -s tests/unit/web_fe`
 - Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the seven vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry. `tests/contract/web_fe_signin_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in source files: the imports of `signin.js` and of `signin-link.js`, the forbidden tokens, banned words, short code tags, digit and hex runs, ASCII only, long base64-looking literals, the line cap, the test file names and the sha256 of `aesgcm.js`. `tests/contract/web_fe_signin_kdf_pins.py` (collected by `test_web_fe_contract.py`) pins `signin-kdf.js`: its imports, its two exports, its two label lines and the join that builds the label text, the forbidden tokens and the line cap. `tests/contract/web_fe_signin_page_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in page files with `check_signin_page_sources`: the html rules, the css rules, the forbidden tokens of the page and network files, the crypto facade (`available` is false, its exports and the two `not available` throws), and the repo text scan of the new files; every rule has a firing control.
