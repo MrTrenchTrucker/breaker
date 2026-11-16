@@ -53,8 +53,6 @@ internal class AccountStoreLockedTest : TempDatabaseTest() {
         val countBefore = attemptOf("alice")!!.wrongCount
         val sixth = runBlocking { store.verify("alice", AccountFixtures.verifier(2)) }
         assertTrue("sixth wrong inside wait is Locked", sixth is VerifyResult.Locked)
-        val locked = (sixth as VerifyResult.Locked).secondsRemaining
-        assertTrue("secondsRemaining is positive", locked > 0L)
         assertEquals("count untouched inside wait", countBefore, attemptOf("alice")!!.wrongCount)
         assertEquals("locked_until untouched inside wait", lockedBefore, attemptOf("alice")!!.lockedUntilMs)
     }
@@ -103,15 +101,13 @@ internal class AccountStoreLockedTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `an unknown name locked by five wrong tries returns Locked with 900 seconds`() {
+    fun `an unknown name locked by five wrong tries returns Locked`() {
         runBlocking { store.verify("nobody", AccountFixtures.verifier(1)) }
         repeat(3) { runBlocking { store.verify("nobody", AccountFixtures.verifier(2)) } }
         val fifth = runBlocking { store.verify("nobody", AccountFixtures.verifier(2)) }
         assertEquals("fifth wrong for unknown name is Rejected", VerifyResult.Rejected, fifth)
         val sixth = runBlocking { store.verify("nobody", AccountFixtures.verifier(1)) }
         assertTrue("sixth wrong for unknown name inside wait is Locked", sixth is VerifyResult.Locked)
-        val seconds = (sixth as VerifyResult.Locked).secondsRemaining
-        assertEquals("unknown name lock gives 900 seconds", 900L, seconds)
     }
 
     private fun mutableClock(instant: Instant): Clock =

@@ -14,12 +14,6 @@ internal class SigninAttemptStore(
     companion object {
         const val LOCK_WAIT_MS: Long = 15 * 60 * 1000
         const val DEFAULT_MAX_ROWS: Int = 10_000
-
-        /** Whole seconds left in the lock, rounded UP, never less than 1. Pure. */
-        fun retryAfterSeconds(lockedUntilMs: Long, nowMs: Long): Long {
-            val remaining = lockedUntilMs - nowMs
-            return Math.max(1, (remaining + 999) / 1000)
-        }
     }
 
     // Records one wrong attempt for [foldedUsername]. Three cases:

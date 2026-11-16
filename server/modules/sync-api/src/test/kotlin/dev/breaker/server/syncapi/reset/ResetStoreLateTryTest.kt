@@ -63,7 +63,7 @@ internal class ResetStoreLateTryTest : ResetStoreTestBase() {
         repeat(5) {
             assertEquals("sync-api: wrong try on a pending name", VerifyResult.Rejected, verifyAlice(5))
         }
-        assertEquals("sync-api: the sixth try is locked", VerifyResult.Locked(900L), verifyAlice(5))
+        assertEquals("sync-api: the sixth try is locked", VerifyResult.Locked, verifyAlice(5))
         completed(complete("alice", code))
         assertNull("sync-api: complete clears the lock row", attemptOf("alice"))
         val fresh = VerifyResult.Verified(alice, Role.USER)
