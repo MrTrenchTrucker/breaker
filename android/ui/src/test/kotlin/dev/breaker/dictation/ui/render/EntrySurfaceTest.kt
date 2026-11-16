@@ -21,7 +21,8 @@ class EntrySurfaceTest {
             "settings: dev.breaker.dictation.core.port.SettingsStore, " +
             "modelReady: () -> Boolean, downloadLine: () -> String?, " +
             "onDownloadModel: () -> Unit, onThemeChanged: (() -> Unit)? = null, " +
-            "sessionLive: (() -> Boolean)? = null, onSignIn: (() -> Unit)? = null): android.view.View"
+            "sessionLive: (() -> Boolean)? = null, onSignIn: (() -> Unit)? = null, " +
+            "serverAddressStatus: (() -> dev.breaker.dictation.ui.screen.settings.ServerAddressStatus)? = null): android.view.View"
 
     /** The public declaration of the history view, written on one line. */
     private val HISTORY_SIGNATURE =

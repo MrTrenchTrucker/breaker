@@ -95,6 +95,7 @@ internal fun buildSettingsRebuilt(
             onDownloadModel = { app.tileHost.requestDownload() },
             sessionLive = { app.compositionRoot.sessionLive.liveNow() },
             onSignIn = onSignIn,
+            serverAddressStatus = { app.compositionRoot.serverAddressStatus() },
         )
     }
 }
@@ -113,4 +114,12 @@ internal fun buildSettingsColumn(
     val scroll = ScrollView(activity)
     scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
     return SettingsColumnParts(column, scroll, signInStart)
+}
+
+/**
+ * One bounded probe refresh each time Settings opens; when it settles, [redraw] runs once on the main
+ * thread, and only while [stillShown] says the screen is still the one on show.
+ */
+internal fun redrawSettingsAfterProbe(app: BreakerApp, stillShown: () -> Boolean, redraw: () -> Unit) {
+    app.probeStatusRefresh.start { MainLooperPost().post { if (stillShown()) redraw() } }
 }

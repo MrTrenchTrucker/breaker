@@ -11,6 +11,7 @@ import dev.breaker.dictation.host.buildSettingsColumn
 import dev.breaker.dictation.host.buildSettingsRebuilt
 import dev.breaker.dictation.host.createHomeMic
 import dev.breaker.dictation.host.downloadControlOf
+import dev.breaker.dictation.host.redrawSettingsAfterProbe
 import dev.breaker.dictation.host.selectedModelMb
 import dev.breaker.dictation.service.NotificationRoute
 import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
@@ -165,6 +166,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             (homeView as? dev.breaker.dictation.ui.HomeControl)?.showLine(refusal)
         }
         if (this::signInStart.isInitialized) signInStart.screen.onResume(app.compositionRoot.signInReturnStore.take())
+        if (settingsShown) redrawSettingsAfterProbe(app, { !isFinishing && settingsShown }) { downloadControlOf(false, firstRunView, settingsView)?.refresh() }
     }
     override fun onPause() {
         super.onPause()

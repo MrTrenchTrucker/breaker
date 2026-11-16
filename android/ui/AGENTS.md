@@ -88,6 +88,12 @@ screens render with ui-tokens; light/dark toggle persists.
   `isPlainHttp` in the same file is the one predicate for "this stored address is plain http" (it goes through
   `accepted`, so a refused text is never plain http); the settings screen draws one quiet line, the words held in
   `SettingsTexts.PLAIN_HTTP_HELP` (ADR-034), under the server field only when it is true.
+- One more quiet line sits under the server address rows (ADR-042): `serverAddressStatusLine` in
+  `ServerAddressStatusLine.kt`. The app hands in ONE value, `ServerAddressStatus` (`Checking`, `InUse` with the
+  address, or `NoneAnswered`), and the file only turns it into the words held in `SettingsTexts`; the node id is
+  `SERVER_ADDRESS_STATUS_LINE_ID`. No line is drawn when the app hands in no value or when no stored address is
+  set (a blank draft row is not an address). The line is redrawn at each drawing from the value the app hands in
+  then, so it follows the app's reading. Tested in `SettingsServerAddressStatusLineTest`.
 - The Settings view draws live through the theme controller. `SettingsHostView` redraws the whole screen when
   the theme changes, and its model download bar takes the same theme, so no part keeps a fixed theme. The view
   has no setup block and no History button; its sections are the theme, the routing, the two switches (the preload and the formatting), the wake-gesture choice (a three-cell row), the

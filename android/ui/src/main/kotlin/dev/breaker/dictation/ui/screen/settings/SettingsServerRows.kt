@@ -26,9 +26,14 @@ import dev.breaker.dictation.ui.theme.PaletteSlot
 /**
  * The server address block: the block label, then each row in stored order with
  * its own field, its plain-http line when it is plain http and its remove and
- * move controls, and last the add control.
+ * move controls, then the one status line when there is a state to report, and
+ * last the add control.
+ *
+ * [status] is the app's reading of the stored addresses as it was handed in, or
+ * null when no provider was wired; the block never reads or probes anything
+ * itself.
  */
-internal fun serverAddressBlock(held: AppSettings, rowCount: Int): Box = Box(
+internal fun serverAddressBlock(held: AppSettings, rowCount: Int, status: ServerAddressStatus?): Box = Box(
     id = SettingsIds.SERVER_ROW,
     background = PaletteSlot.BACKGROUND,
     gap = Space.S,
@@ -55,6 +60,7 @@ internal fun serverAddressBlock(held: AppSettings, rowCount: Int): Box = Box(
             }
             add(serverRowControls(index, rows.size))
         }
+        serverAddressStatusLine(status, serverAddressRows(held))?.let { add(it) }
         add(
             Action(
                 id = SERVER_ROW_ADD_ID,

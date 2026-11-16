@@ -197,14 +197,14 @@ internal fun wakeGestureBlock(held: AppSettings): Box = Box(
  * stored order with their row controls, and the API key as a row that says only
  * whether a key is held.
  */
-internal fun valuesBlock(held: AppSettings, model: ModelRow, rowCount: Int): Box = Box(
+internal fun valuesBlock(held: AppSettings, model: ModelRow, rowCount: Int, serverAddressStatus: ServerAddressStatus?): Box = Box(
     id = SettingsIds.VALUES_BLOCK,
     background = PaletteSlot.BACKGROUND,
     gap = Space.S,
     children = listOf(
         sectionLabel(SettingsIds.VALUES_HEADING, SettingsTexts.VALUES_HEADING),
         modelRow(held, model),
-        serverAddressBlock(held, rowCount),
+        serverAddressBlock(held, rowCount, serverAddressStatus),
         Box(
             id = SettingsIds.API_KEY_ROW,
             background = PaletteSlot.BACKGROUND,

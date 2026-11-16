@@ -43,7 +43,7 @@ open class AppLayoutGateRules {
         "wiring/FileSessionVault.kt",
         "wiring/CredentialFileVault.kt",
         "wiring/KeysClearingSessionVault.kt",
-        "host/ServiceRefusalNotice.kt",
+        "host/ServiceRefusalNotice.kt", "host/ProbeStatusRefresh.kt",
         "wiring/SyncHttpUploader.kt", "wiring/SyncScheduler.kt", "wiring/SyncWorker.kt", "wiring/SyncingHistoryStore.kt",
         "wiring/ServiceStatusAsker.kt", "wiring/ServiceStatusJson.kt", "wiring/ServiceStatusProbe.kt", "wiring/ServiceStatusSchedule.kt", "wiring/ServiceStatusHome.kt",
         "wiring/PullHttpTransport.kt", "wiring/PullChainWiring.kt",

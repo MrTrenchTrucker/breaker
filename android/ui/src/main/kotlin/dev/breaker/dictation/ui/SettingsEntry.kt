@@ -59,6 +59,7 @@ import java.time.ZoneId
  * @param onDownloadModel asks the app to download the speech model.
  * @param sessionLive answers whether the session is live, or null for always live; the signed-out block shows when it is not.
  * @param onSignIn asks the app to start signing in, or null for nothing; called when that block's Sign in is tapped.
+ * @param serverAddressStatus answers the app's reading of the stored server addresses, or null for no status line; read once per drawing.
  * @return a view that shows the settings and can be put in a layout as it stands.
  */
 // The parameter types are written out in full: this is the one line of this
@@ -73,12 +74,13 @@ fun createSettingsView(
     onThemeChanged: (() -> Unit)? = null,
     sessionLive: (() -> Boolean)? = null,
     onSignIn: (() -> Unit)? = null,
+    serverAddressStatus: (() -> dev.breaker.dictation.ui.screen.settings.ServerAddressStatus)? = null,
 ): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
     val themes = ThemeController(settings, phoneIsDark)
     bindThemeChanges(themes, onThemeChanged)
     val handler = SettingsIntentHandler(settings, themes, SettingsScreen())
-    return SettingsHostView(context, handler, themes, ScreenRenderer(context), modelReady, downloadLine, onDownloadModel, sessionLive ?: ALWAYS_LIVE, onSignIn ?: NO_SIGN_IN)
+    return SettingsHostView(context, handler, themes, ScreenRenderer(context), modelReady, downloadLine, onDownloadModel, sessionLive ?: ALWAYS_LIVE, onSignIn ?: NO_SIGN_IN, serverAddressStatus)
 }
 
 /**

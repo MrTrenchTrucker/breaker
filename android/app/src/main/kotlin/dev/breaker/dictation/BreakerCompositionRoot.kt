@@ -184,6 +184,8 @@ class BreakerCompositionRoot(
 
     /** The connectivity probe of the dictation path: one instance, shared by [refreshProbeInBackground] and the dictation component. */
     internal val probe: TcpConnectivityProbe get() = effectiveAddress.probe
+    /** The stored-address status the settings screen reads: one cache-only snapshot per call, never a dial. */
+    internal val serverAddressStatus: () -> dev.breaker.dictation.ui.screen.settings.ServerAddressStatus get() = effectiveAddress.serverAddressStatus
 
     /**
      * Re-probes the configured server now, replacing a cached answer, on the root's own background

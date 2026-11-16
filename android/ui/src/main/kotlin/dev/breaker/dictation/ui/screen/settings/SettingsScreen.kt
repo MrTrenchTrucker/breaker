@@ -65,8 +65,12 @@ internal class SettingsScreen {
      *
      * The title bar comes first, then the blocks in reading order, each block set
      * apart by a spacer named by its size, and the brand stripes last.
+     *
+     * [serverAddressStatus] is the app's own reading of the stored addresses, as
+     * it was handed in through the host, or null when no provider was wired. The
+     * screen never probes or reads an address itself: it only draws what it is told.
      */
-    fun render(settings: AppSettings?, theme: ThemeState, notice: Notice?, model: ModelRow = ModelRow.READY, signedOut: Boolean = false): Screen =
+    fun render(settings: AppSettings?, theme: ThemeState, notice: Notice?, model: ModelRow = ModelRow.READY, signedOut: Boolean = false, serverAddressStatus: ServerAddressStatus? = null): Screen =
         Screen(
             id = SCREEN_ID,
             title = TITLE,
@@ -81,7 +85,7 @@ internal class SettingsScreen {
                     add(Spacer(SettingsIds.GAP_SWITCHES, Space.L))
                     add(switchesBlock(settings))
                     add(Spacer(SettingsIds.GAP_VALUES, Space.XL))
-                    add(valuesBlock(settings, model, askedRows ?: storedRowCount(settings)))
+                    add(valuesBlock(settings, model, askedRows ?: storedRowCount(settings), serverAddressStatus))
                 }
                 if (signedOut) {
                     add(Spacer(SettingsIds.GAP_SIGNED_OUT, Space.L))

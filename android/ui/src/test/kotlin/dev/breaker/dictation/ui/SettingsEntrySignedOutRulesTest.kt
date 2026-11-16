@@ -28,15 +28,15 @@ class SettingsEntrySignedOutRulesTest {
         assertTrue("entry: signed out: control: $what must be reported, got $problems", problems.isNotEmpty())
 
     private val liveDefault = "private val ALWAYS_LIVE: () -> Boolean = { true }"
-    private val passLiveness = "onDownloadModel, sessionLive ?: ALWAYS_LIVE, onSignIn ?: NO_SIGN_IN)"
+    private val passLiveness = "onDownloadModel, sessionLive ?: ALWAYS_LIVE, onSignIn ?: NO_SIGN_IN, serverAddressStatus)"
 
     private fun defaultProblems(text: String): List<String> =
         listOfNotNull("the default session check is not the one that answers signed in".takeUnless { liveDefault in text })
 
     private fun passThroughProblems(text: String): List<String> = listOfNotNull(
         "the session check the caller passes does not reach the host view".takeUnless { "sessionLive ?: ALWAYS_LIVE," in text },
-        "the sign in callback the caller passes does not reach the host view".takeUnless { "onSignIn ?: NO_SIGN_IN)" in text },
-        "the host view call does not end with the session check and the sign in callback".takeUnless { passLiveness in text },
+        "the sign in callback the caller passes does not reach the host view".takeUnless { "onSignIn ?: NO_SIGN_IN," in text },
+        "the host view call does not end with the session check, the sign in callback and the status answer".takeUnless { passLiveness in text },
     )
 
     @Test

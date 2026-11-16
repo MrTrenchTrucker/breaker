@@ -14,6 +14,7 @@ import dev.breaker.dictation.ui.screen.settings.ModelRow
 import dev.breaker.dictation.ui.screen.settings.Rendered
 import dev.breaker.dictation.ui.screen.settings.SettingsIds
 import dev.breaker.dictation.ui.screen.settings.SettingsIntentHandler
+import dev.breaker.dictation.ui.screen.settings.ServerAddressStatus
 import dev.breaker.dictation.ui.screen.home.HomeActions
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.ThemeController
@@ -48,6 +49,7 @@ import dev.breaker.dictation.ui.theme.Themes
  * @param onDownloadModel asks the app to download the speech model.
  * @param sessionLive answers whether the session is live; the signed-out block shows when not.
  * @param onSignIn asks the app to start signing in; called when the signed-out block's Sign in is tapped.
+ * @param serverAddressStatus answers the app's reading of the stored server addresses, or null for no line; read once per drawing.
  */
 internal class SettingsHostView(
     context: Context,
@@ -59,6 +61,7 @@ internal class SettingsHostView(
     private val onDownloadModel: () -> Unit,
     private val sessionLive: () -> Boolean,
     private val onSignIn: () -> Unit,
+    private val serverAddressStatus: (() -> ServerAddressStatus)?,
 ) : ScrollView(context), DownloadControl {
     /**
      * The single redraw path.
@@ -103,6 +106,7 @@ internal class SettingsHostView(
     private fun refreshed(): Rendered {
         handler.showing(rowNow())
         handler.showingSignedOut(signedOut())
+        handler.showingServerAddressStatus(serverAddressStatus?.invoke())
         return handler.current()
     }
 
