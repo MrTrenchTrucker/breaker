@@ -26,7 +26,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Base64
 
-/** Tests for the locked answer: 423 + Retry-After on POST /v1/auth/login. */
+/** Tests for the locked answer: 423 without Retry-After on POST /v1/auth/login. */
 class AuthLoginRouteLockedTest {
 
     private lateinit var temp: TempDatabase
@@ -80,7 +80,7 @@ class AuthLoginRouteLockedTest {
     }
 
     @Test
-    fun `sixth wrong try inside the wait returns 423 with Retry-After`() = runBlocking {
+    fun `sixth wrong try inside the wait returns 423 without Retry-After`() = runBlocking {
         register("alice", 1)
         testApplication {
             application { authLoginRoute(accountStore, tokenStore) }
@@ -96,11 +96,10 @@ class AuthLoginRouteLockedTest {
                 setBody(loginBody("alice", 2))
             }
             assertEquals("sixth wrong inside wait is 423", HttpStatusCode.Locked, response.status)
-            val retryAfter = response.headers["Retry-After"] ?: ""
-            assertTrue("Retry-After header present", retryAfter.isNotEmpty())
+            assertTrue("no Retry-After header on a locked name", response.headers["Retry-After"].isNullOrBlank())
             val body = response.bodyAsText()
             assertTrue("body has locked error", body.contains("\"error\":\"locked\""))
-            assertTrue("body says minutes", body.contains("Try again in"))
+            assertTrue("body is the fixed sentence", body.contains("Too many wrong tries. Try again later."))
         }
     }
 
@@ -153,7 +152,7 @@ class AuthLoginRouteLockedTest {
             }
             assertEquals("known 423 status", HttpStatusCode.Locked, known.status)
             assertEquals("unknown 423 status", HttpStatusCode.Locked, unknown.status)
-            assertEquals("known Retry-After", known.headers["Retry-After"], unknown.headers["Retry-After"])
+            assertTrue("no Retry-After header on a locked name", known.headers["Retry-After"].isNullOrBlank())
             assertEquals("known 423 body", known.bodyAsText(), unknown.bodyAsText())
         }
     }
@@ -188,7 +187,7 @@ class AuthLoginRouteLockedTest {
     }
 
     @Test
-    fun `a lock with 899 seconds left says 15 minutes and Retry-After 899`() = runBlocking {
+    fun `a lock with 899 seconds left says the fixed sentence with no Retry-After`() = runBlocking {
         register("alice", 1)
         testApplication {
             application { authLoginRoute(accountStore, tokenStore) }
@@ -211,8 +210,8 @@ class AuthLoginRouteLockedTest {
                 setBody(loginBody("alice", 2))
             }
             assertEquals("a locked name is 423", HttpStatusCode.Locked, response.status)
-            assertEquals("899 seconds are left", "899", response.headers["Retry-After"])
-            assertTrue("899 seconds left say 15 minutes", response.bodyAsText().contains("Try again in 15 minutes."))
+            assertTrue("no Retry-After header on a locked name", response.headers["Retry-After"].isNullOrBlank())
+            assertTrue("body is the fixed sentence", response.bodyAsText().contains("Too many wrong tries. Try again later."))
         }
     }
 

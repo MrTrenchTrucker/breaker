@@ -95,7 +95,7 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   waiting for a reset to be completed gets `The account is waiting for a reset to be completed`
   first; the mark is read right after the session check and before the body, so a bad body on a
   pending account is 409 and no wrong try is counted, and it is read again inside the transaction),
-  and **423** `locked` with Retry-After. A session token that is revoked or expired before the
+  and **423** `locked` with a fixed sentence and no Retry-After header. A session token that is revoked or expired before the
   transaction commits (for example by an admin reset running at the same time) gets the same 401,
   `unauthorized` `Invalid or missing user session token`. Its lengths, all checked before any
   write: old verifier 32, new salt 16, new verifier 32, new wrapped DEK 60, new wrapped box private
@@ -181,7 +181,7 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   Login also answers **503** `unavailable` (the fixed body, never a 500) for a storage failure in
   the credential check, the key read or the session issue.
   Built on the server: login also answers **423** (locked after five wrong
-  passwords, with Retry-After in whole seconds), and `GET` and `PUT /v1/admin/wrong-pw-limit` read and set the switch. Register and salt also answer **429** with Retry-After (whole seconds, 1 to 3600) when a source address is over its limit, and `GET` and `PUT /v1/admin/rate-limits` (the `RateLimits` schema, Kotlin type `RateLimits`) read and set the one switch for those limits. `GET /v1/status` (any signed-in user) answers `ServiceStatusReply`, a list of `ServiceStatus` (name and up), built on the server.
+  passwords, with a fixed sentence and no Retry-After header), and `GET` and `PUT /v1/admin/wrong-pw-limit` read and set the switch. Register and salt also answer **429** with Retry-After (whole seconds, 1 to 3600) when a source address is over its limit, and `GET` and `PUT /v1/admin/rate-limits` (the `RateLimits` schema, Kotlin type `RateLimits`) read and set the one switch for those limits. `GET /v1/status` (any signed-in user) answers `ServiceStatusReply`, a list of `ServiceStatus` (name and up), built on the server.
 - **sync** — **user session token only on every endpoint in this group, an
   agent token is refused.** `POST /v1/sync` (idempotent push, dedupe on the
   **(client id, `key_version`)** pair — not on client id alone, and not a
@@ -325,7 +325,7 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
   pins the two hand-off paths, their statuses, the field sets and patterns of the four hand-off schemas,
   the one refusal of the exchange, and the matching Kotlin types.
 - Wrong-password limit (built on the server): the stdlib test `tests/unit/shared/api-contracts/test_wrongpw_contract.py`
-  pins the 423 locked answer of login with its Retry-After header (whole seconds, minimum 1), the
+  pins the 423 locked answer of login (the fixed sentence, no Retry-After header), the
   `GET` and `PUT /v1/admin/wrong-pw-limit` path with its statuses and operation ids, and the
   `WrongPwLimit` schema (its field-for-field match with the Kotlin type is checked by `test_conformance.py`).
 - Updates manifest: the stdlib test `tests/unit/shared/api-contracts/test_updates_contract.py` pins the path, the operation id, the six required names, the field types and `version_code` as int64 with minimum 1, and runs the conformance comparator on `UpdateManifest`; the Kotlin test `UpdateManifestTest` pins the minimum of the version code in the type.

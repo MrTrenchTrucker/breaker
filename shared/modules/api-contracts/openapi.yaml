@@ -377,7 +377,7 @@ paths:
         Wrong tries are limited: five wrong passwords start a fifteen minute
         wait, on by default; an admin can turn it off with the wrong-pw-limit route.
         A plain 401 answers the fifth wrong try; from the sixth try inside the wait
-        the answer is locked, 423 with Retry-After in seconds.
+        the answer is locked, 423 with no Retry-After header: it carries no number or wait.
 
         The key fields, key_version, prev_wrapped_dek, reset_at and rekeyed_at
         come from the stored columns. The three key fields are the canonical
@@ -440,24 +440,18 @@ paths:
                 error: "unauthorized"
                 message: "Invalid username or verifier"
         "423":
-          description: >-
-            Sign-in is locked after five wrong passwords, for 15 minutes. The
-            answer is the same for a known and an unknown username, and a right
-            password inside the wait is refused with it too. Retry-After says
-            how long to wait.
-          headers:
-            Retry-After:
-              description: Whole seconds left in the wait, rounded up, minimum 1
-              schema:
-                type: integer
-                minimum: 1
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error: "locked"
-                message: "Too many wrong tries. Try again in N minutes."
+           description: >-
+             Sign-in is locked after five wrong passwords, for 15 minutes. The
+             answer is the same for a known and an unknown username, and a right
+             password inside the wait is refused with it too. It carries no Retry-After
+             header: the caller gets no number and no wait.
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/Error"
+               example:
+                 error: "locked"
+                 message: "Too many wrong tries. Try again later."
         "413":
           description: Request entity too large
           content:
@@ -668,7 +662,7 @@ paths:
         as login. A wrong one counts as a wrong try and gets 401 with the
         message "Invalid old verifier"; one that is not base64 or not 32 bytes
         is a 400 and does not count. A locked name gets the locked answer (423
-        with Retry-After in whole seconds). A signed-in session keeps working
+        with no Retry-After header; the caller gets no number and no wait). A signed-in session keeps working
         (sync, sign-out) while the name is locked; changing the password needs
         the name unlocked.
 
@@ -850,23 +844,17 @@ paths:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
         "423":
-          description: >-
-            Sign-in is locked after five wrong passwords, for 15
-            minutes. The same answer as login. Retry-After says how long to
-            wait.
-          headers:
-            Retry-After:
-              description: "Seconds left in the wait, a whole number counted up to the next second, minimum 1"
-              schema:
-                type: integer
-                minimum: 1
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error: "locked"
-                message: "Too many wrong tries. Try again in N minutes."
+            description: >-
+              Sign-in is locked after five wrong passwords, for 15
+              minutes. The same answer as login. It carries no Retry-After header:
+              the caller gets no number and no wait.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Error"
+                example:
+                  error: "locked"
+                  message: "Too many wrong tries. Try again later."
         "503":
           description: "A storage failure or a failed session check gets this answer, also a failure while the old verifier is checked or hashed. The body is fixed and no part of the failure is echoed. The account's keys and password are not changed."
           content:

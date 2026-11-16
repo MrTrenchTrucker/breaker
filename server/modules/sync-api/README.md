@@ -41,7 +41,7 @@ The website page that calls them, and the app's sign-out call, are not built. Bu
 admin end-session route, `DELETE /v1/admin/sessions/{id}` (204 no body; admin only, an admin session or an
 admin-scoped agent token; one fixed 404 body for any id that is not a live session of any account; agent
 tokens never revoked; the account's hand-off codes left alone). The
-wrong-password limit is built (its failure counting, the locked answer, 423 with Retry-After, the on/off
+wrong-password limit is built (its failure counting, the locked answer, 423 with no header, the fixed message Too many wrong tries. Try again later., the on/off
 switch (migration 7, `server_settings`, `ServerSettingsStore`, read live on every attempt, default on, only a
 stored integer 0 is off, off = no counting, no refusing, stored attempts kept), the admin route that flips it,
 the drop of the row at registration, the hook `AccountStore.clearAttempts` and the sweep every five minutes). Register and salt are also rate limited per source address (10 and 60 a minute, with a backstop for all addresses together; 429 with Retry-After; one admin switch, `GET` and `PUT /v1/admin/rate-limits`); complete-reset limits FAILED codes (10 a minute per address and 120 in total; a right code is never counted or refused); the sync push is limited per account (600 a minute, no backstop).
