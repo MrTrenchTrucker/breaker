@@ -36,7 +36,7 @@ paragraph in `docs/00-executive-summary.md` names what is not built yet, and
 │  web-fe ── Debian container: website (client-side decrypt) + APK +           │
 │            model hosting + admin panel (service config, store clear)         │
 │  training ── per-user voice phrase model training (CPU; GPU via Local Inference)   │
-│  deploy ── git pull (latest tagged) · docker-compose · certs · APK signing   │
+│  deploy ── git pull (latest tagged) · docker-compose · APK signing           │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 

@@ -11,7 +11,7 @@ plaintext signing key — Security Review said delete it; our certs fix the tran
 ## Decision
 Rebuild the updater properly: the app polls `GET /v1/updates/latest.json`
 **once a day** (plus an admin force-check button); the endpoint reads the
-latest tagged release from the user's local GIT server. Updates are **signed
+latest tagged release from the user's local GIT server. **(replaced 2026-11-10: see the amendment below.)** Updates are **signed
 APKs** verified by signature + SHA-256 before install; install-over preserves
 data. The previous APK is kept for one-tap rollback. The signing key lives in a
 secrets store, never in git [1].
