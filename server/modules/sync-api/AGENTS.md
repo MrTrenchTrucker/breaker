@@ -9,8 +9,9 @@ A route or job marked Planned, not built below is not installed on main yet.
 
 **Endpoints (see shared/api-contracts):**
 - `POST /v1/auth/register` — `{username, salt, kdf_params, kdf_version,
-  auth_verifier}` (ADR-006 — never a password, never a DEK; registration
-  creates no DEK and no box keypair). **First account ever registered =
+  auth_verifier, install_code}` (ADR-006 — never a password, never a DEK; registration
+  creates no DEK and no box keypair). `install_code` is optional in the body and only the
+  first registration needs it (see the install-code bullet below). **First account ever registered =
   admin by default** (F22). Subsequent = `user`. Rejects `kdf_params` below
   the 64 MiB / 3 iterations / parallelism 1 floor (ADR-006) — a weaker
   request is refused, not silently stored. It refuses `kdf_params` outside

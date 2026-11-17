@@ -38,6 +38,15 @@ class CredentialToStringTest {
         assertTrue("username printed: $s", s.contains("alice"))
     }
 
+    @Test
+    fun `RegisterRequest toString never prints installCode`() {
+        val sampleInstallCode = "INSTCODE-" + "x".repeat(34)   // 43 chars, matches ^[A-Za-z0-9_-]{43}$
+        val req = RegisterRequest("alice", validSalt16(), kdfParams(), 1, validVerifier(), sampleInstallCode)
+        val s = req.toString()
+        assertFalse("installCode must not print: $s", s.contains(sampleInstallCode))
+        assertTrue("class name present: $s", s.contains("RegisterRequest"))
+    }
+
     // ---------- LoginResponse ----------
     @Test
     fun `LoginResponse toString redacts token and wraps key blobs`() {
