@@ -28,15 +28,15 @@ request/response types (ADR-017): the single contract both the Android client (`
   body. Any other value, the empty one included, answers 400
   `{"error":"unknown format"}` for any job that exists; the token, rate limit and
   unknown or expired job answers (401, 429, 404) come first.
-- `GET /health` — `{ status }`; `uptime` is optional (whisper-server sends `uptime`)
+- `GET /health` — carries `status` (required) and the optional `uptime` only (whisper-server sends `uptime`).
 - (v1.1) `POST /v1/audio/transcriptions/stream` — SSE partial segments
 
 There is no synchronous 200-with-body variant — every transcription is a job.
 
 **Full endpoint groups (v1):**
 - **auth** (ADR-006, ADR-018) — `POST /v1/auth/register` `{username, salt,
-  kdf_params, kdf_version, auth_verifier}` (server rejects `kdf_params` below
-  the 64 MiB/3/1 floor), first account = admin; `POST /v1/auth/salt`
+  kdf_params, kdf_version, auth_verifier, install_code?}` (server rejects `kdf_params` below
+  the 64 MiB/3/1 floor), first account = admin; `install_code` is optional (43 URL-safe characters, required only while no account exists); `POST /v1/auth/salt`
   `{username} -> {salt, kdf_params, kdf_version}`, no decoy (honest "no such
   account" for an unknown name); `POST /v1/auth/login` `{username,
   auth_verifier} -> {token, role, wrapped_dek, wrapped_box_privkey,
@@ -188,11 +188,11 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   an unknown username (no decoy); login → **200** | **401** for bad credentials or an unknown
   account (the same body for both); `DELETE /v1/admin/agent-tokens/{id}` → **204** (also when
   already revoked) | **404** unknown id | **401** no or invalid token | **403** a valid
-  non-admin token. The wire unit is KiB everywhere (memory_kib 65536-262144).
+  non-admin token. The wire unit is KiB everywhere (memory_kib 65536-262144). The bodies `SaltRequest`, `LoginRequest` and `RegisterRequest`, and the nested `KdfParams` schema, are closed (unknown member refused with 400).
   Login also answers **503** `unavailable` (the fixed body, never a 500) for a storage failure in
   the credential check, the key read or the session issue.
   Built on the server: login also answers **423** (locked after five wrong
-  passwords, with a fixed sentence and no Retry-After header), and `GET` and `PUT /v1/admin/wrong-pw-limit` read and set the switch. Register and salt also answer **429** with Retry-After (whole seconds, 1 to 3600) when a source address is over its limit, and `GET` and `PUT /v1/admin/rate-limits` (the `RateLimits` schema, Kotlin type `RateLimits`) read and set the one switch for those limits. `GET /v1/status` (any signed-in user) answers `ServiceStatusReply`, a list of `ServiceStatus` (name and up), built on the server.
+  passwords, with a fixed sentence and no Retry-After header), and `GET` and `PUT /v1/admin/wrong-pw-limit` read and set the switch. Register and salt also answer **429** with Retry-After (whole seconds, 1 to 3600) when a source address is over its limit, and `GET` and `PUT /v1/admin/rate-limits` (the `RateLimits` schema, Kotlin type `RateLimits`) read and set the one switch for those limits. `GET /v1/status` (any signed-in user) answers `ServiceStatusReply`, a list of `ServiceStatus` (name and up), built on the server. The nine operations whose full response-code set is pinned against the server code: registerAccount, getSalt, login, revokeAgentToken, adminClearStore, adminSetWrongPwLimit, adminSetRateLimits, adminSetRegistrationOpen, listPendingSealed.
 - **sync** — **user session token only on every endpoint in this group, an
   agent token is refused.** `POST /v1/sync` (idempotent push, dedupe on the
   **(client id, `key_version`)** pair — not on client id alone, and not a

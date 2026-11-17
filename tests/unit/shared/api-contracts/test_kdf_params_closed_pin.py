@@ -30,7 +30,10 @@ if TOOLS not in sys.path:
 
 import yaml_subset
 
-SPEC_PATH = os.path.join(ROOT, "shared", "modules", "api-contracts", "openapi.yaml")
+# Defaults to the repo spec; OPENAPI_SPEC_PATH lets a scratch copy be pinned
+# (the mutant check uses it, the same hook as test_sync_api_status_gaps_pin).
+SPEC_PATH = os.environ.get("OPENAPI_SPEC_PATH") or os.path.join(
+    ROOT, "shared", "modules", "api-contracts", "openapi.yaml")
 
 
 def _kdf_params():

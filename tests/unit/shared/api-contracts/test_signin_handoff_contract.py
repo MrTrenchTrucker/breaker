@@ -98,11 +98,22 @@ URL43_FIELDS = [
     ("HandoffExchangeRequest", "code"),
     ("HandoffExchangeRequest", "secret"),
     ("HandoffExchangeResponse", "token"),
+    ("RegisterRequest", "install_code"),
 ]
 SEALED_FIELDS = [
     ("HandoffStartRequest", "sealed_package"),
     ("HandoffExchangeResponse", "sealed_package"),
 ]
+
+# The four hand-off bodies are the only schemas that carry a schema example.
+# RegisterRequest.install_code is a URL43 field but the register request has no
+# example, so the example tests below cover the hand-off subset only.
+EXAMPLE_SCHEMAS = {
+    "HandoffStartRequest",
+    "HandoffStartResponse",
+    "HandoffExchangeRequest",
+    "HandoffExchangeResponse",
+}
 
 # Names no key field of the exchange answer may carry (it holds no key material).
 KEY_NAME_PARTS = ("dek", "privkey", "pubkey", "kek", "password", "verifier", "plaintext", "salt")
@@ -1144,7 +1155,8 @@ class HandoffExamplesTest(unittest.TestCase):
             for field, value in example.items():
                 if (schema, field) in URL43_FIELDS:
                     by_key[(schema, field)] = value
-        self.assertEqual(sorted(by_key), sorted(URL43_FIELDS), "an example is missing for one of challenge, code, secret, token")
+        expected = sorted(f for f in URL43_FIELDS if f[0] in EXAMPLE_SCHEMAS)
+        self.assertEqual(sorted(by_key), expected, "an example is missing for one of the five hand-off 43-character fields")
         names = sorted(field for _schema_name, field in by_key)
         self.assertEqual(names, ["challenge", "code", "code", "secret", "token"], "the five 43-character example fields")
         for (schema, field), value in by_key.items():

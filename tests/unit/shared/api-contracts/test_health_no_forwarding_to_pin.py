@@ -12,6 +12,9 @@ Tests:
   4. CONTROL: an optional member that IS supposed to be there is still
      visible to the pin -- Job.result and TranscriptionResult.words are
      present and not required                                       (GREEN control)
+  5. the Health schema is closed (additionalProperties: false)      (RED on base)
+  6. the Health description names status and optional uptime and does
+     NOT say a server may add fields                                (RED on base)
 
 Run: python3 -m unittest tests.unit.shared.api-contracts.test_health_no_forwarding_to_pin -v
 """
@@ -29,7 +32,10 @@ if TOOLS not in sys.path:
 
 import yaml_subset
 
-SPEC_PATH = os.path.join(ROOT, "shared", "modules", "api-contracts", "openapi.yaml")
+# Defaults to the repo spec; OPENAPI_SPEC_PATH lets a scratch copy be pinned
+# (the mutant check uses it, the same hook as test_sync_api_status_gaps_pin).
+SPEC_PATH = os.environ.get("OPENAPI_SPEC_PATH") or os.path.join(
+    ROOT, "shared", "modules", "api-contracts", "openapi.yaml")
 
 
 def _spec():
@@ -44,6 +50,11 @@ def _health_schema():
     if "Health" not in schemas:
         raise AssertionError("Health schema missing from components/schemas")
     return schemas["Health"]
+
+
+def _flat(text):
+    """Lower-case text with every run of whitespace collapsed (folded YAML text)."""
+    return " ".join(str(text).split()).lower()
 
 
 def _health_example():
@@ -82,6 +93,28 @@ class HealthNoForwardingToPinTest(unittest.TestCase):
             schema.get("required"),
             ["status"],
             f"Health.required must stay exactly ['status'], got {schema.get('required')!r}",
+        )
+
+    def test_health_schema_is_closed(self):
+        """(5) The Health schema carries additionalProperties: false."""
+        schema = _health_schema()
+        self.assertEqual(
+            schema.get("additionalProperties"),
+            "false",
+            "Health must be closed (additionalProperties: false); "
+            f"got {schema.get('additionalProperties')!r}",
+        )
+
+    def test_health_description_names_status_and_uptime_and_promises_no_extra_fields(self):
+        """(6) The Health description says it carries `status` and optional
+        `uptime`, and does NOT say a server may add fields."""
+        text = _flat(_health_schema().get("description", ""))
+        self.assertIn("status", text, "Health description must name status")
+        self.assertIn("uptime", text, "Health description must name the optional uptime")
+        self.assertNotIn(
+            "may add",
+            text,
+            f"Health description must not say a server may add fields; got {text!r}",
         )
 
     def test_health_example_carries_no_forwarding_to_line(self):
