@@ -182,6 +182,7 @@ agents, not required: an outside contributor may write the code themselves
   refused at config time with a message naming `BREAKER_WHISPER_FORWARDER_URL`, because it can
   smuggle credentials into the downstream URL and hide a misconfigured proxy. The scheme and
   host checks are unchanged.
+- It runs as a distribution: `./gradlew :server:modules:whisper-server:installDist` builds `build/install/whisper-server/`, entry `dev.breaker.server.whisper.WhisperServerKt`; the deploy images copy that tree.
 - The link from whisper-server to sync-api is an HTTP contract, not an import. whisper-server asks sync-api over HTTP whether a token is live, through the two internal token-check routes and a service key. No code imports sync-api, so no sync-api entry is listed under Depends On, and modules.toml lists none.
   The sealing hand-off to sync-api (ADR-018) is unshipped (Phase 19/20). ADR-018's amendment of 2026-10-20 chooses no transport; a new ADR decides the transport when that phase is ordered.
 - FIFO: never start the next job until the active one returns; retry 3× at 10 s.
