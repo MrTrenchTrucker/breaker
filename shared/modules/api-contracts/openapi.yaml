@@ -3317,11 +3317,12 @@ components:
     Health:
       type: object
       description: >-
-        The body both servers satisfy: `status` is required. A server may add the
-        optional fields below (whisper-server sends `uptime`).
+        The body both servers satisfy: `status` is required and the optional
+        `uptime` below is the only other member (whisper-server sends both,
+        sync-api sends `status` alone). The schema is closed.
       required:
         - status
-      additionalProperties: true
+      additionalProperties: false
       properties:
         status:
           type: string
