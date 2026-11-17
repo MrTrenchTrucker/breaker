@@ -158,8 +158,8 @@ class WrongPwLimitPathTest(unittest.TestCase):
 
     def test_wrong_pw_limit_put_statuses_200_400_401_403_and_503(self):
         responses = self.paths[WRONG_PW_LIMIT_PATH]["put"].get("responses", {})
-        self.assertEqual(set(responses.keys()), {"200", "400", "401", "403", "503"},
-                         "PUT must answer exactly 200/400/401/403/503 (503 is the fixed store-failure answer)")
+        self.assertEqual(set(responses.keys()), {"200", "400", "401", "403", "413", "503"},
+                         "PUT must answer exactly 200/400/401/403/413/503 (413 is AuthBodyLimit; 503 is the fixed store-failure answer)")
         self.assertIn("400", responses)
         self.assertIn("401", responses)
         self.assertIn("403", responses)

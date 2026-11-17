@@ -337,6 +337,15 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+        "403":
+          description: Registration is closed and this is not the first account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "registration_closed"
+                message: "Registration is closed."
   /v1/auth/salt:
     post:
       summary: Get account salt and KDF parameters
@@ -414,6 +423,15 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
   /v1/auth/login:
     post:
       summary: Log in
@@ -516,6 +534,15 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
   /v1/auth/keys:
     post:
       summary: Upload the account's keys for the first time
@@ -1484,6 +1511,15 @@ paths:
               example:
                 error: "not_found"
                 message: "Agent token not found"
+        "503":
+          description: A storage failure gets this fixed answer, with no part of the failure echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/sessions/{id}:
     delete:
       summary: End a session
@@ -2322,6 +2358,24 @@ paths:
               example:
                 error: "not_found"
                 message: "Account not found"
+        "413":
+          description: Request entity too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+        "503":
+          description: A storage failure gets this fixed answer, with no part of the failure echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/wrong-pw-limit:
     get:
       summary: Read whether the wrong-password limit is on
@@ -2432,6 +2486,15 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+        "413":
+          description: Request entity too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
   /v1/admin/rate-limits:
     get:
       summary: Read whether the rate limits are on
@@ -2542,6 +2605,15 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+        "413":
+          description: Request entity too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
   /v1/admin/registration-open:
     get:
       summary: Read whether registration is open
@@ -2652,6 +2724,15 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+        "413":
+          description: Request entity too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
   /v1/transcriptions:
     get:
       summary: Pull the account's transcriptions
@@ -3008,6 +3089,15 @@ paths:
               example:
                 error: "forbidden"
                 message: "User session token required; an agent token is refused"
+        "503":
+          description: A storage failure gets this fixed answer, with no part of the failure echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/updates/latest.json:
     get:
       summary: Get the latest update manifest
@@ -3062,7 +3152,6 @@ paths:
                 $ref: "#/components/schemas/Health"
               example:
                 status: "ok"
-                forwarding_to: "whisper-server:8080"
                 uptime: "1h23m45s"
   /v1/status:
     get:
@@ -3229,7 +3318,7 @@ components:
       type: object
       description: >-
         The body both servers satisfy: `status` is required. A server may add the
-        optional fields below (whisper-server sends both).
+        optional fields below (whisper-server sends `uptime`).
       required:
         - status
       additionalProperties: true
@@ -3237,9 +3326,6 @@ components:
         status:
           type: string
           description: The health status ("ok", "degraded", etc.)
-        forwarding_to:
-          type: string
-          description: Optional. The upstream service being forwarded to
         uptime:
           type: string
           description: Optional. How long the service has been running
@@ -3251,6 +3337,7 @@ components:
         - kdf_params
         - kdf_version
         - auth_verifier
+      additionalProperties: false
       properties:
         username:
           type: string
@@ -3270,6 +3357,13 @@ components:
           type: string
           pattern: "^[A-Za-z0-9+/]{43}=$"
           description: The auth verifier, base64 padded, 32 bytes after decode
+        install_code:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: >-
+            Optional. The first-admin install code (ADR-043 slice C): required while no account
+            exists, ignored once one does. A missing or a wrong code answers the same 400
+            invalid_field as a bad field.
     RegisterResponse:
       type: object
       required:
@@ -3286,6 +3380,7 @@ components:
       type: object
       required:
         - username
+      additionalProperties: false
       properties:
         username:
           type: string
@@ -3312,6 +3407,7 @@ components:
       required:
         - username
         - auth_verifier
+      additionalProperties: false
       properties:
         username:
           type: string
@@ -3367,6 +3463,7 @@ components:
         - memory_kib
         - iterations
         - parallelism
+      additionalProperties: false
       properties:
         memory_kib:
           type: integer

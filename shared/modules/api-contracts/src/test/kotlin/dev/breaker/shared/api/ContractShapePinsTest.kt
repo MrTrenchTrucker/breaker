@@ -51,9 +51,8 @@ class ContractShapePinsTest {
     }
 
     @Test
-    fun `a health body with only a status has no forwarding target and no uptime`() {
+    fun `a health body with only a status has no uptime`() {
         val health = Health(status = "ok")
-        assertNull("api-contracts: forwardingTo is optional and defaults to none", health.forwardingTo)
         assertNull("api-contracts: uptime is optional and defaults to none", health.uptime)
     }
 }

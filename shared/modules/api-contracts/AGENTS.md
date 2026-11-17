@@ -28,7 +28,7 @@ request/response types (ADR-017): the single contract both the Android client (`
   body. Any other value, the empty one included, answers 400
   `{"error":"unknown format"}` for any job that exists; the token, rate limit and
   unknown or expired job answers (401, 429, 404) come first.
-- `GET /health` — `{ status }`; `forwarding_to` and `uptime` are optional (whisper-server sends both)
+- `GET /health` — `{ status }`; `uptime` is optional (whisper-server sends `uptime`)
 - (v1.1) `POST /v1/audio/transcriptions/stream` — SSE partial segments
 
 There is no synchronous 200-with-body variant — every transcription is a job.
