@@ -178,6 +178,11 @@ internal fun buildJobStore(
     clock: Clock = Clock.systemUTC(),
 ): JobStore = JobStore(db, clock, resultTtlMs = config.resultTtlSeconds * 1000L)
 
+/** Blocks the calling thread until the worker job is cancelled, so main does not return while the service is up. */
+internal fun blockUntilShutdown(workerJob: Job) {
+    runBlocking { workerJob.join() }
+}
+
 /**
  * The runnable entry point for the whisper-server.
  *
@@ -213,4 +218,5 @@ fun main() {
     val shutdown = WhisperShutdown({ stopServer() }, workerJob, store, db)
     val server = WhisperEngine.start(api, config.bindAddress, config.port) { shutdown.run() }
     stopServer = { server.stop(1000, 5000) }
+    blockUntilShutdown(workerJob)
 }

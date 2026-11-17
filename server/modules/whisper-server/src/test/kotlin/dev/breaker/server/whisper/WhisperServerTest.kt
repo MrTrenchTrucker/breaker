@@ -255,6 +255,45 @@ internal class WhisperServerTest {
         assertTrue("database must be closed after idle shutdown", db.db.isClosed())
     }
 
+    @Test
+    fun `block until shutdown stays parked while the worker job is active and returns once it completes`(): Unit = runBlocking {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val workerScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+        val workerJob = workerScope.launch {
+            latch.await()
+        }
+
+        // Daemon on purpose: if the seam ever failed to return, this thread could not hold the
+        // suite JVM open.
+        val seam = Thread { blockUntilShutdown(workerJob) }
+        seam.isDaemon = true
+        seam.start()
+
+        try {
+            delay(300)
+            assertTrue(
+                "the seam must still be parked while the worker job is active",
+                seam.isAlive,
+            )
+        } finally {
+            // Release the worker and settle its job whatever the assertions above did, so a
+            // failing test cannot leak the coroutine or the thread.
+            latch.countDown()
+            workerJob.cancel()
+            try {
+                withTimeout(2_000) { workerJob.join() }
+            } catch (_: TimeoutCancellationException) {
+                // The worker job did not settle; the thread assertion below still reports the seam.
+            }
+        }
+
+        seam.join(2_000)
+        assertTrue(
+            "the seam thread must be gone within 2s of the worker job completing",
+            !seam.isAlive,
+        )
+    }
+
     private fun multipartBytes(boundary: String, audio: ByteArray, model: String): ByteArray {
         val sb = StringBuilder()
         sb.append("--$boundary\r\n")

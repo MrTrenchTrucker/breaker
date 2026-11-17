@@ -18,12 +18,69 @@ import contract_support
 ROOT = contract_support.ROOT
 OPENAPI = os.path.join(ROOT, "shared/modules/api-contracts/openapi.yaml")
 MAIN_SOURCE_REL = "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/WhisperServer.kt"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import yaml_subset
+
+# The shared Kotlin comment scanner, borrowed from app_sync_wiring_pins.py. Only the two
+# helpers are bound into this module's namespace: a plain `from app_sync_wiring_pins import
+# ...` would also bind AppSyncWiringPinsTest here, and unittest would then collect the
+# android-app pins during THIS module's contract run.
+import app_sync_wiring_pins
+
+_scan_kotlin = app_sync_wiring_pins._scan_kotlin
+_close_of = app_sync_wiring_pins._close_of
 
 
 def _load_openapi():
     return yaml_subset.load(OPENAPI)
+
+
+def _open_of(text, close_idx):
+    """Index of the bracket that opens the one at `close_idx`, or -1.
+
+    The backward mirror of app_sync_wiring_pins._close_of: same depth walk, scanned from
+    `close_idx` toward the start of the text.
+    """
+    close_c = text[close_idx]
+    open_c = {")": "(", "}": "{", "]": "["}[close_c]
+    depth = 0
+    for k in range(close_idx, -1, -1):
+        if text[k] == close_c:
+            depth += 1
+        elif text[k] == open_c:
+            depth -= 1
+            if depth == 0:
+                return k
+    return -1
+
+
+def _identifier_before(text, idx):
+    """The identifier that ends immediately before `idx`, or "" when there is none."""
+    end = idx
+    start = end
+    while start > 0 and (text[start - 1].isalnum() or text[start - 1] == "_"):
+        start -= 1
+    return text[start:end]
+
+
+def _top_level_args(text):
+    """Split an argument list on commas that are not nested in (), {} or []."""
+    parts = []
+    current = []
+    depth = 0
+    for ch in text:
+        if ch in "({[":
+            depth += 1
+        elif ch in ")}]":
+            depth -= 1
+        if ch == "," and depth == 0:
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(ch)
+    parts.append("".join(current))
+    return [part for part in parts if part.strip()]
 
 
 class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest):
@@ -186,6 +243,75 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
             problems.append("a @file:JvmName file's class is not <package>.<stem>Kt")
         return problems
 
+    def _main_blocks_problems(self, source_text):
+        """Empty list == main()'s last statement blocks on the worker job it launched.
+
+        Reads the COMMENT-SCANNED source (`keep_strings=False`): every guard keys on
+        identifiers and punctuation (`fun main(`, the seam's `join()`, `runBlocking`, the
+        launch-bound job variable), so a log line or KDoc carrying the seam name cannot
+        satisfy a guard and no guard reads a literal's content. G1/G2/G3 report and RETURN,
+        so each one-edit control isolates its own guard; G4/G5/G6 accumulate.
+        """
+        problems = []
+        code = _scan_kotlin(source_text, keep_strings=False)
+
+        # G1: a top-level `fun main(` must exist.
+        main_decl = re.search(r"(?m)^fun\s+main\s*\(", code)
+        if not main_decl:
+            problems.append("the main source has no top-level fun main(")
+            return problems
+
+        brace = code.find("{", main_decl.end())
+        body = code[brace + 1:_close_of(code, brace)]
+
+        # G2: main's body, rstripped, must end with a call's closing paren.
+        tail = body.rstrip()
+        if not tail.endswith(")"):
+            problems.append(
+                "main does not end with a call, so it can return while the service is up"
+            )
+            return problems
+        close_idx = len(tail) - 1
+        open_idx = _open_of(tail, close_idx)
+        call_name = _identifier_before(tail, open_idx)
+
+        # G3: that call's name must be declared `internal fun <name>(` in this file.
+        decl = re.search(
+            r"(?m)^internal\s+fun\s+" + re.escape(call_name) + r"\s*\(", code
+        )
+        if not decl:
+            problems.append(
+                "main's final call %s is not declared in this file as internal fun" % call_name
+            )
+            return problems
+
+        # G4/G5: the seam's own body must join the worker job and block on it.
+        seam_brace = code.find("{", decl.end())
+        seam_body = code[seam_brace + 1:_close_of(code, seam_brace)]
+        if "join()" not in seam_body:
+            problems.append(
+                "the block-until-shutdown seam %s does not join the worker job" % call_name
+            )
+        if "runBlocking" not in seam_body:
+            problems.append(
+                "the block-until-shutdown seam %s does not block (no runBlocking)" % call_name
+            )
+
+        # G6: main must pass exactly the launch-bound worker job variable to the seam.
+        launch = re.search(r"(?m)^\s*val\s+(\w+)\s*=\s*[\w.]+\.launch\s*\{", body)
+        parts = _top_level_args(tail[open_idx + 1:close_idx])
+        if launch is None:
+            problems.append(
+                "main does not pass the worker job (%s) to %s"
+                % ("<no launch-bound job>", call_name)
+            )
+        elif len(parts) != 1 or parts[0].strip() != launch.group(1):
+            problems.append(
+                "main does not pass the worker job (%s) to %s"
+                % (launch.group(1), call_name)
+            )
+        return problems
+
     def test_the_real_build_and_source_agree(self):
         """The build file and the main source agree on a runnable distribution."""
         with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
@@ -294,6 +420,138 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
         problems = self._distribution_problems(real_build, sample)
         assert "a @file:JvmName file's class is not" in " ".join(problems), (
             "whisper-server contract: a @file:JvmName source must be reported, got %r" % (problems,)
+        )
+
+    def _real_source(self):
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_real_main_blocks_on_the_worker_job(self):
+        """Green on the tip: main()'s last statement is the blocking seam call."""
+        problems = self._main_blocks_problems(self._real_source())
+        assert problems == [], (
+            "whisper-server contract: main must end by blocking on the worker job, "
+            "got %r" % (problems,)
+        )
+
+    def test_a_renamed_main_fails_the_block_check(self):
+        """Removing only the top-level `fun main(` fails for that reason (G1)."""
+        real_source = self._real_source()
+        sample = real_source.replace("fun main() {", "fun mainX() {", 1)
+        assert sample != real_source, "the renamed-main sample must differ from the real source"
+        problems = self._main_blocks_problems(sample)
+        assert "the main source has no top-level fun main(" in problems, (
+            "whisper-server contract: a main that is not top-level `fun main(` must be "
+            "reported, got %r" % (problems,)
+        )
+
+    def test_a_main_whose_last_statement_is_not_a_call_fails_the_block_check(self):
+        """Deleting only the seam call leaves main falling off the end (G2)."""
+        real_source = self._real_source()
+        sample = real_source.replace("    blockUntilShutdown(workerJob)\n", "", 1)
+        assert sample != real_source, "the fallen-off-main sample must differ from the real source"
+        problems = self._main_blocks_problems(sample)
+        assert (
+            "main does not end with a call, so it can return while the service is up" in problems
+        ), "whisper-server contract: a main that does not end in a call must be reported, got %r" % (
+            problems,
+        )
+
+    def test_an_undeclared_seam_name_fails_the_block_check(self):
+        """Renaming only the declaration leaves the final call undeclared (G3)."""
+        real_source = self._real_source()
+        sample = real_source.replace(
+            "internal fun blockUntilShutdown(", "internal fun blockUntilShutdownX(", 1
+        )
+        assert sample != real_source, "the renamed-seam sample must differ from the real source"
+        problems = self._main_blocks_problems(sample)
+        assert (
+            "main's final call blockUntilShutdown is not declared in this file as internal fun"
+            in problems
+        ), "whisper-server contract: an undeclared seam name must be reported, got %r" % (problems,)
+
+    def test_a_seam_that_does_not_join_fails_the_block_check(self):
+        """Replacing only the seam's `workerJob.join()` with `workerJob.cancel()` fails (G4).
+
+        The `old` string is the whole seam expression, not bare `workerJob.join()`: bare
+        `workerJob.join()` also occurs in WhisperShutdown.run(), so it is not unique in the
+        tree. Both forms describe the same one-edit neutralisation of the seam.
+        """
+        real_source = self._real_source()
+        sample = real_source.replace(
+            "runBlocking { workerJob.join() }", "runBlocking { workerJob.cancel() }", 1
+        )
+        assert sample != real_source, "the non-joining seam sample must differ from the real source"
+        problems = self._main_blocks_problems(sample)
+        assert (
+            "the block-until-shutdown seam blockUntilShutdown does not join the worker job"
+            in problems
+        ), "whisper-server contract: a seam that does not join must be reported, got %r" % (problems,)
+
+    def test_a_seam_that_does_not_block_fails_the_block_check(self):
+        """Dropping only `runBlocking` from the seam body fails for that reason (G5)."""
+        real_source = self._real_source()
+        sample = real_source.replace(
+            "    runBlocking { workerJob.join() }", "    { workerJob.join() }", 1
+        )
+        assert sample != real_source, "the non-blocking seam sample must differ from the real source"
+        problems = self._main_blocks_problems(sample)
+        assert (
+            "the block-until-shutdown seam blockUntilShutdown does not block (no runBlocking)"
+            in problems
+        ), "whisper-server contract: a seam that does not block must be reported, got %r" % (problems,)
+
+    def test_a_main_that_passes_the_wrong_argument_fails_the_block_check(self):
+        """Passing `api` instead of the launch-bound job variable fails (G6)."""
+        real_source = self._real_source()
+        sample = real_source.replace(
+            "blockUntilShutdown(workerJob)", "blockUntilShutdown(api)", 1
+        )
+        assert sample != real_source, "the wrong-argument sample must differ from the real source"
+        problems = self._main_blocks_problems(sample)
+        assert (
+            "main does not pass the worker job (workerJob) to blockUntilShutdown" in problems
+        ), "whisper-server contract: passing anything but the worker job must be reported, got %r" % (
+            problems,
+        )
+
+    def test_a_main_without_a_launch_bound_job_fails_the_block_check(self):
+        """Removing only the `val workerJob = ` binding fails the G6 `launch is None` branch.
+
+        That branch appends its own placeholder message (`<no launch-bound job>`); the
+        expected string is built by concatenation and pinned whole so the wrong-argument
+        branch's message (which names the real `workerJob`) cannot satisfy it.
+        """
+        real_source = self._real_source()
+        sample = real_source.replace(
+            "    val workerJob = workerScope.launch {", "    workerScope.launch {", 1
+        )
+        assert sample != real_source, "the no-binding sample must differ from the real source"
+        problems = self._main_blocks_problems(sample)
+        expected = (
+            "main does not pass the worker job ("
+            + "<"
+            + "no launch-bound job"
+            + ">"
+            + ") to blockUntilShutdown"
+        )
+        assert expected in problems, (
+            "whisper-server contract: a main with no launch-bound job must be reported with "
+            "the placeholder message, got %r" % (problems,)
+        )
+
+    def test_main_does_not_just_fall_off_the_end(self):
+        """A main that simply ends after `stopServer = ...` is reported: the pin is not tautological."""
+        real_source = self._real_source()
+        sample = real_source.replace("    blockUntilShutdown(workerJob)\n", "", 1)
+        assert sample != real_source, "the fall-off sample must differ from the real source"
+        problems = self._main_blocks_problems(sample)
+        assert problems, (
+            "whisper-server contract: a main that falls off the end must report a problem"
+        )
+        assert "main does not end with a call" in " ".join(problems), (
+            "whisper-server contract: the fall-off-end source must be named as not ending in "
+            "a call, got %r" % (problems,)
         )
 
 
