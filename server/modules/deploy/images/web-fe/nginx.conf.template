@@ -1,0 +1,35 @@
+# nginx site config for web-fe.
+# Rendered at container start by docker-entrypoint.sh: envsubst replaces
+# ${BREAKER_WEB_FE_PORT} and leaves every other $ alone. Do not edit the
+# rendered file by hand; edit this template instead.
+worker_processes 1;
+pid /var/lib/nginx/nginx.pid;
+error_log /var/lib/nginx/error.log warn;
+
+events {
+    worker_connections 64;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    sendfile on;
+    access_log /var/lib/nginx/access.log;
+    client_body_temp_path /var/lib/nginx/body;
+
+    server {
+        listen ${BREAKER_WEB_FE_PORT};
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location = /health {
+            default_type application/json;
+            return 200 '{"status":"ok"}';
+        }
+
+        location / {
+            try_files $uri $uri/ =404;
+        }
+    }
+}

@@ -357,7 +357,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   Built (adminHealthRoute): 200 with `{"status":"ok","git_tag":...}` for an admin token (401 without a live token, 403 for
   a non-admin); status is always `ok` (the token check needed the database); `git_tag` is the value of the
   environment variable `BREAKER_SYNC_API_GIT_TAG` (1 to 64 printable ASCII characters, no spaces), or `unknown`
-  when it is unset. Nothing sets it today: the deploy module is not built. A failing token check is the fixed 503.
+  when it is unset. Nothing sets it today: the deploy compose file does not set it. A failing token check is the fixed 503.
   The unauthenticated `GET /health` answers `{"status":"ok"}` and is unchanged. The admin health route checks the
   process and the database only, no other service.
 - `GET /v1/status` - **any signed-in user** (a session or an agent token; no role check, no scope check): which services
@@ -372,8 +372,8 @@ A route or job marked Planned, not built below is not installed on main yet.
   failures too, and callers who arrive together share one probe, so a user cannot make sync-api hammer whisper-server.
   Clock and probe are injected ports (`StatusProbe`), so the tests need no socket and no sleep; one wiring test reaches
   the route through `syncApiModule` and one runs the real probe against a closed local port. NOT built: the rate limit
-  on this route (ADR-041 step c is not on main; the route takes it when that step lands), and the deploy setting (the
-  compose service address of whisper-server, and the internal network, are owed by the deploy slice).
+  on this route (ADR-041 step c is not on main; the route takes it when that step lands); the deploy setting is
+  built (the compose service address of whisper-server and the internal network are set by the deploy compose file).
 - `GET/PUT /v1/admin/transcription-service` — **admin-only**: read/update the
   configured transcription endpoint (name, base URL, optional API key, enabled) (F26).
   Planned, not built: no such route is installed.
@@ -690,7 +690,7 @@ Transport. Breaker serves plain HTTP on both listeners. TLS is the admin's choic
 
 Start failures. If the internal listener cannot start (for example, its port is taken), the start prints one line, sync-api: the internal listener could not start, closes the database and exits with status 1 before the public listener starts. This has not been run against a taken port: if the engine reports a failed bind only after it has started, the process keeps running without the internal listener, so check that the internal port answers. A key file refusal prints its message, closes the database and exits with status 2. When the public listener stops, the internal listener stops too.
 
-Still open. How the key reaches whisper-server is the deploy step's job. whisper-server takes the key from its own setting BREAKER_WHISPER_SYNC_API_SERVICE_KEY.
+The key reaches whisper-server through the deploy compose file as the environment value BREAKER_WHISPER_SYNC_API_SERVICE_KEY; whisper-server takes it from that setting.
 
 ## Owns
 Auth (users, roles, agent tokens), sync, updates, retention, store clear, log policy.

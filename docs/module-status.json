@@ -317,9 +317,14 @@
      "evidence": "scripts/backup-data.py, scripts/git-pull.sh, scripts/health-check.sh, scripts/release-tags.sh, scripts/vpn-bind.sh; tests/unit/server/deploy/{test_backup_data,test_git_pull,test_health_check,test_release_tags,test_vpn_bind}.py"
     },
     {
-     "item": "git-pull build, sign and serve steps, compose file, APK signing, auth key rotation",
+     "item": "three image recipes, the one compose file, the env example, the secrets gate",
+     "status": "DONE",
+     "evidence": "server/modules/deploy/images/{sync-api,whisper-server,web-fe}/Dockerfile, server/modules/deploy/images/{sync-api,whisper-server,web-fe}/Dockerfile.dockerignore, server/modules/deploy/docker-compose.yml, server/modules/deploy/.env.example, tests/unit/server/deploy/{test_images,test_compose,test_secrets_gate}.py, .gitignore, .github/gitleaks.toml"
+    },
+    {
+     "item": "git-pull build, sign and serve steps, APK signing, auth key rotation, install/update/rollback scripts",
      "status": "NOT_STARTED",
-     "evidence": "deploy card Status: not built; only the pull step exists (scripts/git-pull.sh); the build, sign and serve steps, the compose file, APK signing and auth key rotation do not exist"
+     "evidence": "deploy card Status: the build, sign and serve steps, APK signing, auth key rotation and the install/update/rollback scripts do not exist"
     }
    ]
   },

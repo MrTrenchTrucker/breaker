@@ -1,0 +1,124 @@
+# Breaker stack: one compose file for the four containers.
+#
+# Compose v2 reads this file with `docker compose`; there is no version: key.
+# The top-level name is fixed, so the named volumes and the containers keep
+# their names across releases. Every host binding goes through BREAKER_BIND_ADDR
+# and every container address is a fixed variable on one network (ADR-042
+# option A). The service key reaches sync-api as a read-only file and
+# whisper-server as an environment value; both names are required and neither
+# value is written in this repository.
+name: breaker
+
+services:
+  sync-api:
+    build:
+      context: ../../..
+      dockerfile: server/modules/deploy/images/sync-api/Dockerfile
+    image: breaker/sync-api:${BREAKER_IMAGE_TAG:?BREAKER_IMAGE_TAG is required}
+    restart: unless-stopped
+    environment:
+      BREAKER_SYNC_API_HOST: ${BREAKER_SYNC_API_ADDRESS:?BREAKER_SYNC_API_ADDRESS is required}
+      BREAKER_SYNC_API_PORT: ${BREAKER_SYNC_API_PORT:?BREAKER_SYNC_API_PORT is required}
+      BREAKER_SYNC_API_INTERNAL_HOST: ${BREAKER_SYNC_API_ADDRESS:?BREAKER_SYNC_API_ADDRESS is required}
+      BREAKER_SYNC_API_INTERNAL_PORT: ${BREAKER_SYNC_API_INTERNAL_PORT:?BREAKER_SYNC_API_INTERNAL_PORT is required}
+      BREAKER_SYNC_API_DB: /var/lib/breaker/sync-api/sync-api.db
+      BREAKER_SYNC_API_SERVICE_KEY_FILE: /run/breaker/keys/sync-api-service-key
+      BREAKER_WHISPER_HEALTH_URL: http://${BREAKER_WHISPER_ADDRESS:?BREAKER_WHISPER_ADDRESS is required}:${BREAKER_WHISPER_PORT:?BREAKER_WHISPER_PORT is required}/health
+    volumes:
+      - breaker_sync_api_data:/var/lib/breaker/sync-api
+      # The host file's rules are in .env.example above BREAKER_SYNC_API_SERVICE_KEY_HOST.
+      - ${BREAKER_SYNC_API_SERVICE_KEY_HOST:?BREAKER_SYNC_API_SERVICE_KEY_HOST is required}:/run/breaker/keys/sync-api-service-key:ro
+    ports:
+      - ${BREAKER_BIND_ADDR:?BREAKER_BIND_ADDR is required}:${BREAKER_SYNC_API_PORT:?BREAKER_SYNC_API_PORT is required}:${BREAKER_SYNC_API_PORT:?BREAKER_SYNC_API_PORT is required}
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://${BREAKER_SYNC_API_ADDRESS:?BREAKER_SYNC_API_ADDRESS is required}:${BREAKER_SYNC_API_PORT:?BREAKER_SYNC_API_PORT is required}/health
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      breaker:
+        ipv4_address: ${BREAKER_SYNC_API_ADDRESS:?BREAKER_SYNC_API_ADDRESS is required}
+
+  whisper-server:
+    build:
+      context: ../../..
+      dockerfile: server/modules/deploy/images/whisper-server/Dockerfile
+    image: breaker/whisper-server:${BREAKER_IMAGE_TAG:?BREAKER_IMAGE_TAG is required}
+    restart: unless-stopped
+    environment:
+      BREAKER_WHISPER_HOST: ${BREAKER_WHISPER_ADDRESS:?BREAKER_WHISPER_ADDRESS is required}
+      BREAKER_WHISPER_PORT: ${BREAKER_WHISPER_PORT:?BREAKER_WHISPER_PORT is required}
+      BREAKER_WHISPER_DB: /var/lib/breaker/whisper-server/whisper-server.db
+      BREAKER_WHISPER_FORWARDER_URL: ${BREAKER_WHISPER_FORWARDER_URL:?BREAKER_WHISPER_FORWARDER_URL is required}
+      BREAKER_WHISPER_SYNC_API_URL: http://${BREAKER_SYNC_API_ADDRESS:?BREAKER_SYNC_API_ADDRESS is required}:${BREAKER_SYNC_API_INTERNAL_PORT:?BREAKER_SYNC_API_INTERNAL_PORT is required}/
+      BREAKER_WHISPER_SYNC_API_SERVICE_KEY: ${BREAKER_WHISPER_SYNC_API_SERVICE_KEY:?BREAKER_WHISPER_SYNC_API_SERVICE_KEY is required}
+    volumes:
+      - breaker_whisper_data:/var/lib/breaker/whisper-server
+    ports:
+      - ${BREAKER_BIND_ADDR:?BREAKER_BIND_ADDR is required}:${BREAKER_WHISPER_PORT:?BREAKER_WHISPER_PORT is required}:${BREAKER_WHISPER_PORT:?BREAKER_WHISPER_PORT is required}
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://${BREAKER_WHISPER_ADDRESS:?BREAKER_WHISPER_ADDRESS is required}:${BREAKER_WHISPER_PORT:?BREAKER_WHISPER_PORT is required}/health
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      breaker:
+        ipv4_address: ${BREAKER_WHISPER_ADDRESS:?BREAKER_WHISPER_ADDRESS is required}
+
+  web-fe:
+    build:
+      context: ../../..
+      dockerfile: server/modules/deploy/images/web-fe/Dockerfile
+    image: breaker/web-fe:${BREAKER_IMAGE_TAG:?BREAKER_IMAGE_TAG is required}
+    restart: unless-stopped
+    environment:
+      BREAKER_WEB_FE_PORT: ${BREAKER_WEB_FE_PORT:?BREAKER_WEB_FE_PORT is required}
+    ports:
+      - ${BREAKER_BIND_ADDR:?BREAKER_BIND_ADDR is required}:${BREAKER_WEB_FE_PORT:?BREAKER_WEB_FE_PORT is required}:${BREAKER_WEB_FE_PORT:?BREAKER_WEB_FE_PORT is required}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      breaker:
+        ipv4_address: ${BREAKER_WEB_FE_ADDRESS:?BREAKER_WEB_FE_ADDRESS is required}
+
+  # Nothing is built for training yet; the service is declared so one file
+  # brings the stack up, and `up --profile training` starts it once an image
+  # exists. No build block, no ports, no health check.
+  training:
+    image: breaker/training:${BREAKER_IMAGE_TAG:?BREAKER_IMAGE_TAG is required}
+    restart: unless-stopped
+    profiles:
+      - training
+    networks:
+      breaker:
+        ipv4_address: ${BREAKER_TRAINING_ADDRESS:?BREAKER_TRAINING_ADDRESS is required}
+
+networks:
+  breaker:
+    ipam:
+      config:
+        - subnet: ${BREAKER_NETWORK_SUBNET:?BREAKER_NETWORK_SUBNET is required}
+
+volumes:
+  breaker_sync_api_data:
+  breaker_whisper_data:

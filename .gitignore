@@ -29,6 +29,8 @@ models/
 *.key
 *.crt
 *.p12
+*.jks
+*.keystore
 secrets/
 .env
 

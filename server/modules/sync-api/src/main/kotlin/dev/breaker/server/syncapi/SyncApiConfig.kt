@@ -136,7 +136,7 @@ internal class SyncApiConfig(
 
         // The deployed server's git tag: unset means not known ("unknown"), set-but-blank is refused,
         // and anything outside 1..64 printable ASCII without spaces or control characters is refused
-        // so the value the route answers stays plain. Nothing sets it today (the deploy module is not built).
+        // so the value the route answers stays plain. Nothing sets it today (the deploy compose file does not set it).
         private fun parseGitTag(raw: String?): String {
             if (raw == null) return "unknown"
             require(raw.isNotBlank()) { "sync-api: $ENV_GIT_TAG is set but blank" }

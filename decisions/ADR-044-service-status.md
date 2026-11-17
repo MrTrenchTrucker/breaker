@@ -76,8 +76,8 @@ phone asks at front + ~every 2h while open, no background scheduler, no new
 permission; admin web banner while a service is down, since when; admin health
 route unchanged (admin-only, detailed).
 
-The deploy slice owes the setting (the compose service address of whisper-server).
-whisper-server binds 127.0.0.1 by default, so the deploy must put both services on
+The deploy compose file sets the probe URL (the compose service address of whisper-server).
+whisper-server binds 127.0.0.1 by default, so the deploy puts both services on
 the internal network (ADR-042).
 
 Rules out: any notifier (ntfy, webhook, third-party); admin-only gate on
