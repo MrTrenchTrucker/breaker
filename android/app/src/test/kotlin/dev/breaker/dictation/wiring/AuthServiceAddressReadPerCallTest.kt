@@ -53,7 +53,7 @@ class AuthServiceAddressReadPerCallTest {
             historyStore = RecordingHistoryStore(),
             serviceController = DictationServiceController(FakePermission(), FakeLauncher()),
             committer = FakeCommitter(),
-            authHttp = { _ -> fakeHttp },
+            authHttp = { _ -> keysSettlingHttp(fakeHttp, 1) },
             keyDerivation = { FakeKeyDerivation() },
             keySupplier = { SecretKeySpec(ByteArray(32) { 3 }, "AES") },
         )
@@ -64,7 +64,8 @@ class AuthServiceAddressReadPerCallTest {
         root.settingsStore.save(AppSettings().copy(serverUrl = "https://second.test"))
         root.authService.login("user", "a-very-long-password".toCharArray())
 
-        // The second login also signs the first session out, best effort, at the first address.
+        // Keys upload is answered inside keysSettlingHttp and never reaches
+        // the inner fake's list, so each login is a salt plus a login.
         val exchange = fakeHttp.urls.filter { !it.endsWith("/v1/auth/logout") }
         assertTrue("expected four requests (salt+login per address)", exchange.size == 4)
         assertTrue(

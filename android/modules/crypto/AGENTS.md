@@ -8,9 +8,9 @@ password, generates and wraps the per-user DEK, encrypts/decrypts
 transcriptions with AES-256-GCM, generates the owner's X25519 box keypair,
 and unseals agent-token results sealed to it — all locally. Nothing here ever
 sends the password, the KEK, or a plaintext DEK off the device.
-Generating and wrapping the data key and the box keypair, and unsealing results sealed to the account (`unsealAndReencrypt`), are built here (`AccountKeyServiceImpl`). The app's use of these operations is decided, not built (Phase 19): see the Build phase line below.
+Generating and wrapping the data key and the box keypair, and unsealing results sealed to the account (`unsealAndReencrypt`), are built here (`AccountKeyServiceImpl`). The app's use of these operations is built: the phone login settles the account keys at rest (see the Build phase line below).
 
-**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). BUILT in the account key service (`AccountKeyServiceImpl`): generating the data key and the box keypair, wrapping a new data key, wrapping and unwrapping the box private key, wrapping and unwrapping the previous data key, the box public key check, and unsealing a sealed agent result and encrypting it again (`unsealAndReencrypt`), re-encrypting a record under a new data key (`reencrypt`), and sealing and opening opaque record bytes (`encryptBytes`, `decryptBytes`). Decided, not built (Phase 19): the app's use of the account key operations. The sealed-box open itself now lives in `shared/modules/seal` (`SealedBox.open`); this module holds the thin `SealedBoxOpener` wrapper that maps its `SealRefused` to `CryptoRefused`. Not this module's work, and built in the app: the phone's stored keys. After a website sign-in the app keeps the plain data key and box private key in memory only while in use and, at rest, only as a blob sealed under an Android Keystore key (a file of its own, behind the core `CredentialVault` port); it never stores the server-wrapped forms. This module holds no Keystore code. Needs first: `core` (on main).
+**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). BUILT in the account key service (`AccountKeyServiceImpl`): generating the data key and the box keypair, wrapping a new data key, wrapping and unwrapping the box private key, wrapping and unwrapping the previous data key, the box public key check, and unsealing a sealed agent result and encrypting it again (`unsealAndReencrypt`), re-encrypting a record under a new data key (`reencrypt`), and sealing and opening opaque record bytes (`encryptBytes`, `decryptBytes`). Built: the app's use of the account key operations (the phone login settles the keys at rest). The sealed-box open itself now lives in `shared/modules/seal` (`SealedBox.open`); this module holds the thin `SealedBoxOpener` wrapper that maps its `SealRefused` to `CryptoRefused`. Not this module's work, and built in the app: the phone's stored keys. After a website sign-in or a password login the app keeps the plain data key and box private key in memory only while in use and, at rest, only as a blob sealed under an Android Keystore key (a file of its own, behind the core `CredentialVault` port); it never stores the server-wrapped forms. This module holds no Keystore code. Needs first: `core` (on main).
 
 ## Owns
 Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap,
@@ -48,8 +48,8 @@ this module only maps its `SealRefused` to `CryptoRefused`.
 3. **Ordinary login:** re-derive KEK + auth verifier from the password and
    the stored salt/params; send only the auth verifier; unwrap the DEK with
    the KEK and the box private key with the DEK; cache both in memory only
-   (the password path does not store them; the phone stores keys at rest only from a website
-   sign-in, as Keystore-sealed blobs and never as the server-wrapped forms, see the Build phase line).
+   (the password path stores them at rest too; the phone keeps them as Keystore-sealed blobs and
+   never as the server-wrapped forms, see the Build phase line).
    Also recompute the box public key from the just-unwrapped private key
    (`crypto_scalarmult_base`) and compare it to the `box_pubkey` the login
    response carried — a mismatch means the stored key was swapped since this
@@ -192,9 +192,9 @@ The port changed once, in the sign-in slice
   the shared vectors.
 - Ciphertext at rest; server cannot decrypt without the password (F24, T17) —
   this is not a claim that the password cannot be guessed offline (T25).
-- Built in the app: a logout, or a failed store, wipes the stored DEK and box private key through the app's session vault that also clears the keys, so a signed-out phone keeps no account keys at rest. A password login only saves its session and does not remove keys a website sign-in stored; only a clear does. Decided, not built (Phase 19): a re-login by password unwrapping the keys again and storing them.
-- A keyless account (no `wrapped_dek` yet) will generate and upload its DEK +
-  box keypair exactly once, on its first login after both exist client-side (decided, not built: Phase 19).
+- Built in the app: a logout, or a failed store, wipes the stored DEK and box private key through the app's session vault that also clears the keys, so a signed-out phone keeps no account keys at rest. A password login saves its session and also stores the account keys at rest, and does not remove keys a website sign-in stored; only a clear does. Built: a re-login by password unwraps the keys again and stores them.
+- A keyless account (no `wrapped_dek` yet) generates and uploads its DEK +
+  box keypair exactly once, on its first login after both exist client-side (built: the phone login settles them at rest).
 
 ## Depends On
 - android (registered in modules.toml)

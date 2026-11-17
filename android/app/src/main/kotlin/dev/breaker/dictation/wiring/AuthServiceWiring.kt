@@ -1,5 +1,6 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.auth.client.AccountKeyPorts
 import dev.breaker.dictation.auth.client.AuthHttp
 import dev.breaker.dictation.auth.client.ServerAuthService
 import dev.breaker.dictation.auth.client.SessionVault
@@ -73,17 +74,19 @@ internal fun authSessionFile(filesDir: File): File = File(filesDir, "session.vau
 internal fun credentialsFile(filesDir: File): File = File(filesDir, "credentials.vault")
 
 /**
- * Builds the auth service over the given address provider, session vault, transport and key
- * derivation. The address provider is read by the service on every call.
+ * Builds the auth service over the given address provider, session vault, transport, key
+ * derivation and account key ports. The address provider is read by the service on every call.
  */
 internal fun buildAuthService(
     baseUrl: () -> String,
     vault: SessionVault,
     http: AuthHttp,
     keyDerivation: KeyDerivation,
+    keyPorts: AccountKeyPorts?,
 ): ServerAuthService = ServerAuthService(
     baseUrl,
     http,
     keyDerivation,
     vault,
+    keyPorts,
 )

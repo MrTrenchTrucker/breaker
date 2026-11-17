@@ -141,7 +141,7 @@ class ServerLinkEngineTest {
                 keyEngine = engine
                 engine
             },
-            authHttp = { _ -> fakeHttp },
+            authHttp = { _ -> keysSettlingHttp(fakeHttp, 1) },
             keyDerivation = { SessionKeyDerivation() },
             keySupplier = { SecretKeySpec(ByteArray(32) { 3 }, "AES") },
         )

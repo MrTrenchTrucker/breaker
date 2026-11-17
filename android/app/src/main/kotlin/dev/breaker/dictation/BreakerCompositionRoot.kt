@@ -47,6 +47,7 @@ import dev.breaker.dictation.wiring.SessionLiveState
 import dev.breaker.dictation.wiring.SignInReturnStore
 import dev.breaker.dictation.wiring.SignInStartWiring
 import dev.breaker.dictation.wiring.UuidIdSource
+import dev.breaker.dictation.wiring.accountKeyPorts
 import dev.breaker.dictation.wiring.appDeviceName
 import dev.breaker.dictation.wiring.appMicSource
 import dev.breaker.dictation.wiring.authSessionFile
@@ -87,10 +88,10 @@ import javax.crypto.SecretKey
  * the engine's address and key come from one read of the addressed session for each request, and both
  * formatter slots take the rule-based formatter.
  *
- * The auth service is built on first use, never at construction: the three factories (transport, key
- * derivation, session key) are called only then, and the service reads the stored server address on
- * every call. The transport factory takes the stored address provider. [authService] and
- * [addressedSession] reach the same one service.
+ * The auth service is built on first use, never at construction: the factories (transport, key
+ * derivation, session key, account key ports) are called only then, and the service reads the stored
+ * server address on every call. The transport factory takes the stored address provider. [authService]
+ * and [addressedSession] reach the same one service.
  *
  * The session vault is one decorated instance: the auth service and the hand-off finish both use it,
  * and clearing the session also wipes the stored account keys. The hand-off finish is built on the
@@ -208,14 +209,9 @@ class BreakerCompositionRoot(
         )
     }
 
-    /** The one auth service, built on first use over the stored address provider and the three factories. */
+    /** The one auth service, built on first use over the stored address provider and the factories. */
     private val serverAuth: ServerAuthService by lazy {
-        buildAuthService(
-            serverUrl,
-            sessionVault,
-            authHttp(serverUrl),
-            keyDerivation(),
-        )
+        buildAuthService(serverUrl, sessionVault, authHttp(serverUrl), keyDerivation(), accountKeyPorts(credentialVault, cryptoService()))
     }
 
     /** The hand-off finish, built on the first return over its own exchange and logout transports. */
