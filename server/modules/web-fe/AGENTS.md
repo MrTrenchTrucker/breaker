@@ -54,7 +54,7 @@ link fragment, the base64 forms and the password bytes) and `signin.js` (the flo
 the return link). In `signin.js` every crypto step is an injected function (`getSalt`, `derive`, `login`,
 `boxPublicKey`, `seal`, `startHandoff`); only the two key unwraps use the real `aesgcm.js`. The page shell is built now too:
 `signin.html`, `css/signin.css`, `js/signin-page.js` (the DOM glue, the only sign-in file that touches the document and the window), `js/signin-net.js` (the four calls to the server's own routes, the logout one fire and forget) and `js/signin-crypto.js` (`available` is false; `derive`, `boxPublicKey` and `seal` are built and never throw (`boxPublicKey` returns the 32-byte X25519 public key through the served noble-curves copy, or null for a bad key; `seal`, in `js/signin-seal.js`, returns the libsodium sealed-box bytes, or null for a bad input), so only the flag keeps the form disabled). `js/signin-kdf.js` holds the Argon2id and HKDF-SHA256 steps that `derive` calls.
-The page links `css/tokens.css`, which is not in this folder: whoever serves the page copies it from `shared/modules/ui-tokens/src/main/resources/tokens.css`. How these files reach a browser is an open owner question. Still planned: turning `available` on, serving, and the end-to-end test.
+The page links `css/tokens.css`, which is not in this folder: the web-fe image copies it from `shared/modules/ui-tokens/src/main/resources/tokens.css` and nginx serves the static tree. Still planned: turning `available` on, and the end-to-end test.
 The `random` option of `createCipher` is a test hook: page code must never pass it.
 
 **Built now: the device list module (ADR-035, ADR-036), no page yet.**

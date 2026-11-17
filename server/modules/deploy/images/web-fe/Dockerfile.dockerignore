@@ -1,0 +1,15 @@
+# Allowlist for the web-fe build context (the repository root).
+#
+# The first non-comment line is '*': everything in the context is denied unless
+# a later '!' line allows it. A '!' line for a directory re-includes everything
+# beneath it, so no ancestor lines are written; each line below names exactly
+# what a COPY needs. The web-fe recipe COPYs its static resources tree, the
+# vendored copy that copyWebLibs writes, the one shared design-token file the
+# page links, and this image's own recipe assets; those paths and nothing else
+# are re-included here.
+*
+!server/modules/web-fe/src/main/resources/web/**
+!server/modules/web-fe/build/web/js/vendor/**
+!server/modules/deploy/images/web-fe/nginx.conf.template
+!server/modules/deploy/images/web-fe/docker-entrypoint.sh
+!shared/modules/ui-tokens/src/main/resources/tokens.css

@@ -1,0 +1,10 @@
+# Allowlist for the whisper-server build context (the repository root).
+#
+# The first non-comment line is '*': everything in the context is denied unless
+# a later '!' line allows it. A '!' line for a directory re-includes everything
+# beneath it, so no ancestor lines are written; each line below names exactly
+# what a COPY needs. The whisper-server recipe COPYs the installDist tree
+# server/modules/whisper-server/build/install/whisper-server/, so that tree is
+# the only path re-included here.
+*
+!server/modules/whisper-server/build/install/whisper-server/**

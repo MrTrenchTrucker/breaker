@@ -1,0 +1,10 @@
+# Allowlist for the sync-api build context (the repository root).
+#
+# The first non-comment line is '*': everything in the context is denied unless
+# a later '!' line allows it. A '!' line for a directory re-includes everything
+# beneath it, so no ancestor lines are written; each line below names exactly
+# what a COPY needs. The sync-api recipe COPYs the installDist tree
+# server/modules/sync-api/build/install/sync-api/, so that tree is the only
+# path re-included here.
+*
+!server/modules/sync-api/build/install/sync-api/**
