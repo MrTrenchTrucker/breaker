@@ -8,6 +8,7 @@ module's own code.
 The three pins below read the shared api-contracts spec, so a revert of either
 contract edit lands here as a red failure. Assertion style matches contract_support.py.
 """
+import glob
 import os
 import re
 import sys
@@ -18,6 +19,20 @@ import contract_support
 ROOT = contract_support.ROOT
 OPENAPI = os.path.join(ROOT, "shared/modules/api-contracts/openapi.yaml")
 MAIN_SOURCE_REL = "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/WhisperServer.kt"
+ROUTES_SOURCE_REL = "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt"
+WHISPER_MAIN_ROOT_REL = os.path.join("server", "modules", "whisper-server", "src", "main")
+
+# One message per branch, used by the guard that reports it and by the control that fires it.
+MISSING_HEALTH_HANDLER_MESSAGE = 'the routes source has no get("/health") handler'
+FORWARDING_MEMBER_MESSAGE = "the /health handler body still writes the forwarding_to member"
+FORWARDING_TO_MESSAGE = "%s still declares or uses the forwardingTo identifier"
+SANITISE_FORWARDING_TO_MESSAGE = "%s still declares or uses the sanitiseForwardingTo identifier"
+
+# (whole identifier, message template naming the file) pairs scanned in every main-source file.
+GUARDED_IDENTIFIERS = (
+    ("forwardingTo", FORWARDING_TO_MESSAGE),
+    ("sanitiseForwardingTo", SANITISE_FORWARDING_TO_MESSAGE),
+)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import yaml_subset
@@ -838,6 +853,180 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
             in problems
         ), "whisper-server contract: a main with no launch-bound job must be reported, got %r" % (
             problems,
+        )
+
+    def _read_source(self, rel):
+        with open(os.path.join(ROOT, rel), encoding="utf-8") as fh:
+            return fh.read()
+
+    def _real_routes_source(self):
+        return self._read_source(ROUTES_SOURCE_REL)
+
+    def _whisper_main_sources(self):
+        """Every `.kt` file under `src/main`, as sorted repo-relative paths."""
+        root = os.path.join(ROOT, WHISPER_MAIN_ROOT_REL)
+        return sorted(
+            os.path.relpath(path, ROOT)
+            for path in glob.glob(os.path.join(root, "**", "*.kt"), recursive=True)
+        )
+
+    def _whisper_main_source_map(self):
+        """{repo-relative path: text} for every main-source file, sorted by path."""
+        return {rel: self._read_source(rel) for rel in self._whisper_main_sources()}
+
+    def _health_body_problems(self, source_text):
+        """Empty list == the `/health` handler body writes no `forwarding_to` member.
+
+        Reads the COMMENT-SCANNED source with string literals KEPT
+        (`_scan_kotlin(..., keep_strings=True)`): the member name lives inside the JSON
+        string the handler responds with, so a scan that reduces literals to a marker
+        hides it (and hides the `get("/health")` route path used to find the handler).
+        Comments are still stripped, so a commented-out `forwarding_to` cannot satisfy
+        the pin. The body is brace-matched with `_close_of`, so a `get("/health")` in
+        another route or a comment cannot be read.
+        """
+        code = _scan_kotlin(source_text, keep_strings=True)
+        decl = re.search(r'(?m)^[ \t]*get\("/health"\)', code)
+        if not decl:
+            return [MISSING_HEALTH_HANDLER_MESSAGE]
+        brace = code.find("{", decl.end())
+        body = code[brace + 1:_close_of(code, brace)]
+        if "forwarding_to" in body:
+            return [FORWARDING_MEMBER_MESSAGE]
+        return []
+
+    def _identifier_problems(self, sources):
+        """Empty list == no (file, identifier) pair carries a guarded identifier.
+
+        `sources` maps a repo-relative path to its text. Each text is COMMENT-SCANNED
+        with string literals REDUCED to a marker (`_scan_kotlin(..., keep_strings=False)`),
+        so only real identifiers remain: a string literal that merely contains the text is
+        not the identifier, and a comment mention cannot satisfy the pin. Every identifier
+        is matched as a WHOLE identifier, and each message names its file. Accumulating
+        here (rather than returning on the first hit) keeps every offending file visible.
+        """
+        problems = []
+        for rel, text in sources.items():
+            code = _scan_kotlin(text, keep_strings=False)
+            for identifier, message in GUARDED_IDENTIFIERS:
+                pattern = r"(?<![A-Za-z0-9_])" + re.escape(identifier) + r"(?![A-Za-z0-9_])"
+                if re.search(pattern, code):
+                    problems.append(message % os.path.basename(rel))
+        return problems
+
+    def test_health_route_has_no_forwarding_to_member(self):
+        """The `/health` handler body writes no `forwarding_to` member.
+
+        Red on the unchanged base: the route still answers
+        `{"status":"ok","forwarding_to":...,"uptime":...}`. Green once the source fix
+        lands and drops the member; `status` and `uptime` stay.
+        """
+        problems = self._health_body_problems(self._real_routes_source())
+        assert problems == [], (
+            "whisper-server contract: the /health handler body must not write the "
+            "forwarding_to member, got %r" % (problems,)
+        )
+
+    def test_whisper_main_sources_have_no_forwarding_identifiers(self):
+        """No main-source file of the module declares or uses the forwarding identifiers.
+
+        Red on the unchanged base: `forwardingTo` is declared in TranscriptionRoutes.kt,
+        TranscriptionApi.kt and WhisperServer.kt, and `sanitiseForwardingTo` in
+        WhisperServer.kt. Green once the source fix removes the whole chain. The scan
+        covers every `.kt` file under `src/main`, so a leftover in any of them is
+        reported by file name.
+        """
+        problems = self._identifier_problems(self._whisper_main_source_map())
+        assert problems == [], (
+            "whisper-server contract: no main-source file of the module may declare or "
+            "use the forwardingTo or sanitiseForwardingTo identifiers, got %r" % (problems,)
+        )
+
+    def test_a_re_added_forwarding_to_member_fails_the_health_check(self):
+        """Re-adding only the `forwarding_to` member makes the health check report it.
+
+        One edit on the real source: the member is inserted back into the handler's
+        JSON body. On the unchanged base the member is already present, so the edit
+        adds a second one; after the fix it is the only one. Either way the check must
+        report it, so the control is load-bearing before and after the fix.
+        """
+        real_source = self._real_routes_source()
+        sample = real_source.replace(
+            '\\"status\\":\\"ok\\"',
+            '\\"status\\":\\"ok\\",\\"forwarding_to\\":${escapeJsonString(forwardingTo)}',
+            1,
+        )
+        assert sample != real_source, "the re-added-member sample must differ from the real source"
+        problems = self._health_body_problems(sample)
+        assert FORWARDING_MEMBER_MESSAGE in problems, (
+            "whisper-server contract: a re-added forwarding_to member must be reported, "
+            "got %r" % (problems,)
+        )
+
+    def test_a_renamed_health_handler_fails_the_health_check(self):
+        """Renaming only the `get("/health")` route makes the check report it missing.
+
+        One edit on the real source: `get("/health")` -> `get("/healthx")`. The pin keys
+        on the route declaration's exact line shape -- `^[ \\t]*get("/health")` in the
+        COMMENT-SCANNED source with string literals KEPT -- so the handler is found by
+        that declaration alone. A renamed or deleted handler is therefore reported
+        instead of passing unnoticed, before and after the fix.
+        """
+        real_source = self._real_routes_source()
+        sample = real_source.replace('get("/health")', 'get("/healthx")', 1)
+        assert sample != real_source, "the renamed-handler sample must differ from the real source"
+        problems = self._health_body_problems(sample)
+        assert MISSING_HEALTH_HANDLER_MESSAGE in problems, (
+            "whisper-server contract: a renamed /health handler must be reported, "
+            "got %r" % (problems,)
+        )
+
+    def test_a_re_added_forwarding_to_identifier_fails_the_source_check(self):
+        """Re-adding only a `forwardingTo` identifier to the routes source fails the check.
+
+        One edit on the real source: a `forwardingTo: String = ""` parameter is
+        inserted next to the `uptime` parameter. On the unchanged base the identifier
+        is already present; after the fix this is the only one. Either way the check
+        must report it, naming TranscriptionRoutes.kt.
+        """
+        sources = self._whisper_main_source_map()
+        real_source = sources[ROUTES_SOURCE_REL]
+        sample = real_source.replace(
+            '    uptime: () -> String = { "0h0m0s" },\n',
+            '    uptime: () -> String = { "0h0m0s" },\n'
+            '    forwardingTo: String = "",\n',
+            1,
+        )
+        assert sample != real_source, "the re-added-identifier sample must differ from the real source"
+        sources[ROUTES_SOURCE_REL] = sample
+        problems = self._identifier_problems(sources)
+        assert FORWARDING_TO_MESSAGE % "TranscriptionRoutes.kt" in problems, (
+            "whisper-server contract: a re-added forwardingTo identifier must be reported, "
+            "got %r" % (problems,)
+        )
+
+    def test_a_leftover_sanitise_identifier_in_whisper_server_fails_the_check(self):
+        """A leftover `sanitiseForwardingTo` in WhisperServer.kt fails the module-wide check.
+
+        One edit on the real WhisperServer.kt text: a `sanitiseForwardingTo` declaration
+        is inserted above `formatUptime`. On the unchanged base the identifier is already
+        present; after the fix this is the only one. Either way the check must report it,
+        naming WhisperServer.kt.
+        """
+        sources = self._whisper_main_source_map()
+        real_source = sources[MAIN_SOURCE_REL]
+        sample = real_source.replace(
+            "internal fun formatUptime(",
+            'private val sanitiseForwardingTo: String = ""\n'
+            "internal fun formatUptime(",
+            1,
+        )
+        assert sample != real_source, "the leftover-identifier sample must differ from the real source"
+        sources[MAIN_SOURCE_REL] = sample
+        problems = self._identifier_problems(sources)
+        assert SANITISE_FORWARDING_TO_MESSAGE % "WhisperServer.kt" in problems, (
+            "whisper-server contract: a leftover sanitiseForwardingTo identifier must be "
+            "reported, got %r" % (problems,)
         )
 
 

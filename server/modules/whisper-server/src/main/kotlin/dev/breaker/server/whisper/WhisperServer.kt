@@ -52,61 +52,6 @@ internal class WhisperShutdown(
     }
 }
 
-private const val UNPARSEABLE_FORWARDING_TO = "unparseable"
-
-/** A port substring is usable only when it is 1-5 ASCII digits and its value is 1..65535; an empty
- *  or out-of-range port makes the whole URL unparseable. */
-private fun isValidPort(port: String): Boolean {
-    if (port.isEmpty() || port.length > 5) return false
-    for (c in port) if (c !in '0'..'9') return false
-    return port.toInt() in 1..65535
-}
-
-/**
- * Reduces a configured forwarding URL to scheme + host + port, so the /health route can name the
- * upstream without ever echoing a userinfo, path, query or fragment - any of which can carry a
- * token. The port is included only when the URL carried one. The last '@' in the authority splits
- * userinfo from host:port, so a password that itself contains '@' still resolves. An unparseable
- * URL, or one with no scheme or no host, or a port that is not 1-5 digits in 1..65535, reports the
- * fixed marker "unparseable", never the raw text.
- */
-internal fun sanitiseForwardingTo(url: String): String {
-    val schemeEnd = url.indexOf("://")
-    if (schemeEnd <= 0) return UNPARSEABLE_FORWARDING_TO
-    val scheme = url.substring(0, schemeEnd)
-    if (scheme != "http" && scheme != "https") return UNPARSEABLE_FORWARDING_TO
-    val afterScheme = schemeEnd + 3
-    var authorityEnd = afterScheme
-    while (authorityEnd < url.length && url[authorityEnd] != '/' && url[authorityEnd] != '?' && url[authorityEnd] != '#') {
-        authorityEnd++
-    }
-    val authority = url.substring(afterScheme, authorityEnd)
-    if (authority.isEmpty()) return UNPARSEABLE_FORWARDING_TO
-    val hostPort = authority.substringAfterLast('@')
-    if (hostPort.isEmpty()) return UNPARSEABLE_FORWARDING_TO
-    val host: String
-    val port: String?
-    if (hostPort.startsWith("[")) { // IPv6 literal keeps its brackets, e.g. http://[::1]:9000
-        val closeBracket = hostPort.indexOf(']')
-        if (closeBracket < 0) return UNPARSEABLE_FORWARDING_TO
-        host = hostPort.substring(0, closeBracket + 1)
-        val afterBracket = hostPort.substring(closeBracket + 1)
-        port = if (afterBracket.startsWith(":")) afterBracket.substring(1) else null
-    } else {
-        val colon = hostPort.indexOf(':')
-        if (colon < 0) {
-            host = hostPort
-            port = null
-        } else {
-            host = hostPort.substring(0, colon)
-            port = hostPort.substring(colon + 1)
-        }
-    }
-    if (host.isEmpty() || host == "[]") return UNPARSEABLE_FORWARDING_TO
-    if (port != null && !isValidPort(port)) return UNPARSEABLE_FORWARDING_TO
-    return if (port != null) "$scheme://$host:$port" else "$scheme://$host"
-}
-
 /** Renders a running time as HhMmSs: Duration.ofSeconds(3723) -> "1h2m3s". */
 internal fun formatUptime(duration: Duration): String {
     val totalSeconds = duration.seconds
@@ -122,12 +67,14 @@ internal fun uptimeProvider(monotonicNanos: () -> Long): () -> String {
 }
 
 /**
- * The two values the /health route echoes, computed once at startup: the sanitised forwarding
- * target and a provider that renders the uptime on demand from a monotonic source. The provider -
- * not a captured string - is what lets uptime advance as the source moves between requests.
+ * The ONE startup-computed value the /health route still needs: a provider that renders the uptime
+ * on demand from a monotonic source. The provider - not a captured string - is what lets uptime
+ * advance as the source moves between requests. The forwarding target is no longer part of
+ * startup state at all: nothing here reads the configuration, and the forwarder URL reaches the
+ * worker directly.
  */
-internal fun startupHealth(config: WhisperConfig, monotonicNanos: () -> Long): Pair<String, () -> String> =
-    sanitiseForwardingTo(config.forwarderBaseUrl) to uptimeProvider(monotonicNanos)
+internal fun startupUptime(monotonicNanos: () -> Long): () -> String =
+    uptimeProvider(monotonicNanos)
 
 /**
  * Wires the runnable TranscriptionApi from the opened store, the worker and the configuration. It is
@@ -140,7 +87,7 @@ internal fun buildTranscriptionApi(
     config: WhisperConfig,
     monotonicNanos: () -> Long,
 ): TranscriptionApi {
-    val (forwardingTo, uptime) = startupHealth(config, monotonicNanos)
+    val uptime = startupUptime(monotonicNanos)
     // The token check is the one place this module talks to the token service: the enqueue
     // moves a live session token's expiry (use), the poll uses the read-only check (peek).
     val tokenCheck = HttpTokenCheck(config.syncApiBaseUrl, config.syncApiServiceKey)
@@ -158,7 +105,6 @@ internal fun buildTranscriptionApi(
     return TranscriptionApi(
         store,
         wakeWorker,
-        forwardingTo = forwardingTo,
         uptime = uptime,
         tokenCheck = tokenCheck,
         limit = rateLimit,

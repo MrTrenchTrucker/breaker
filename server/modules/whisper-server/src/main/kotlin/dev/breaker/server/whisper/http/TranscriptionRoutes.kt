@@ -37,7 +37,6 @@ internal fun Route.transcriptionRoutes(
     store: JobStore,
     wakeWorker: () -> Unit,
     readMultipart: suspend ApplicationCall.() -> MultiPartData = { receiveMultipart(formFieldLimit = MAX_AUDIO_BYTES + 1) },
-    forwardingTo: String = "",
     uptime: () -> String = { "0h0m0s" },
     tokenCheck: TokenCheck = FailClosedTokenCheck,
     limit: AgentRateLimit? = null,
@@ -204,12 +203,13 @@ internal fun Route.transcriptionRoutes(
         }
     }
 
-    // Unauthenticated liveness (contract /health, security: []). It echoes the two startup-computed
-    // values verbatim - escaped, never re-sanitised or re-formatted here; that work runs once at
-    // startup (see startupHealth) and is passed in, so this route is a pure echo.
+    // Unauthenticated liveness (contract /health, security: []). It echoes the one startup-computed
+    // value verbatim - escaped, never re-formatted here; that string is built once at startup and
+    // passed in, so this route is a pure echo. The forwarder URL is deliberately not echoed: this
+    // route is open, and the URL names where the internal inference engine lives.
     get("/health") {
         call.respondText(
-            "{\"status\":\"ok\",\"forwarding_to\":${escapeJsonString(forwardingTo)},\"uptime\":${escapeJsonString(uptime())}}",
+            "{\"status\":\"ok\",\"uptime\":${escapeJsonString(uptime())}}",
             ContentType.Application.Json,
             HttpStatusCode.OK,
         )

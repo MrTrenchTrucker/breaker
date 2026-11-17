@@ -378,7 +378,7 @@ internal class SourceScanTest {
         val nanoMutant = "val api = buildTranscriptionApi(store, worker::wake, config) { 0L }"
         val nanoDefects = mainWiringDefects(nanoMutant, 1)
         assertTrue("whisper-server: dropping System::nanoTime must be reported: $nanoDefects", nanoDefects.any { defect -> defect.contains("System::nanoTime") })
-        val directMutant = "val api = TranscriptionApi(store, worker::wake, forwardingTo = \"x\", uptime = { 0L })"
+        val directMutant = "val api = TranscriptionApi(store, worker::wake, uptime = { 0L })"
         val directDefects = mainWiringDefects(directMutant, 1)
         assertTrue("whisper-server: a direct TranscriptionApi( must be reported: $directDefects", directDefects.any { defect -> defect.contains("directly") })
     }
