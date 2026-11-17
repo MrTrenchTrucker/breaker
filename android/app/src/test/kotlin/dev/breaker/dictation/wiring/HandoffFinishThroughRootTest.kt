@@ -51,7 +51,7 @@ class HandoffFinishThroughRootTest {
             historyStore = RecordingHistoryStore(),
             serviceController = DictationServiceController(FakePermission(), FakeLauncher()),
             committer = FakeCommitter(),
-            authHttp = { _ -> loginHttp },
+            authHttp = { _ -> keysSettlingHttp(loginHttp, 3) },
             keyDerivation = { HrKeyDerivation() },
             keySupplier = { softwareKey },
             exchangeHttp = { _ -> exchangeBuilt++; exchangeHttp },

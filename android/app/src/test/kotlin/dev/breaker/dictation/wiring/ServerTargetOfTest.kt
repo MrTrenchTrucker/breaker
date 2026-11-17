@@ -95,7 +95,7 @@ class ServerTargetOfTest {
             historyStore = RecordingHistoryStore(),
             serviceController = DictationServiceController(FakePermission(), FakeLauncher()),
             committer = FakeCommitter(),
-            authHttp = { _ -> TargetPathHttp() },
+            authHttp = { _ -> keysSettlingHttp(TargetPathHttp(), 1) },
             keyDerivation = { TargetPathKeys() },
             keySupplier = { SecretKeySpec(ByteArray(32) { 3 }, "AES") },
         )

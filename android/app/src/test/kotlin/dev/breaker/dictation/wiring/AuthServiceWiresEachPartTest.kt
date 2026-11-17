@@ -59,7 +59,7 @@ class AuthServiceWiresEachPartTest {
             historyStore = RecordingHistoryStore(),
             serviceController = DictationServiceController(FakePermission(), FakeLauncher()),
             committer = FakeCommitter(),
-            authHttp = { _ -> fakeHttp },
+            authHttp = { _ -> keysSettlingHttp(fakeHttp, 1) },
             keyDerivation = { fakeKdf },
             keySupplier = { softwareKey },
         )
