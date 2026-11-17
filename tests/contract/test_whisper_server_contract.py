@@ -220,14 +220,29 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
         )
 
     def _distribution_problems(self, build_text, source_text):
-        """Empty list == the build file and the main source agree on a runnable distribution."""
+        """Empty list == the build file and the main source agree on a runnable distribution.
+
+        The `mainClass.set(...)` must be the LIVE line inside the `application { ... }` block:
+        the build file is COMMENT-SCANNED first (`_scan_kotlin(..., keep_strings=True)`), so a
+        commented-out line cannot satisfy it, and the block is brace-matched, so a
+        `mainClass.set(...)` in another block cannot satisfy it. Three distinct messages:
+        no `application` block / no `mainClass` inside it / wrong value.
+        """
         problems = []
         plugins = re.search(r"^plugins\s*\{(.*?)^\}", build_text, re.S | re.M)
         if not plugins or not re.search(r"(?m)^\s*application\s*$", plugins.group(1)):
             problems.append("the plugins block does not apply the bare `application` plugin")
-        main = re.search(r'mainClass\.set\(\s*"([^"]+)"\s*\)', build_text)
+        code = _scan_kotlin(build_text, keep_strings=True)
+        app = re.search(r"(?m)^application\s*\{", code)
+        if not app:
+            problems.append("the build file has no `application { ... }` block")
+            return problems
+        brace = app.end() - 1
+        close = _close_of(code, brace)
+        block = code[brace + 1:close]
+        main = re.search(r'mainClass\.set\(\s*"([^"]+)"\s*\)', block)
         if not main:
-            problems.append("no application.mainClass.set(...)")
+            problems.append("the application block declares no mainClass.set(...)")
             return problems
         package = re.search(r"(?m)^package\s+([\w.]+)\s*$", source_text)
         if not package:
@@ -312,6 +327,73 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
             )
         return problems
 
+    def _launch_body_problems(self, source_text):
+        """Empty list == the launch block that binds the worker job really starts the worker.
+
+        Reads the COMMENT-SCANNED source (`keep_strings=False`), like `_main_blocks_problems`:
+        every guard keys on identifiers and punctuation, so a comment or string literal carrying
+        `launch`/`run` cannot satisfy it. The worker job is the single argument of main's final
+        call; the `val <job> = <scope>.launch { ... }` that binds that name is the one whose body
+        must call `<worker>.run()`, with `<worker>` the identifier bound by `val <id> =
+        QueueWorker(` in main. `QueueWorker.run()` takes NO argument today, so the required call
+        is exactly `<worker>.run()`; if that call's arguments ever change, this pin is updated
+        deliberately and the branch (b) message says so.
+        """
+        problems = []
+        code = _scan_kotlin(source_text, keep_strings=False)
+
+        main_decl = re.search(r"(?m)^fun\s+main\s*\(", code)
+        if not main_decl:
+            # The missing-main case is `_main_blocks_problems`'s G1; this pin reads main's body.
+            return problems
+
+        brace = code.find("{", main_decl.end())
+        body = code[brace + 1:_close_of(code, brace)]
+
+        # The worker job main passes to the seam: the single argument of main's final call.
+        tail = body.rstrip()
+        seam_job = None
+        if tail.endswith(")"):
+            close_idx = len(tail) - 1
+            open_idx = _open_of(tail, close_idx)
+            parts = _top_level_args(tail[open_idx + 1:close_idx])
+            if len(parts) == 1:
+                seam_job = parts[0].strip()
+
+        # Every `val <job> = <scope>.launch { ... }` in main, with its brace-matched body.
+        launches = []
+        for m in re.finditer(r"(?m)^[ \t]*val\s+(\w+)\s*=\s*[\w.]+\.launch\s*\{", body):
+            open_idx = m.end() - 1
+            close_idx = _close_of(body, open_idx)
+            launches.append((m.group(1), body[open_idx + 1:close_idx]))
+
+        target = next((block for name, block in launches if name == seam_job), None)
+        if target is None:
+            problems.append(
+                "no launch block binds the worker job (%s) that main passes to the seam"
+                % (seam_job or "<none>")
+            )
+            return problems
+
+        built = re.findall(r"(?m)^[ \t]*val\s+(\w+)\s*=\s*QueueWorker\s*\(", body)
+        expected = built[0] if built else "<worker>"
+        receivers = re.findall(r"\b(\w+)\.run\s*\(\s*\)", target)
+        if not receivers:
+            problems.append(
+                "the launch block that binds the worker job (%s) contains no %s.run() call: "
+                "QueueWorker.run() takes no argument today, so the required call is exactly "
+                "%s.run(); if that call's arguments change, this pin must be updated "
+                "deliberately" % (seam_job, expected, expected)
+            )
+            return problems
+        if not any(r in built for r in receivers):
+            problems.append(
+                "the run call inside the launch block that binds the worker job (%s) targets "
+                "%s, which main does not bind with `val %s = QueueWorker(`"
+                % (seam_job, receivers[0], receivers[0])
+            )
+        return problems
+
     def test_the_real_build_and_source_agree(self):
         """The build file and the main source agree on a runnable distribution."""
         with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
@@ -347,9 +429,102 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
         sample = real_build.replace('    mainClass.set("dev.breaker.server.whisper.WhisperServerKt")', "", 1)
         assert sample != real_build, "the no-mainClass sample must differ from the real build file"
         problems = self._distribution_problems(sample, real_source)
-        assert "no application.mainClass.set(...)" in problems, (
+        assert "the application block declares no mainClass.set(...)" in problems, (
             "whisper-server contract: a build file without a mainClass must be reported for the "
             "missing mainClass, got %r" % (problems,)
+        )
+
+    def test_a_main_class_outside_the_application_block_fails_the_check(self):
+        """Moving only the mainClass line into the dependencies block fails for that reason.
+
+        The search is scoped to the brace-matched `application { ... }` block, so a
+        `mainClass.set(...)` in another block must not satisfy it.
+        """
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_build.replace(
+            "application {\n"
+            '    mainClass.set("dev.breaker.server.whisper.WhisperServerKt")\n'
+            "}\n"
+            "\n"
+            "dependencies {",
+            "application {\n"
+            "}\n"
+            "\n"
+            "dependencies {\n"
+            '    mainClass.set("dev.breaker.server.whisper.WhisperServerKt")',
+            1,
+        )
+        assert sample != real_build, "the moved-mainClass sample must differ from the real build file"
+        problems = self._distribution_problems(sample, real_source)
+        assert "the application block declares no mainClass.set(...)" in problems, (
+            "whisper-server contract: a mainClass outside the application block must be reported "
+            "as missing from it, got %r" % (problems,)
+        )
+
+    def test_a_commented_out_main_class_fails_the_check(self):
+        """Commenting only the mainClass line fails for that reason.
+
+        The build file is comment-scanned before the search, so a commented-out
+        `mainClass.set(...)` cannot satisfy it.
+        """
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_build.replace(
+            '    mainClass.set("dev.breaker.server.whisper.WhisperServerKt")\n',
+            '    // mainClass.set("dev.breaker.server.whisper.WhisperServerKt")\n',
+            1,
+        )
+        assert sample != real_build, "the commented-mainClass sample must differ from the real build file"
+        problems = self._distribution_problems(sample, real_source)
+        assert "the application block declares no mainClass.set(...)" in problems, (
+            "whisper-server contract: a commented-out mainClass must be reported as missing, "
+            "got %r" % (problems,)
+        )
+
+    def test_a_renamed_application_block_fails_the_check(self):
+        """Renaming only `application {` fails for that reason (no application block)."""
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_build.replace("application {\n", "applicationX {\n", 1)
+        assert sample != real_build, "the renamed-block sample must differ from the real build file"
+        problems = self._distribution_problems(sample, real_source)
+        assert "the build file has no `application { ... }` block" in problems, (
+            "whisper-server contract: a build file with no `application { ... }` block must be "
+            "reported, got %r" % (problems,)
+        )
+
+    def test_a_commented_main_class_inside_the_block_does_not_count(self):
+        """A `mainClass.set(` in a comment inside the application block must not count.
+
+        The comment is the only `mainClass.set(` inside the block and carries a DIFFERENT
+        value, so a scanner that did not strip it would report the wrong-value branch
+        instead of the missing-mainClass branch.
+        """
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_build.replace(
+            "application {\n"
+            '    mainClass.set("dev.breaker.server.whisper.WhisperServerKt")\n'
+            "}",
+            "application {\n"
+            '    // mainClass.set("dev.breaker.server.whisper.WhisperServerKtx")\n'
+            "}",
+            1,
+        )
+        assert sample != real_build, "the commented-value sample must differ from the real build file"
+        problems = self._distribution_problems(sample, real_source)
+        assert "the application block declares no mainClass.set(...)" in problems, (
+            "whisper-server contract: a commented mainClass inside the application block must "
+            "not count as the mainClass, got %r" % (problems,)
         )
 
     def test_a_source_without_a_package_fails_the_check(self):
@@ -358,7 +533,7 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
             real_build = fh.read()
         with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
             real_source = fh.read()
-        sample = real_source.replace("package dev.breaker.server.whisper", "", 1)
+        sample = real_source.replace("package dev.breaker.server.whisper\n", "", 1)
         assert sample != real_source, "the no-package sample must differ from the real source"
         problems = self._distribution_problems(real_build, sample)
         assert "the main source declares no package" in problems, (
@@ -372,10 +547,17 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
             real_build = fh.read()
         with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
             real_source = fh.read()
-        sample = real_build.replace("WhisperServerKt", "WhisperServerKtx", 1)
+        sample = real_build.replace(
+            'mainClass.set("dev.breaker.server.whisper.WhisperServerKt")',
+            'mainClass.set("dev.breaker.server.whisper.WhisperServerKtx")',
+            1,
+        )
         assert sample != real_build, "the wrong-mainClass sample must differ from the real build file"
         problems = self._distribution_problems(sample, real_source)
-        assert "mainClass is" in " ".join(problems), (
+        assert (
+            "mainClass is 'dev.breaker.server.whisper.WhisperServerKtx', "
+            "source declares 'dev.breaker.server.whisper.WhisperServerKt'"
+        ) in " ".join(problems), (
             "whisper-server contract: a wrong mainClass must be reported as a mismatch, got %r" % (problems,)
         )
 
@@ -398,10 +580,17 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
             real_build = fh.read()
         with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
             real_source = fh.read()
-        sample = real_source.replace("package dev.breaker.server.whisper", "package dev.breaker.server.whisperx", 1)
+        sample = real_source.replace(
+            "package dev.breaker.server.whisper\n",
+            "package dev.breaker.server.whisperx\n",
+            1,
+        )
         assert sample != real_source, "the renamed-package sample must differ from the real source"
         problems = self._distribution_problems(real_build, sample)
-        assert "source declares" in " ".join(problems), (
+        assert (
+            "mainClass is 'dev.breaker.server.whisper.WhisperServerKt', "
+            "source declares 'dev.breaker.server.whisperx.WhisperServerKt'"
+        ) in " ".join(problems), (
             "whisper-server contract: a renamed package must be reported as a mismatch, got %r" % (problems,)
         )
 
@@ -412,11 +601,15 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
         with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
             real_source = fh.read()
         sample = real_source.replace(
-            "package dev.breaker.server.whisper",
-            '@file:JvmName("WhisperServer")\npackage dev.breaker.server.whisper',
+            "package dev.breaker.server.whisper\n",
+            '@file:JvmName("WhisperServer")\npackage dev.breaker.server.whisper\n',
             1,
         )
         assert sample != real_source, "the JvmName sample must differ from the real source"
+        assert sample.count("@file:JvmName") == 1, (
+            "the JvmName control must add exactly one @file:JvmName line, so it cannot be "
+            "re-applied to a source that already carries one"
+        )
         problems = self._distribution_problems(real_build, sample)
         assert "a @file:JvmName file's class is not" in " ".join(problems), (
             "whisper-server contract: a @file:JvmName source must be reported, got %r" % (problems,)
@@ -540,18 +733,111 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
             "the placeholder message, got %r" % (problems,)
         )
 
-    def test_main_does_not_just_fall_off_the_end(self):
-        """A main that simply ends after `stopServer = ...` is reported: the pin is not tautological."""
-        real_source = self._real_source()
-        sample = real_source.replace("    blockUntilShutdown(workerJob)\n", "", 1)
-        assert sample != real_source, "the fall-off sample must differ from the real source"
-        problems = self._main_blocks_problems(sample)
-        assert problems, (
-            "whisper-server contract: a main that falls off the end must report a problem"
+    def test_the_real_main_starts_the_worker_in_the_launch_block(self):
+        """Green on the tip: the launch block that binds the worker job calls worker.run()."""
+        problems = self._launch_body_problems(self._real_source())
+        assert problems == [], (
+            "whisper-server contract: the launch block that binds the worker job must call "
+            "worker.run(), got %r" % (problems,)
         )
-        assert "main does not end with a call" in " ".join(problems), (
-            "whisper-server contract: the fall-off-end source must be named as not ending in "
-            "a call, got %r" % (problems,)
+
+    def test_an_emptied_launch_block_fails_the_launch_check(self):
+        """Removing only the run call from the launch block fails for that reason (b)."""
+        real_source = self._real_source()
+        sample = real_source.replace("        worker.run()\n", "", 1)
+        assert sample != real_source, "the emptied-block sample must differ from the real source"
+        problems = self._launch_body_problems(sample)
+        assert (
+            "the launch block that binds the worker job (workerJob) contains no worker.run() "
+            "call: QueueWorker.run() takes no argument today, so the required call is exactly "
+            "worker.run(); if that call's arguments change, this pin must be updated deliberately"
+            in problems
+        ), "whisper-server contract: an emptied launch block must be reported, got %r" % (problems,)
+
+    def test_a_renamed_run_call_fails_the_launch_check(self):
+        """Renaming only the run call fails for that reason (b)."""
+        real_source = self._real_source()
+        sample = real_source.replace("worker.run()", "worker.runX()", 1)
+        assert sample != real_source, "the renamed-run sample must differ from the real source"
+        problems = self._launch_body_problems(sample)
+        assert (
+            "the launch block that binds the worker job (workerJob) contains no worker.run() "
+            "call: QueueWorker.run() takes no argument today, so the required call is exactly "
+            "worker.run(); if that call's arguments change, this pin must be updated deliberately"
+            in problems
+        ), "whisper-server contract: a renamed run call must be reported, got %r" % (problems,)
+
+    def test_a_run_call_moved_out_of_the_launch_block_fails_the_launch_check(self):
+        """Moving only the run call outside the launch block fails for that reason (b)."""
+        real_source = self._real_source()
+        sample = real_source.replace(
+            "    val workerJob = workerScope.launch {\n        worker.run()\n    }\n",
+            "    val workerJob = workerScope.launch {\n    }\n    worker.run()\n",
+            1,
+        )
+        assert sample != real_source, "the moved-run sample must differ from the real source"
+        problems = self._launch_body_problems(sample)
+        assert (
+            "the launch block that binds the worker job (workerJob) contains no worker.run() "
+            "call: QueueWorker.run() takes no argument today, so the required call is exactly "
+            "worker.run(); if that call's arguments change, this pin must be updated deliberately"
+            in problems
+        ), "whisper-server contract: a run call outside the launch block must be reported, got %r" % (
+            problems,
+        )
+
+    def test_a_renamed_worker_binding_fails_the_launch_check(self):
+        """Renaming only the built worker binding fails for that reason (c)."""
+        real_source = self._real_source()
+        sample = real_source.replace("val worker = QueueWorker(", "val workerX = QueueWorker(", 1)
+        assert sample != real_source, "the renamed-worker sample must differ from the real source"
+        problems = self._launch_body_problems(sample)
+        assert (
+            "the run call inside the launch block that binds the worker job (workerJob) targets "
+            "worker, which main does not bind with `val worker = QueueWorker(`"
+            in problems
+        ), "whisper-server contract: a run call on a non-built receiver must be reported, got %r" % (
+            problems,
+        )
+
+    def test_a_second_launch_block_does_not_satisfy_the_launch_check(self):
+        """A second launch block calling worker.run() does not satisfy the pin (b).
+
+        The seam-bound block is emptied and a second launch block elsewhere in main calls
+        worker.run(): the call must be in THE block that binds the job main passes to the seam,
+        not just anywhere in main.
+        """
+        real_source = self._real_source()
+        sample = real_source.replace(
+            "    val workerJob = workerScope.launch {\n        worker.run()\n    }\n",
+            "    val workerJob = workerScope.launch {\n    }\n"
+            "    val secondJob = workerScope.launch {\n        worker.run()\n    }\n",
+            1,
+        )
+        assert sample != real_source, "the second-launch sample must differ from the real source"
+        problems = self._launch_body_problems(sample)
+        assert (
+            "the launch block that binds the worker job (workerJob) contains no worker.run() "
+            "call: QueueWorker.run() takes no argument today, so the required call is exactly "
+            "worker.run(); if that call's arguments change, this pin must be updated deliberately"
+            in problems
+        ), "whisper-server contract: a run call in a second launch block must not satisfy the pin, got %r" % (
+            problems,
+        )
+
+    def test_a_main_with_no_launch_bound_job_fails_the_launch_check(self):
+        """Removing only the `val workerJob = ` binding fails for that reason (a)."""
+        real_source = self._real_source()
+        sample = real_source.replace(
+            "    val workerJob = workerScope.launch {", "    workerScope.launch {", 1
+        )
+        assert sample != real_source, "the no-binding sample must differ from the real source"
+        problems = self._launch_body_problems(sample)
+        assert (
+            "no launch block binds the worker job (workerJob) that main passes to the seam"
+            in problems
+        ), "whisper-server contract: a main with no launch-bound job must be reported, got %r" % (
+            problems,
         )
 
 
