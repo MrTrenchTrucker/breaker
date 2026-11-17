@@ -12,6 +12,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     `java-library`
+    application
 }
 
 java {
@@ -23,6 +24,10 @@ kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)  // read 2026-10-04 from https://kotlinlang.org/docs/whatsnew24.html (KGP 2.4.20 JvmTarget.JVM_25)
     }
+}
+
+application {
+    mainClass.set("dev.breaker.server.whisper.WhisperServerKt")
 }
 
 dependencies {

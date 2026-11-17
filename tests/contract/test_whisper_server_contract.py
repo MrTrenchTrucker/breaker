@@ -9,6 +9,7 @@ The three pins below read the shared api-contracts spec, so a revert of either
 contract edit lands here as a red failure. Assertion style matches contract_support.py.
 """
 import os
+import re
 import sys
 import unittest
 
@@ -16,6 +17,7 @@ import contract_support
 
 ROOT = contract_support.ROOT
 OPENAPI = os.path.join(ROOT, "shared/modules/api-contracts/openapi.yaml")
+MAIN_SOURCE_REL = "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/WhisperServer.kt"
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import yaml_subset
 
@@ -158,6 +160,140 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
         assert ":shared:modules:seal" in declared, (
             f"whisper-server must wire the shared seal module with a live project() edge, "
             f"got {sorted(declared)}"
+        )
+
+    def _distribution_problems(self, build_text, source_text):
+        """Empty list == the build file and the main source agree on a runnable distribution."""
+        problems = []
+        plugins = re.search(r"^plugins\s*\{(.*?)^\}", build_text, re.S | re.M)
+        if not plugins or not re.search(r"(?m)^\s*application\s*$", plugins.group(1)):
+            problems.append("the plugins block does not apply the bare `application` plugin")
+        main = re.search(r'mainClass\.set\(\s*"([^"]+)"\s*\)', build_text)
+        if not main:
+            problems.append("no application.mainClass.set(...)")
+            return problems
+        package = re.search(r"(?m)^package\s+([\w.]+)\s*$", source_text)
+        if not package:
+            problems.append("the main source declares no package")
+        else:
+            stem = os.path.splitext(os.path.basename(MAIN_SOURCE_REL))[0]
+            expected = package.group(1) + "." + stem + "Kt"
+            if main.group(1) != expected:
+                problems.append("mainClass is %r, source declares %r" % (main.group(1), expected))
+        if not re.search(r"(?m)^fun\s+main\s*\(", source_text):
+            problems.append("the main source has no top-level fun main(")
+        if re.search(r"(?m)^@file:JvmName\(", source_text):
+            problems.append("a @file:JvmName file's class is not <package>.<stem>Kt")
+        return problems
+
+    def test_the_real_build_and_source_agree(self):
+        """The build file and the main source agree on a runnable distribution."""
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            build_text = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            source_text = fh.read()
+        problems = self._distribution_problems(build_text, source_text)
+        assert problems == [], (
+            "whisper-server contract: the build file and the main source must agree on a "
+            "runnable distribution, got %r" % (problems,)
+        )
+
+    def test_a_build_without_the_application_plugin_fails_the_check(self):
+        """Removing only the application plugin line fails the check for that reason."""
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_build.replace("    application\n", "", 1)
+        assert sample != real_build, "the no-plugin sample must differ from the real build file"
+        problems = self._distribution_problems(sample, real_source)
+        assert "the plugins block does not apply the bare `application` plugin" in problems, (
+            "whisper-server contract: a build file without the application plugin must be "
+            "reported for the missing plugin, got %r" % (problems,)
+        )
+
+    def test_a_build_without_a_main_class_fails_the_check(self):
+        """Removing only the mainClass line fails the check for that reason."""
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_build.replace('    mainClass.set("dev.breaker.server.whisper.WhisperServerKt")', "", 1)
+        assert sample != real_build, "the no-mainClass sample must differ from the real build file"
+        problems = self._distribution_problems(sample, real_source)
+        assert "no application.mainClass.set(...)" in problems, (
+            "whisper-server contract: a build file without a mainClass must be reported for the "
+            "missing mainClass, got %r" % (problems,)
+        )
+
+    def test_a_source_without_a_package_fails_the_check(self):
+        """Removing only the package line fails the check for that reason."""
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_source.replace("package dev.breaker.server.whisper", "", 1)
+        assert sample != real_source, "the no-package sample must differ from the real source"
+        problems = self._distribution_problems(real_build, sample)
+        assert "the main source declares no package" in problems, (
+            "whisper-server contract: a source without a package must be reported for the missing "
+            "package, got %r" % (problems,)
+        )
+
+    def test_a_wrong_main_class_fails_the_check(self):
+        """Changing only the mainClass last segment fails the check for that reason."""
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_build.replace("WhisperServerKt", "WhisperServerKtx", 1)
+        assert sample != real_build, "the wrong-mainClass sample must differ from the real build file"
+        problems = self._distribution_problems(sample, real_source)
+        assert "mainClass is" in " ".join(problems), (
+            "whisper-server contract: a wrong mainClass must be reported as a mismatch, got %r" % (problems,)
+        )
+
+    def test_a_source_without_a_top_level_main_fails_the_check(self):
+        """Removing only the top-level main fails the check for that reason."""
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_source.replace("fun main() {", "fun mainRemoved() {", 1)
+        assert sample != real_source, "the no-main sample must differ from the real source"
+        problems = self._distribution_problems(real_build, sample)
+        assert "the main source has no top-level fun main(" in problems, (
+            "whisper-server contract: a source without a top-level main must be reported, got %r" % (problems,)
+        )
+
+    def test_a_renamed_package_source_is_not_hard_coded(self):
+        """A source with a different package fails the check, so the class name is derived."""
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_source.replace("package dev.breaker.server.whisper", "package dev.breaker.server.whisperx", 1)
+        assert sample != real_source, "the renamed-package sample must differ from the real source"
+        problems = self._distribution_problems(real_build, sample)
+        assert "source declares" in " ".join(problems), (
+            "whisper-server contract: a renamed package must be reported as a mismatch, got %r" % (problems,)
+        )
+
+    def test_a_JvmName_source_fails_the_check(self):
+        """A source carrying @file:JvmName fails the check for that reason."""
+        with open(os.path.join(ROOT, "server", "modules", "whisper-server", "build.gradle.kts"), encoding="utf-8") as fh:
+            real_build = fh.read()
+        with open(os.path.join(ROOT, MAIN_SOURCE_REL), encoding="utf-8") as fh:
+            real_source = fh.read()
+        sample = real_source.replace(
+            "package dev.breaker.server.whisper",
+            '@file:JvmName("WhisperServer")\npackage dev.breaker.server.whisper',
+            1,
+        )
+        assert sample != real_source, "the JvmName sample must differ from the real source"
+        problems = self._distribution_problems(real_build, sample)
+        assert "a @file:JvmName file's class is not" in " ".join(problems), (
+            "whisper-server contract: a @file:JvmName source must be reported, got %r" % (problems,)
         )
 
 
