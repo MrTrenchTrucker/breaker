@@ -824,6 +824,7 @@ agents, not required: an outside contributor may write the code themselves
 ## Known Gotchas
 - First account = admin; last admin cannot be deleted/demoted; logs never plaintext (F32).
 - Written in Kotlin on the JVM with Ktor, compiled against api-contracts' Kotlin types (ADR-017).
+- It runs as a distribution: `./gradlew :server:modules:sync-api:installDist` builds `build/install/sync-api/`, entry `dev.breaker.server.syncapi.SyncApiMainKt`; the deploy images copy that tree.
 - This module never wraps or unwraps a key — it only stores and returns
   whatever the client already wrapped. Do not "helpfully" add a server-side
   KDF call here; that is exactly the design ADR-006's amendment moved away
