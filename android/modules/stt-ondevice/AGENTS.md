@@ -381,8 +381,19 @@ This is how the project's own team builds modules. It is recommended for AI
 agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
+## Decided, not built (ADR-050)
+
+Decided in ADR-050, not built. None of this is in the code yet.
+
+- A second model, Parakeet TDT 0.6B v3 (registry id `parakeet`, the sherpa-onnx int8 offline archive of 487,211,443 bytes), with an offline recognizer behind the existing recognizer interface.
+- A kind switch chosen by the registry entry, so each model takes its own path.
+- An extraction profile for Parakeet with limits taken from its real archive listing. The `small` limits do not fit that archive.
+- Download limits follow the registry size, as they do today.
+- Our own pin (SHA-256, byte size and release-asset id) per model is the verify rule. The upstream checksum.txt line becomes advisory. Until that is built, a Parakeet pin that is not in the upstream file would be refused (`PIN_NOT_IN_UPSTREAM`).
+- The take shape does not change: one decode after stop, through `OnDeviceSttEngine`.
+
 ## Known Gotchas
-- Every .onnx is untrusted — verify checksum.txt before load [2]; track #3983 [2].
+- Every .onnx is untrusted - verify the model's own SHA-256 pin before load [2] (ADR-050 amends the rule: today's code also requires the pin to appear in upstream checksum.txt; that file becomes advisory once ADR-050 is built); track #3983 [2].
 - The Gradle edge to `:shared:modules:model-registry` is required and present:
   the registry publishes an artifact (its build file applies `java-library`),
   this module's build file declares the edge, and its `modules.toml` entry

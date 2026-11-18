@@ -1,7 +1,9 @@
 # ADR-025: The app tells the user where the speech model is downloaded from
 
-**Status:** accepted
+**Status:** accepted, amended 2026-11-18 (a second model, Parakeet, comes from the same GitHub release host; each model's download line names its own size)
 **Date:** 2026-10-12
+
+**Amendment 2026-11-18 (ADR-050, decided, not built).** A second speech model, Parakeet TDT 0.6B v3, is decided. It is downloaded from the same GitHub release host as the first model, so the source sentence above stays true for both. Each model's download line uses its own size from its registry entry. The About screen and the NOTICE file also carry the CC BY 4.0 attribution for Parakeet (ADR-050, H). The original text below is kept as written.
 
 ## Context
 The on-device speech model is about 366 MB (349 MiB) and is not shipped inside the app.

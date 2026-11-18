@@ -66,8 +66,8 @@ JVM test runs without a device. Only the service class is public; the rest is in
 - It keeps nothing: no node, no text, no field state between two calls.
 - It logs, stores and sends nothing, and has no clipboard code. The clipboard fallback
   belongs to the parent.
-- `ACTION_PASTE` is not built. It would come only behind a clipboard seam in the parent,
-  and only if a device shows that apps refuse `ACTION_SET_TEXT`.
+- `ACTION_PASTE` is not used (ADR-049). A refused field keeps the parent's clipboard fallback; only a device
+  measurement showing that apps refuse `ACTION_SET_TEXT` widely could reopen it, through a new ADR.
 - It does not walk the screen: no children, no parents, no search. The window list is read
   only to find the keyboard window, and each listed window is recycled once.
 - It does not onboard the permission (that is the `ui` module's job).

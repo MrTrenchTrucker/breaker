@@ -83,8 +83,8 @@ The app now drives `setLevel` while recording: it works out the level from the m
 **Overlay spoofing (T4):**
 - What the module does: the tile is tap-only (no text input of any kind), and the tile view asks the system to
   drop touches that arrive while another window covers it (`setFilterTouchesWhenObscured(true)`).
-- What the module does NOT do: it does not verify window ownership and makes no such claim. The threat-model row
-  for T4 also names that check; it is not built here.
+- What the module does NOT do: it does not verify window ownership and makes no such claim. The check is decided in
+  ADR-048 (remember the window at take start, compare at commit; cross-window only) and is not built yet.
 - Not stealing focus is a property of the window flag above (`FLAG_NOT_FOCUSABLE`); T4 is about spoofing.
 
 **Theme:** the app passes the theme the tile should show, light or dark (ui-tokens `ThemeMode`, not core's

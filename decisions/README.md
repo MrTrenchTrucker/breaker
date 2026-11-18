@@ -98,5 +98,8 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-045](ADR-045-permission-revoke-on-foreground-return.md) | Re-check permission state on return to foreground; treat kill-on-revoke as a fresh start | accepted |
 | [ADR-046](ADR-046-app-depends-on-android-phrases.md) | App depends on android_phrases  -  registry edge added with the PhraseSendHandler code | accepted |
 | [ADR-047](ADR-047-phone-30-days-server-3-months.md) | The phone keeps 30 days of transcriptions and delete notes, the server keeps 3 months | accepted |
+| [ADR-048](ADR-048-t4-remember-the-window-at-take-start.md) | T4 window ownership: remember the window at take start, compare at commit | accepted; build planned |
+| [ADR-049](ADR-049-no-paste-fallback-for-accessibility-insert.md) | No ACTION_PASTE fallback for the accessibility insert | accepted |
+| [ADR-050](ADR-050-two-speech-models-user-chooses.md) | Two speech models (Good and Better), the user chooses between them, and each model is pinned by our own sha256; decided, not built | accepted |
 
-Next free number: **ADR-048**.
+Next free number: **ADR-051**.

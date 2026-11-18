@@ -92,6 +92,11 @@ This is how the project's own team builds modules. It is recommended for AI
 agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
+## Decided, not built (ADR-050)
+
+- The registry gains a label and a rating for each speech model (ADR-050). This module reads them through `ModelCatalog` and does not own them.
+- The chosen model stays in the existing `model_size` key. This module needs no new key. Switching and deleting are calls the ui and app make; this module only stores the choice.
+
 ## Known Gotchas
 - Server URL is a first-run setting — never hardcode.
 - NOT REPRODUCED (a defect report): a phone test of APK 8 found history and the speech model gone after an

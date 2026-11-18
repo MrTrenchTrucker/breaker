@@ -102,6 +102,10 @@ The auth screen's input views (`AuthFieldView.kt`, `PasswordEntryView.kt` and `U
 
 The theme control on the settings screen is three cells, System, Light and Dark, drawn as one segmented track. The selected cell is the stored choice, so System stays selected while the app follows the phone. The words on the first-run flow are drafts still to be checked. Each screen entry except the settings view reads the stored theme through the settings store each time a screen is built; the settings view draws live through the theme controller.
 
+## Decided, not built (ADR-050)
+
+Decided in ADR-050, not built: a second speech model (Parakeet, labelled "Better", 2 of 3 truck emoji; `small` is "Good", 1 of 3). The first-run step gets a second button under the first one. Settings gets a speech model section with download, delete and use-this-one. About gets a third-party notices entry. None of it is in the code yet.
+
 ## Tests
 
 From the repository root:

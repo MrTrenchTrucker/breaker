@@ -240,6 +240,12 @@ one module at a time. The owner does not write the module's code. The owner:
 The owner's own work is orchestration, checking and correction, not writing
 code.
 
+## Decided, not built (ADR-050)
+
+- The first-run flow, the Settings speech-model section and the About notices entry are decided for a second speech model (ADR-050), not built.
+- The model choice (the selection, an install that touches only its own model, and a delete that never touches the model in use) is decided, not built.
+- Not decided: how two model downloads that run at once are handled.
+
 ## Known Gotchas
 - `SettingsLauncherActivity.kt` stays under a cap of 285 lines (`ThemeSwitchRepaintGateTest` reads the launcher file alone); the views it assigns are built in `host/LauncherEntry.kt` (`buildHomeEntry`, `buildSettingsRebuilt`, `buildSettingsColumn`). `AppLayoutGateTest` holds every Kotlin file of this module to 300 lines, so a change that adds code to the activity moves code out of it first.
 - Phase 1 deliverable - DI wiring must be the ONLY place modules are composed.

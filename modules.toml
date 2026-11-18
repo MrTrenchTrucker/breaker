@@ -117,7 +117,7 @@ status = "dead"
 
 [module.android_commit_accessibility]
 path = "android/modules/commit/accessibility"
-owns = "The accessibility text-insert mechanism (ADR-022): finds the focused editable field, inserts text (ACTION_SET_TEXT merging at the cursor; ACTION_PASTE is not built yet), refuses password fields, publishes the focused field into the parent's holder."
+owns = "The accessibility text-insert mechanism (ADR-022): finds the focused editable field, inserts text (ACTION_SET_TEXT merging at the cursor; ACTION_PASTE is not used, ADR-049), refuses password fields, publishes the focused field into the parent's holder."
 does_not_own = "The mechanism-neutral commit logic (commit); the dead keyboard adapter (commit/ime); the first-run flow for the permission (ui)."
 depends_on = ["android_commit"]
 public = "BreakerAccessibilityService"
@@ -301,7 +301,7 @@ card = "shared/modules/seal/AGENTS.md"
 
 [module.shared_model_registry]
 path = "shared/modules/model-registry"
-owns = "Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag."
+owns = "Model sizes, immutable release-asset URLs, our SHA-256 pin per model, the upstream checksum.txt provenance, licenses, hosted flag."
 does_not_own = "Download/verify logic (android/stt-ondevice)."
 depends_on = ["shared"]
 public = "ModelRegistry, ModelEntry (archiveName), ModelFamily (generated, ADR-016)"
