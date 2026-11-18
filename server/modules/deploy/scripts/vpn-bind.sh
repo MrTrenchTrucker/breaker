@@ -14,6 +14,10 @@
 # per-port line.
 
 set -u
+# Every field-list expansion below is a deliberate word split (each site sets
+# its own IFS). Globbing stays off for the whole script so a literal such as
+# '*' or '[::1]:8080' can never expand against filenames in the CWD.
+set -f
 
 # The script only parses ASCII address literals; pin the C locale so POSIX
 # bracket expressions and numeric tests behave the same on every host.
@@ -98,6 +102,9 @@ is_ipv4_literal() {
     esac
     OLDIFS=$IFS
     IFS=.
+    # Deliberate field split of the literal on '.' into its octets; globbing
+    # is off script-wide, so the words cannot expand against CWD filenames.
+    # shellcheck disable=SC2086
     set -- $addr
     IFS=$OLDIFS
     [ $# -eq 4 ] || return 1
@@ -131,6 +138,9 @@ is_ipv6_literal() {
     esac
     OLDIFS=$IFS
     IFS=:
+    # Deliberate field split of the IPv6 literal on ':' into its groups;
+    # globbing is off script-wide.
+    # shellcheck disable=SC2086
     set -- $a
     IFS=$OLDIFS
     [ $# -ge 1 ] && [ $# -le 8 ] || return 1
@@ -159,7 +169,10 @@ is_addr_literal() {
 for va in $VPN_ADDRS; do
     is_addr_literal "$va" || usage_error "--vpn-addr value $va is not an IPv4 or IPv6 literal"
 done
-# An empty or blank value adds no address at all.
+# An empty or blank value adds no address at all. Deliberate split of the
+# accumulated list on the default whitespace IFS (space, tab, newline), which
+# is how it was built above; globbing is off script-wide.
+# shellcheck disable=SC2086
 set -- $VPN_ADDRS
 [ $# -ge 1 ] || usage_error "--vpn-addr requires a non-empty value"
 
@@ -203,6 +216,9 @@ while IFS= read -r rawline || [ -n "$rawline" ]; do
     # ss -ltnH columns: State Recv-Q Send-Q Local-Address:Port Peer-Address:Port
     OLDIFS=$IFS
     IFS=' '
+    # Deliberate field split of the ss row into its columns: runs of spaces
+    # collapse and tabs are not separators. Globbing is off script-wide.
+    # shellcheck disable=SC2086
     set -- $rawline
     IFS=$OLDIFS
     [ $# -ge 4 ] || continue

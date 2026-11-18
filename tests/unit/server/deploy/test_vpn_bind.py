@@ -64,11 +64,20 @@ class VpnBindTest(unittest.TestCase):
         cls.env = dict(os.environ)
         cls.env.pop("VPN_BIND_LISTENERS_FILE", None)
 
-    def run_script(self, args, fixture_lines):
+    def run_script(self, args, fixture_lines, cwd_files=None):
+        """Run the real script. cwd_files seeds the child CWD with empty files;
+        the listener-file directory is the CWD unless cwd_files is given."""
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "listeners.txt")
             with open(path, "w") as fh:
                 fh.write(fixture_lines)
+            cwd = tmp
+            if cwd_files:
+                cwd = os.path.join(tmp, "cwd")
+                os.mkdir(cwd)
+                for name in cwd_files:
+                    with open(os.path.join(cwd, name), "w"):
+                        pass
             env = dict(self.env)
             env["VPN_BIND_LISTENERS_FILE"] = path
             proc = subprocess.run(
@@ -77,6 +86,7 @@ class VpnBindTest(unittest.TestCase):
                 text=True,
                 env=env,
                 timeout=30,
+                cwd=cwd,
             )
         return proc
 
@@ -540,6 +550,115 @@ class VpnBindTest(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
         self.assertEqual(proc.stdout, "")
+
+    # -- D14: the four deliberate field splits are scoped and cannot glob ---
+
+    def test_glob_pattern_vpn_addr_is_refused_even_if_a_cwd_file_matches(self):
+        # Site 101 (IFS='.' split): '?.?.?.?' only validated because the
+        # unquoted expansion globbed to a CWD file named 1.2.3.4.
+        p = self.run_script(
+            ["--vpn-addr", "?.?.?.?", "--ports", "8080"],
+            listeners([("127.0.0.1", 8080)]),
+            cwd_files=["1.2.3.4"],
+        )
+        self.assertEqual(p.returncode, 2, p.stdout + p.stderr)
+        self.assertIn("--vpn-addr", p.stderr)
+
+    def test_star_vpn_addr_is_refused_even_if_a_cwd_file_matches(self):
+        # Sites 159/163: '*' used to glob to the CWD file 10.8.0.5 and be
+        # accepted as a listed address; it is not an address literal.
+        p = self.run_script(
+            ["--vpn-addr", "*", "--ports", "8080"],
+            listeners([("10.8.0.5", 8080)]),
+            cwd_files=["10.8.0.5"],
+        )
+        self.assertEqual(p.returncode, 2, p.stdout + p.stderr)
+        self.assertIn("--vpn-addr", p.stderr)
+
+    def test_bracketed_ipv6_listener_column_is_not_glob_expanded(self):
+        # Site 206: '[::1]:8080' must stay one field; its bracket expression
+        # used to match a CWD file named 1:8080 and rewrite the row to '1'.
+        p = self.run_script(
+            ["--vpn-addr", "10.8.0.5", "--ports", "8080"],
+            "LISTEN 0 128 [::1]:8080 *:*\n",
+            cwd_files=["1:8080"],
+        )
+        self.assertEqual((p.returncode, p.stdout), (0, "8080 loopback ::1\n"))
+
+    def test_an_address_list_of_three_keeps_every_value_listed(self):
+        # Site 163 keeps every whitespace-separated --vpn-addr field listed.
+        fix = listeners([("10.8.0.5", 80), ("10.8.0.6", 81), ("10.8.0.7", 82)])
+        args = ["--vpn-addr", "10.8.0.5", "--vpn-addr", "10.8.0.6",
+                "--vpn-addr", "10.8.0.7", "--ports", "80,81,82"]
+        p = self.run_script(args, fix)
+        self.assertEqual(
+            (p.returncode, p.stdout),
+            (0, "80 pass 10.8.0.5\n81 pass 10.8.0.6\n82 pass 10.8.0.7\n"),
+        )
+        # A fourth, unlisted address is still exposed: the list was not
+        # collapsed to its first field.
+        fix = listeners([("10.8.0.5", 80), ("10.8.0.6", 81),
+                         ("10.8.0.7", 82), ("10.8.0.9", 83)])
+        args = ["--vpn-addr", "10.8.0.5", "--vpn-addr", "10.8.0.6",
+                "--vpn-addr", "10.8.0.7", "--ports", "80,81,82,83"]
+        p = self.run_script(args, fix)
+        self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
+        self.assertIn("83 exposed 10.8.0.9", p.stdout)
+
+    def test_a_tab_separated_vpn_addr_value_still_splits_into_two_addresses(self):
+        # Site 163 splits on the default IFS (whitespace), not spaces only:
+        # a tab must not glue two literals into one invalid field.
+        fix = listeners([("10.8.0.5", 80), ("10.8.0.6", 81)])
+        p = self.run_script(
+            ["--vpn-addr", "10.8.0.5\t10.8.0.6", "--ports", "80,81"], fix
+        )
+        self.assertEqual(
+            (p.returncode, p.stdout),
+            (0, "80 pass 10.8.0.5\n81 pass 10.8.0.6\n"),
+        )
+
+    def test_a_listener_row_with_extra_spaces_is_still_read(self):
+        # Site 206 splits on IFS=' ': runs of spaces collapse, so extra
+        # internal/leading/trailing blanks do not shift the local-address
+        # column ($4).
+        for row in (
+            "LISTEN  0 128 10.8.0.5:8080 *:*\n",
+            " LISTEN 0 128 10.8.0.5:8080 *:*\n",
+            "LISTEN 0 128 10.8.0.5:8080 *:*   \n",
+        ):
+            p = self.run_script(["--vpn-addr", "10.8.0.5", "--ports", "8080"], row)
+            self.assertEqual(
+                (p.returncode, p.stdout), (0, "8080 pass 10.8.0.5\n"), repr(row)
+            )
+
+    def test_a_tab_between_columns_is_not_a_field_separator(self):
+        # Same split: a tab is not in IFS=' ', so a tab-separated row is not
+        # misread as columns and is skipped (not-listening).
+        p = self.run_script(
+            ["--vpn-addr", "10.8.0.5", "--ports", "8080"],
+            "LISTEN\t0 128 10.8.0.5:8080 *:*\n",
+        )
+        self.assertEqual((p.returncode, p.stdout), (3, "8080 not-listening -\n"))
+
+    def test_link_local_scope_id_is_stripped_before_classification(self):
+        # IPv6 zone/scope on a listener: '[fe80::1%eth0]' classifies by the
+        # address and prints the address without the scope.
+        p = self.run_script(
+            ["--vpn-addr", "10.8.0.5", "--ports", "8080", "--allow-private"],
+            "LISTEN 0 128 [fe80::1%eth0]:8080 *:*\n",
+        )
+        self.assertEqual((p.returncode, p.stdout), (0, "8080 pass fe80::1\n"))
+
+    def test_a_zone_id_on_the_vpn_addr_value_is_refused(self):
+        # Site 134 validates the charset before the colon split: '%' is not
+        # part of a literal, so a scoped --vpn-addr value is a usage error.
+        for value in ("fe80::1%eth0", "fd00::1%2"):
+            p = self.run_script(
+                ["--vpn-addr", value, "--ports", "8080"],
+                listeners([("127.0.0.1", 8080)]),
+            )
+            self.assertEqual(p.returncode, 2, value + " " + p.stdout + p.stderr)
+            self.assertIn("--vpn-addr", p.stderr)
 
 
 class VpnBindScriptTextTest(unittest.TestCase):

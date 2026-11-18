@@ -20,9 +20,10 @@
 # names the option only, and git's own stderr is swallowed.
 #
 # Exit: 0 ok (the tag is printed), 1 failure (list, clone or checkout;
-# --dest left as found when it was created), 2 usage error, 3 no release tag
-# chosen (none on the remote, only one for --previous, or the named one
-# absent).
+# --dest left as found when it was created; a --tag that is not a release tag
+# at all, i.e. the pull is refused before anything is created), 2 usage error,
+# 3 no release tag chosen (none on the remote, only one for --previous, or the
+# named one absent).
 #
 # POSIX sh. No write outside DIR, no network beyond the remote, nothing is
 # ever deleted.
@@ -125,8 +126,8 @@ tags=$(printf '%s\n' "$refs" | cut -f2 | sed 's|^refs/tags/||; s|\^{}$||' | sort
 
 if [ "$have_tag" = 1 ]; then
     if ! printf '%s\n' "$tag" | sh "$release_tags" latest >/dev/null 2>/dev/null; then
-        echo "git-pull.sh: --tag is not a release tag" >&2
-        exit 2
+        echo "git-pull.sh: pull refused: --tag is not a release tag" >&2
+        exit 1
     fi
     if [ -z "$tags" ] || ! printf '%s\n' "$tags" | grep -F -x -q -- "$tag"; then
         echo "git-pull.sh: --tag is not a release tag on the remote" >&2

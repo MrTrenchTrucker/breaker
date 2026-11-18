@@ -71,6 +71,15 @@ WEB_FE_TEMPLATE_REL = 'server/modules/deploy/images/web-fe/nginx.conf.template'
 WEB_FE_HEALTH_LOCATION = 'location = /health {'
 WEB_FE_HEALTH_BODY = '{"status":"ok"}'
 
+# The web-fe copied trees uid 10001 must read: the served html tree and the
+# two recipe assets. A restrictive host umask (077) otherwise bakes 0600
+# modes into the image through COPY.
+WEB_FE_HTML_TREE = '/usr/share/nginx/html'
+WEB_FE_READABLE_ASSETS = (
+    '/etc/nginx/nginx.conf.template',
+    '/usr/local/bin/docker-entrypoint.sh',
+)
+
 SECRET_NAME_RE = re.compile(r'(?i)(KEY|TOKEN|PASSWORD|SECRET)')
 SECRET_BASENAME_RE = re.compile(r'(?i)^(\.env|.*\.(key|jks|p12|pem|keystore))$')
 
@@ -261,12 +270,34 @@ def _nginx_runtime_problem(service, text):
     if not foreground:
         return ("web-fe: nginx must run in the foreground from the rendered "
                 "config, as the non-root user")
-    if '/etc/nginx/nginx.conf.template' not in text:
+    if ('server/modules/deploy/images/web-fe/nginx.conf.template'
+            not in copy_sources(text)):
         return ("web-fe: the site config template must be copied into the image")
     if ('server/modules/deploy/images/web-fe/docker-entrypoint.sh'
             not in copy_sources(text)):
         return ("web-fe: the entrypoint that renders the config must be copied "
                 "into the image")
+    return None
+
+
+def _web_fe_readable_problem(service, text):
+    """G21: web-fe makes the copied trees world-readable, so a restrictive host
+    umask cannot bake 0600 modes into the image the non-root account runs."""
+    if service != 'web-fe':
+        return None
+    blocks = run_blocks(text)
+    if not any('chmod' in block and '-R' in block and 'a+rX' in block
+               and WEB_FE_HTML_TREE in block for block in blocks):
+        return ("web-fe: the copied html tree %s must be made world-readable "
+                "with 'chmod -R a+rX' (a restrictive host umask must not bake "
+                "0600 modes into the image)" % WEB_FE_HTML_TREE)
+    for asset in WEB_FE_READABLE_ASSETS:
+        ok = any('chmod' in block and ('a+rx' in block or 'a+rX' in block)
+                 and asset in block for block in blocks)
+        if not ok:
+            return ("web-fe: %s must be made world-readable/executable with "
+                    "'chmod a+rx' (a restrictive host umask must not bake 0600 "
+                    "modes into the image)" % asset)
     return None
 
 
@@ -459,6 +490,7 @@ DOCKERFILE_GUARDS = (
     _data_dir_problem,
     _nginx_package_problem,
     _nginx_runtime_problem,
+    _web_fe_readable_problem,
 )
 
 IGNORE_GUARDS = (
@@ -727,6 +759,18 @@ class FiringControls(unittest.TestCase):
             '/usr/local/bin/docker-entrypoint.sh\n', '')
         problems = self._dockerfile_problems('web-fe', sample)
         self.assertIn(_nginx_runtime_problem('web-fe', sample), problems)
+
+    def test_a_removed_readability_chmod_fails_the_web_fe_readable_guard(self):
+        # G21: dropping the world-readable chmod lets a restrictive host umask
+        # bake 0600 modes into the image; the guard must name the html tree.
+        sample = self._mutate(
+            dockerfile_rel('web-fe'),
+            'RUN chmod -R a+rX /usr/share/nginx/html \\\n'
+            '    && chmod a+rx /etc/nginx/nginx.conf.template'
+            ' /usr/local/bin/docker-entrypoint.sh\n',
+            'RUN true\n')
+        problems = self._dockerfile_problems('web-fe', sample)
+        self.assertIn(_web_fe_readable_problem('web-fe', sample), problems)
 
     def _ignore_problems(self, service, sample):
         problems = ignore_problems(

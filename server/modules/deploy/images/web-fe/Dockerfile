@@ -41,7 +41,11 @@ COPY shared/modules/ui-tokens/src/main/resources/tokens.css /usr/share/nginx/htm
 # Recipe assets: the site config template and the entrypoint that renders it.
 COPY server/modules/deploy/images/web-fe/nginx.conf.template /etc/nginx/nginx.conf.template
 COPY server/modules/deploy/images/web-fe/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# The host checkout may carry a restrictive umask's 0600 modes; make the
+# copied trees world-readable/executable so the non-root account can always
+# read them (the entrypoint already needed +x, the template needed +r).
+RUN chmod -R a+rX /usr/share/nginx/html \
+    && chmod a+rx /etc/nginx/nginx.conf.template /usr/local/bin/docker-entrypoint.sh
 
 # USER after every root-requiring instruction, so nothing after it runs as root.
 USER breaker
