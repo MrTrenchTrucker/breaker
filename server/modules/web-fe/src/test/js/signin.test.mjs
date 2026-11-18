@@ -44,7 +44,7 @@ test('a second valid readLink replaces the challenge the next run sends', async 
   const { signin, rec } = readySignin();
   const other = toUrlSafe43(patterned(0x66, 32));
   assert.deepEqual(signin.readLink('#app_key=' + APP_TEXT + '&challenge=' + other), { ok: true });
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.equal(rec.start[0].challenge, other);
 });
 
@@ -52,7 +52,7 @@ test('happy path calls every step in order', async () => {
   const { signin, rec } = readySignin();
   const input = makeInput();
   const result = await signin.run(input);
-  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(result, { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.deepEqual(rec.log, ['salt', 'derive', 'login', 'box', 'seal', 'start', 'logout', 'replace']);
   assert.equal(input.reads, 1);
 });
@@ -97,7 +97,7 @@ test('two runs in a row do not share state', async () => {
       return logins === 1 ? loginAnswer() : { status: 401, body: null };
     },
   });
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   const second = await signin.run(makeInput('second sample text'));
   assert.equal(second.code, 'bad_credentials');
   assert.deepEqual(rec.derive[1].password, new TextEncoder().encode('second sample text'));
@@ -134,7 +134,7 @@ test('a run after wipeAll has no link left and calls nothing', async () => {
 
 test('poisoned storage objects given as extra deps are never touched', async () => {
   const { signin } = readySignin({ storeA: poisoned('storeA'), storeB: poisoned('storeB') });
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
 });
 
 test('composed and decomposed typed text give the same bytes to derive', async () => {

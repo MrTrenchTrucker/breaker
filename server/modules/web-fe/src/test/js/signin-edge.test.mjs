@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { MESSAGES } from '../../main/resources/web/js/signin.js';
 import { encodeBase64Padded } from '../../main/resources/web/js/signin-link.js';
 import {
-  APP_KEY, BOX_KEY, BOX_PUB, EXPECTED_PACKAGE, KEK, SEALED, VERIFIER, deferred, flipped, isZero, loginAnswer,
-  makeInput, readySignin, saltAnswer, settle, typedText,
+  APP_KEY, BOX_KEY, BOX_PUB, EXPECTED_PACKAGE, KEK, SEALED, VERIFIER, bootstrapAnswer, bootstrapDeps, deferred,
+  flipped, isZero, loginAnswer, makeInput, readySignin, saltAnswer, settle, typedText,
 } from './signin-fixtures.mjs';
 
 // Each KDF value at its ceiling, alone and together, with the other two at their floors.
@@ -22,7 +22,7 @@ const KDF_CEILING_CASES = [
 for (const [name, kdf, expected] of KDF_CEILING_CASES) {
   test('kdf ceiling for ' + name + ' reaches derive with exactly those values', async () => {
     const { signin, rec } = readySignin({ getSalt: async () => saltAnswer({ kdf_params: kdf }) });
-    assert.deepEqual(await signin.run(makeInput()), { ok: true });
+    assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
     assert.equal(rec.derive.length, 1);
     assert.deepEqual(rec.derive[0].kdfParams, expected);
   });
@@ -115,7 +115,7 @@ test('wipeAll while seal is held zeroes the package and the app key copy it was 
 
 test('the array boxPublicKey returned is zeroed after a finished run', async () => {
   const { signin, rec } = readySignin();
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.equal(rec.boxResultRefs.length, 1);
   assert.equal(rec.boxResultRefs[0].length, 32);
   assert.equal(isZero(rec.boxResultRefs[0]), true);
@@ -129,4 +129,24 @@ test('the array boxPublicKey returned is zeroed after a box key mismatch', async
   assert.equal(rec.boxResultRefs.length, 1);
   assert.equal(rec.boxResultRefs[0].length, 32);
   assert.equal(isZero(rec.boxResultRefs[0]), true);
+});
+
+test('a login answer with wrapped keys and key_version 0 stops with keys refused and nothing after the login', async () => {
+  let converted = 0;
+  const convert = async () => { converted += 1; return { status: 'ok', converted: 0, skipped: 0, failed: 0 }; };
+  const { signin, rec } = readySignin({ loginBody: { key_version: 0 }, convert });
+  const result = await signin.run(makeInput());
+  assert.deepEqual(result, { ok: false, code: 'keys_refused', message: MESSAGES.keys_refused });
+  assert.equal(converted, 0);
+  assert.equal(rec.seal.length + rec.start.length + rec.replaced.length, 0);
+  assert.deepEqual(rec.log, ['salt', 'derive', 'login', 'logout']);
+});
+
+test('a keyless answer with key_version 0 still bootstraps and is not refused by the stored-keys check', async () => {
+  const { signin, rec } = readySignin({
+    ...bootstrapDeps(bootstrapAnswer()),
+    loginBody: { wrapped_dek: null, wrapped_box_privkey: null, box_pubkey: null, key_version: 0 },
+  });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
+  assert.deepEqual(rec.log, ['salt', 'derive', 'login', 'box', 'seal', 'start', 'logout', 'replace']);
 });

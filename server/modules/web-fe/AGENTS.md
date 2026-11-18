@@ -6,7 +6,7 @@ Debian container website (client-side decrypt, Trucking UI), APK/model hosting, 
 view/search/copy of the user's transcriptions from any device on the VPN.
 Also hosts the APK for download (F15, F17). No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034).
 
-**What is built today.** The sign-in page (`signin.html`, `css/signin.css` and the scripts under `js/`), the AES-GCM layer, the device list modules and the pending-sealed conversion modules; see Built now below. In `js/signin-crypto.js` the key derivation, the box public key and the sealing are all built, but `available` stays false until the last wiring step, so the page disables its form and says that signing in through the website is not available yet. Every other page, route and feature described in this card (Pages, Hosting, Security, Client-side derivation and decryption, the first-login key bootstrap, Search, Responsive, Screens) is planned, not built, unless Built now says otherwise.
+**What is built today.** The sign-in page (`signin.html`, `css/signin.css` and the scripts under `js/`), the AES-GCM layer, the sign-in page logic, the first-login key bootstrap, the device list, the pending-sealed conversion, the registration modules, the transcriptions modules and the admin panel clients; see Built now below. In `js/signin-crypto.js` the key derivation, the box public key and the sealing are all built, and `available` is `true` (`js/signin-crypto.js:4`), so the page enables its form once the link is read. Every other page, route and feature described in this card (Pages, Hosting, Security, Search, Responsive, Screens) is planned, not built, unless Built now says otherwise.
 
 **Pages:**
 - **Landing** — Breaker intro + download links: APK, docs.
@@ -40,7 +40,7 @@ Also hosts the APK for download (F15, F17). No certificate handling in Breaker; 
 - **Downloads → Models** (F30): on-device model + checksums served for phone
   download (licensing permitting; fallback to upstream with pinned checksums [2]).
 
-**Planned (ADR-036), partly built: sign-in hand-off page** (the page shell and the flow logic are built, see Built now below; the derivation, the box public key and the sealing are built; `available` stays false until the last wiring step). When the app opens the Auth page with a one-time challenge and the app's public key, the page signs the person in. It then derives the KEK in the browser, unwraps the account's keys and seals them to the app's public key, and sends the browser back to the app through the `breaker://` link with a one-time code. The honest limit below applies to that sealing step too: this container serves the page's JavaScript.
+**Built (ADR-036): sign-in hand-off page** (the page shell and the flow logic are built, see Built now below; the derivation, the box public key and the sealing are built; `available` is `true` (`js/signin-crypto.js:4`), so the form is enabled). When the app opens the Auth page with a one-time challenge and the app's public key, the page signs the person in. It then derives the KEK in the browser, unwraps the account's keys and seals them to the app's public key, and sends the browser back to the app through the `breaker://` link with a one-time code. The honest limit below applies to that sealing step too: this container serves the page's JavaScript.
 
 The planned address of the sign-in page is `<server>/signin.html#challenge=<43>&app_key=<43>`. The challenge and the app's public key sit in the URL fragment, never the query, so they are not sent to the server and stay out of access logs and the Referer header. `challenge` is 43 URL-safe characters (the base64url SHA-256 of the one-time secret). `app_key` is the app's X25519 public key as 32 bytes of base64url without padding, which is 43 characters. Both are shape-checked before the password field is enabled, and any other fragment gives one error and no form. The page clears the fragment with `history.replaceState` right after reading it. When sign-in is done the page opens `breaker://handoff?code=<43>` (the one-time code from the start route) with `location.replace`, so the return link is never left in the history.
 
@@ -53,8 +53,8 @@ The sign-in page logic is two ES modules: `signin-link.js` (pure helpers for the
 link fragment, the base64 forms and the password bytes) and `signin.js` (the flow from the sign-in link to
 the return link). In `signin.js` every crypto step is an injected function (`getSalt`, `derive`, `login`,
 `boxPublicKey`, `seal`, `startHandoff`); only the two key unwraps use the real `aesgcm.js`. The page shell is built now too:
-`signin.html`, `css/signin.css`, `js/signin-page.js` (the DOM glue, the only sign-in file that touches the document and the window), `js/signin-net.js` (the four calls to the server's own routes, the logout one fire and forget) and `js/signin-crypto.js` (`available` is false; `derive`, `boxPublicKey` and `seal` are built and never throw (`boxPublicKey` returns the 32-byte X25519 public key through the served noble-curves copy, or null for a bad key; `seal`, in `js/signin-seal.js`, returns the libsodium sealed-box bytes, or null for a bad input), so only the flag keeps the form disabled). `js/signin-kdf.js` holds the Argon2id and HKDF-SHA256 steps that `derive` calls.
-The page links `css/tokens.css`, which is not in this folder: the web-fe image copies it from `shared/modules/ui-tokens/src/main/resources/tokens.css` and nginx serves the static tree. Still planned: turning `available` on, and the end-to-end test.
+`signin.html`, `css/signin.css`, `js/signin-page.js` (the DOM glue, the only sign-in file that touches the document and the window), `js/signin-net.js` (the four calls to the server's own routes, the logout one fire and forget) and `js/signin-crypto.js` (`available` is true, at `js/signin-crypto.js:4`; `derive`, `boxPublicKey` and `seal` are built and never throw (`boxPublicKey` returns the 32-byte X25519 public key through the served noble-curves copy, or null for a bad key; `seal`, in `js/signin-seal.js`, returns the libsodium sealed-box bytes, or null for a bad input), so the form is enabled once the link is read). `js/signin-kdf.js` holds the Argon2id and HKDF-SHA256 steps that `derive` calls.
+The page links `css/tokens.css`, which is not in this folder: the web-fe image copies it from `shared/modules/ui-tokens/src/main/resources/tokens.css` and nginx serves the static tree. The end-to-end test is built: `src/test/js/signin-e2e.test.mjs` runs the real page with the real crypto, including the keyless bootstrap (`:280`).
 The `random` option of `createCipher` is a test hook: page code must never pass it.
 
 **Built now: the device list module (ADR-035, ADR-036), no page yet.**
@@ -66,12 +66,12 @@ row and a "Sign out all my devices" control behind an in-view confirm step. A de
 server is untrusted text and is written with textContent. How these files reach a browser is still
 the open owner question above, so no page calls `mountDevices` yet; only the module's own tests call it.
 
-**Built now: the pending-sealed conversion module (ADR-018), no page yet.**
-Two ES modules with no page around them: `pending-sealed-net.js` (the one call to the server's own
+**Built now: the pending-sealed conversion module (ADR-018), wired into the sign-in page (`js/signin-page.js:74-84`).**
+Five ES modules: `pending-sealed-net.js` (the one call to the server's own
 route, `GET /v1/sync/pending-sealed`, with the bearer token, no cookies, no cache and no body) and
 `pending-sealed.js` (`createPendingSealed({ unseal, encrypt, upload, fetch })` and its `run(token,
 boxPrivateKey, keyVersion, render)`: every dependency injected, no DOM, no network and no storage of
-its own). For each listed row it decodes the sealed box as strict padded base64, unseals it with the
+its own); `unseal.js` (the sealed-box opener, `unseal(box, recipientPrivate)`, null on any bad input); `conversion-encrypt.js` (`createRecordEncrypt`, strict server R1 body check then AES-256-GCM seal under the record AAD); and `conversion-upload.js` (`createRecordUpload`, `POST /v1/sync` with `{client_id, key_version, encrypted}`). For each listed row it decodes the sealed box as strict padded base64, unseals it with the
 box private key it was given, encrypts the plaintext through the injected `encrypt` (told the record
 id and the key version, so the caller can bind them as the AAD of ADR-006), wipes the plaintext as
 soon as `encrypt` has answered, and uploads with the pending record's id as the client id at that
@@ -79,9 +79,15 @@ soon as `encrypt` has answered, and uploads with the pending record's id as the 
 stops the others: a row that is malformed, that unseal or encrypt refuses, counts as skipped, and an
 upload that is not confirmed or that throws counts as failed. A 401 or 403 on the list stops the run
 as signed out, and any other answer that is not a list is a list failure, never an empty account.
-The opening function (`unseal`) is not built in this module yet, the page does not call the
+The opening function is built (`js/unseal.js`), and `js/signin-page.js:74-84` calls the
 conversion, and the wire encoding of the encrypted body is left to the injected `encrypt` and
-`upload`; only the module's own tests call it.
+`upload`.
+
+**Built now: the first-login key bootstrap (ADR-006), wired into the sign-in page.** Two ES modules: `bootstrap-crypto.js` (`createBootstrapCrypto().bootstrap(kek)` draws a fresh 32-byte DEK and a fresh X25519 box key pair, wraps the DEK under the KEK and the box private key under the DEK, never under the KEK, and answers `{ dek, boxPrivkey, boxPubkey, wrappedDek, wrappedBoxPrivkey }`) and `bootstrap-net.js` (`createBootstrapNet().postKeys(token, members)` makes the one call, `POST /v1/auth/keys`, with the three padded-base64 members, the bearer token, no cookies and no cache). `js/signin-page.js:69,95-96` wires both into the sign-in flow, and `src/test/js/signin-e2e.test.mjs:280` runs the keyless account through the real page.
+
+**Built now: the registration modules, no page yet.** Four ES modules: `register.js` (`createRegister(deps)`: policy check, a fresh 16-byte salt, the sign-in stretch, the register call, then the first login and, for a keyless new account, the same bootstrap), `register-net.js` (`createRegisterNet().register(members)`, the one call `POST /v1/auth/register`), `register-policy.js` (`checkPassword`, the 12-code-point NFC floor) and `register-view.js` (`mountRegister(root, ...)`, the DOM part, textContent only). `src/test/js/register*.test.mjs` (four files) cover them; no page calls `mountRegister` yet.
+
+**Built now: the transcriptions modules, no page yet.** Three ES modules: `transcriptions-net.js` (`createTranscriptionsNet()`: `GET /v1/transcriptions`, `GET /v1/transcriptions/older`, `DELETE /v1/transcriptions/{client_id}`), `transcriptions.js` (`createTranscriptions`: list, client-side search, copy, delete one, every dependency injected) and `transcriptions-view.js` (`mountTranscriptions(root, ...)`, the DOM part, textContent only, delete behind an in-view confirm). `src/test/js/transcriptions*.test.mjs` (three files) cover them; no page calls `mountTranscriptions` yet.
 
 **Built now: the admin status banner modules (ADR-044 point 4), no page yet.** Two ES
 modules with no page around them: `status-net.js` (the one call to the server's own
@@ -131,31 +137,25 @@ treats it as 32 zero bytes) over the 32-byte Argon2id output, then Expand with
 `breaker-auth-verifier-v1`) and length 32. The KEK and the auth verifier are
 each exactly 32 bytes, the page sends exactly 32 verifier bytes, and how they
 are written on the wire (base64 or hex) is decided in api-contracts. The
-registration form is planned, not built: it will enforce a 12-character minimum password and
+registration form is built (`js/register.js`, `js/register-net.js`, `js/register-policy.js`, `js/register-view.js`; `src/test/js/register*.test.mjs`): it enforces a 12-character minimum password and
 warns further on common/weak ones (ADR-006) — the sealed-box unseal (ADR-018) is
-decided, not built: ADR-040 chooses the noble libraries for it, `signin-crypto.js` now builds the box public key and the seal (in `signin-seal.js`) but keeps `available` false,
+built: `js/unseal.js` opens the sealed box with the vendored noble files, and `js/signin-crypto.js` builds the box public key and the seal (in `js/signin-seal.js`) with `available` true (`js/signin-crypto.js:4`),
 and the libsodium files `libsodium-sumo.mjs` and `libsodium-wrappers.mjs` are vendored and pinned but never served. The server never receives the
 password or the KEK over the wire — but see the honest limit below, which is
 not the same limit Android gets. Shared spec + test vectors in api-contracts
 (R21).
 
 **First-login key bootstrap (ADR-006, once per account, here or on
-Android; decided, not built in this module yet: today the page stops at its
-"keyless" sentence when login returns `wrapped_dek: null`, and nothing here
-calls `POST /v1/auth/keys`, which the server has):** when login returns
+Android; built here (`js/bootstrap-crypto.js` and `js/bootstrap-net.js`): the page no longer stops at its
+"keyless" sentence when login returns `wrapped_dek: null`; `js/bootstrap-net.js` is the call
+to `POST /v1/auth/keys`:** when login returns
 `wrapped_dek: null`, this page generates a
 256-bit DEK, wraps it with the freshly derived KEK, generates an X25519 box
 keypair, wraps the box private key with the (unwrapped) DEK — **not** the
 KEK — and uploads all of it via `POST /v1/auth/keys`. This is the same
 mechanism whether the account predates encryption (Phases 11–18), was just
-registered, or was just reset. The same login also checks
-`GET /v1/transcriptions` for any row still at `key_version` 0 (plaintext,
-left over from before encryption existed), encrypts each one under the new
-DEK, and replaces it at `key_version` 1 via `POST /v1/sync`'s atomic-replace
-path — a real replace of that row, keyed on its existing `client_id` at a
-higher `key_version`, not a second, same-version push the server would
-simply no-op (ADR-006) — letting the server delete the plaintext copy only
-once the ciphertext has actually landed. A web-FE-only user (no Android app)
+registered, or was just reset. Not built: the migration of old plaintext rows (rows stored at key_version 0
+are not re-encrypted by the sign-in). A web-FE-only user (no Android app)
 has no other client that would ever do this.
 
 **On login, the browser first checks the box key (ADR-018, T26):** it
@@ -166,7 +166,7 @@ surfaces it as tampering rather than silently accepting it or re-bootstrapping
 over it.
 
 **On login, the browser also converts any pending sealed agent-token results
-(ADR-018; the route is built in sync-api and the conversion module is built here, see Built now above, but no page calls it yet and the opening function is not built):** it lists `GET /v1/sync/pending-sealed`, unseals each with the
+(ADR-018; the route is built in sync-api and the conversion module is built here, see Built now above, and the sign-in page calls it (`js/signin-page.js:74-84`), with the opening function built in `js/unseal.js`):** it lists `GET /v1/sync/pending-sealed`, unseals each with the
 (just-unwrapped) box private key, re-encrypts the plaintext under the DEK,
 and uploads it via the ordinary sync path with the pending record's id as the
 client id, at the account's current `key_version` — a genuinely new record,
@@ -280,8 +280,9 @@ The sign-in page `signin.html`, with its entry script `js/signin-page.js`. The p
 - JavaScript (pending-sealed conversion): `pending-sealed.test.mjs` and `pending-sealed-net.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above.
 - JavaScript (admin status banner): `status-net.test.mjs` and `status-banner.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above.
 - JavaScript (sign-in page logic): `signin-link.test.mjs`, `signin.test.mjs`, `signin-kdf.test.mjs`, `signin-crypto.test.mjs`, `signin-flow.test.mjs`, `signin-edge.test.mjs`, `signin-net.test.mjs`, `signin-logout.test.mjs`, `signin-page.test.mjs` and `signin-wire.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above. The fixtures for them are in `signin-fixtures.mjs`, `signin-page-fixtures.mjs` and `signin-vectors.mjs`, helpers and not test files. With the AES-GCM tests and the three devices test files (`devices-net.test.mjs`, `devices.test.mjs`, `devices-view.test.mjs`) the runner runs the whole set, and the count of passing tests it must report is pinned in `tests/unit/web_fe/test_aesgcm_js.py`, which is the one place the count lives.
+- JavaScript (the newer modules): `bootstrap-crypto.test.mjs` and `bootstrap-net.test.mjs` (the first-login key bootstrap); `conversion-encrypt.test.mjs` and `conversion-upload.test.mjs` (the pending-sealed conversion); `register-net.test.mjs`, `register-policy.test.mjs`, `register-view.test.mjs` and `register.test.mjs` (registration); `transcriptions-net.test.mjs`, `transcriptions-view.test.mjs` and `transcriptions.test.mjs` (transcriptions); `unseal.test.mjs` (the sealed-box opener); `signin-box-aad.test.mjs`, `signin-box.test.mjs`, `signin-conversion.test.mjs`, `signin-e2e.test.mjs` and `signin-seal.test.mjs` (the sign-in crypto, seal, conversion and the end-to-end page run); `noble-curves-served.test.mjs` (the served noble-curves copy); `admin-settings-net.test.mjs`, `admin-settings-view.test.mjs`, `admin-settings.test.mjs`, `admin-store-net.test.mjs`, `admin-store-view.test.mjs`, `admin-store.test.mjs`, `admin-tokens-net.test.mjs`, `admin-tokens-view.test.mjs`, `admin-tokens.test.mjs`, `admin-users-net.test.mjs`, `admin-users-view.test.mjs` and `admin-users.test.mjs` (the admin client tests), in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above.
 - Runner: `tests/unit/web_fe/test_aesgcm_js.py` runs those tests, fails (never skips) when node is missing or older than 20.19.0, and pins the number of passing tests. Run: `python3 -m unittest discover -s tests/unit/web_fe`
-- Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the seven vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry. `tests/contract/web_fe_signin_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in source files: the imports of `signin.js` and of `signin-link.js`, the forbidden tokens, banned words, short code tags, digit and hex runs, ASCII only, long base64-looking literals, the line cap, the test file names and the sha256 of `aesgcm.js`. `tests/contract/web_fe_signin_kdf_pins.py` (collected by `test_web_fe_contract.py`) pins `signin-kdf.js`: its imports, its two exports, its two label lines and the join that builds the label text, the forbidden tokens and the line cap. `tests/contract/web_fe_signin_page_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in page files with `check_signin_page_sources`: the html rules, the css rules, the forbidden tokens of the page and network files, the crypto facade (`available` is false, its exports and the two `not available` throws), and the repo text scan of the new files; every rule has a firing control.
+- Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the seven vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry. `tests/contract/web_fe_signin_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in source files: the imports of `signin.js` and of `signin-link.js`, the forbidden tokens, banned words, short code tags, digit and hex runs, ASCII only, long base64-looking literals, the line cap, the test file names and the sha256 of `aesgcm.js`. `tests/contract/web_fe_signin_kdf_pins.py` (collected by `test_web_fe_contract.py`) pins `signin-kdf.js`: its imports, its two exports, its two label lines and the join that builds the label text, the forbidden tokens and the line cap. `tests/contract/web_fe_signin_page_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in page files with `check_signin_page_sources`: the html rules, the css rules, the forbidden tokens of the page and network files, the crypto facade (`available` is true, its exports and the absence of `not available` throws), and the repo text scan of the new files; every rule has a firing control.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -314,7 +315,7 @@ agents, not required: an outside contributor may write the code themselves
 - The AES-GCM guards live inside one page load. The limit across page loads (2 to the power 32 random
   nonces per data key, ADR-006) is decided there and is NOT built here.
 - Wipe limit (sign-in page): the password bytes, the derived KEK and verifier, the DEK, the box private key, the package and the app key copy are Uint8Arrays that are zero-filled after use and on pagehide (`wipeAll`). This is a limit, not a guarantee: the JavaScript garbage collector and copies made inside libraries cannot be wiped by the page, so a secret may outlive the zero-fill in memory. Nothing is stored in localStorage, sessionStorage, IndexedDB, a cookie or the URL; the one-time code and the sealed package are not secrets and are not wiped.
-- Page limits (sign-in page): the typed password is a JavaScript string, so it cannot be zero-filled; the page clears the password field after each run and on pagehide. The session token is a string too, so the run drops it and does not wipe it. The form stays disabled until `signin-crypto.js` reports `available` as true, which is the last wiring step (the box public key and the seal functions are built). The logout runs once per run, after a session token exists: on success just before the redirect, and on every later failure. Its request is fire and forget: it is not awaited and its answer is never read, so a slow or failed logout never holds up the redirect.
+- Page limits (sign-in page): the typed password is a JavaScript string, so it cannot be zero-filled; the page clears the password field after each run and on pagehide. The session token is a string too, so the run drops it and does not wipe it. The form stays disabled until `signin-crypto.js` reports `available` as true; that flag is `true` (`js/signin-crypto.js:4`), so the form enables once the link is read (the box public key and the seal functions are built). The logout runs once per run, after a session token exists: on success just before the redirect, and on every later failure. Its request is fire and forget: it is not awaited and its answer is never read, so a slow or failed logout never holds up the redirect.
 - Never edit the vendored noble-ciphers files under `shared/modules/web-libs/noble-ciphers/`;
   replace them only by a new exact copy of a newer
   release, with the hashes in the pins updated in the same change.
@@ -324,3 +325,10 @@ agents, not required: an outside contributor may write the code themselves
 - Never derive the KEK from anything but the password itself — a decoy, a
   server-chosen fallback, or any path that doesn't run the real Argon2id
   reintroduces exactly the overclaim ADR-006's amendment removed.
+
+## Parked
+
+- No page mounts the device list, the admin panel clients, the registration view, the transcriptions view or the status banner: `ls src/main/resources/web/*.html` answers `signin.html` only, and `grep -rn 'mountDevices\|mountRegister\|mountTranscriptions\|mountAdmin\|mountStatus' src/main/resources/web/` finds only the definitions in the view files, no caller.
+- The Landing, Dashboard, Settings and Admin panel pages of Pages/Screens are not built: `ls src/main/resources/web/*.html` answers `signin.html` only.
+- `css/tokens.css` is not in this folder: `signin.html:8` links it and `ls src/main/resources/web/css/` answers `signin.css` only; the web-fe image copies it from `shared/modules/ui-tokens/src/main/resources/tokens.css`.
+- The libsodium pair is vendored and pinned but never served: `server/modules/web-fe/build.gradle.kts:19-21` ("libsodium pair vendored + pinned but NOT copied to serving").

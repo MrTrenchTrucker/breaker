@@ -63,8 +63,41 @@ export function loginAnswer(body = {}) {
       wrapped_dek: encodeBase64Padded(wrapped(KEK, DEK)),
       wrapped_box_privkey: encodeBase64Padded(wrapped(DEK, BOX_KEY, BOX_AAD)),
       box_pubkey: encodeBase64Padded(BOX_PUB),
+      key_version: 1,
       ...body,
     },
+  };
+}
+
+// The first-login bootstrap answer: a fresh data key, a fresh box key pair and the two 60-byte wrapped
+// blobs. The keys are their own patterned values, so a test can prove the hand-off carried the NEW keys
+// and not the ones a keyed login answer would have carried. The public key is BOX_PUB, the value the
+// fixtures' boxPublicKey fake answers.
+export const BOOTSTRAP_DEK = patterned(0xb0, 32);
+export const BOOTSTRAP_BOX_KEY = patterned(0xd0, 32);
+export const BOOTSTRAP_BOX_PUB = BOX_PUB;
+
+export function bootstrapAnswer(overrides = {}) {
+  return {
+    dek: new Uint8Array(BOOTSTRAP_DEK),
+    boxPrivkey: new Uint8Array(BOOTSTRAP_BOX_KEY),
+    boxPubkey: new Uint8Array(BOOTSTRAP_BOX_PUB),
+    wrappedDek: wrapped(KEK, BOOTSTRAP_DEK),
+    wrappedBoxPrivkey: wrapped(BOOTSTRAP_DEK, BOOTSTRAP_BOX_KEY, BOX_AAD),
+    ...overrides,
+  };
+}
+
+// The login answer of a keyless account: both wrapped keys null together, which is the only shape the
+// flow bootstraps. It carries no box public key either, because the account has none until the upload.
+export const KEYLESS_LOGIN = Object.freeze({ wrapped_dek: null, wrapped_box_privkey: null, box_pubkey: null, key_version: 0 });
+
+// The two injected dependencies the bootstrap path needs, plus the keyless login answer that reaches them.
+export function bootstrapDeps(answer = bootstrapAnswer(), upload = { ok: true, keyVersion: 1 }) {
+  return {
+    loginBody: KEYLESS_LOGIN,
+    bootstrap: async () => answer,
+    postKeys: async () => upload,
   };
 }
 
@@ -100,7 +133,7 @@ export function makeDeps(overrides = {}) {
     login: async (username, verifierBase64) => {
       rec.login.push({ username, verifierBase64 });
       rec.log.push('login');
-      return loginAnswer();
+      return loginAnswer(deps.loginBody);
     },
     boxPublicKey: async (boxPrivateKey) => {
       rec.box.push(new Uint8Array(boxPrivateKey));
@@ -122,6 +155,9 @@ export function makeDeps(overrides = {}) {
       rec.log.push('start');
       return { status: 201, body: { code: CODE_TEXT } };
     },
+    // The pending-sealed conversion is injected. The default answers an empty conversion, so a test that
+    // does not drive it still sees the flow's success shape.
+    convert: async () => ({ status: 'ok', converted: 0, skipped: 0, failed: 0 }),
     logout: (token) => {
       rec.logout.push(token);
       rec.log.push('logout');

@@ -1,5 +1,7 @@
 // The four calls the sign-in page makes to the server's own routes. Every call is a POST with a JSON body,
 // no cookies, no cache, and no stored answer. The fetch function is passed in and is called as a plain function.
+// The first-login keys upload is NOT here: it lives in bootstrap-net.js, the one implementation, and the
+// page builds it from there.
 export function createNet(fetchFn) {
   function post(url, body, token) {
     const headers = { 'Content-Type': 'application/json' };

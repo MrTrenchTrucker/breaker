@@ -377,7 +377,7 @@
     {
      "item": "server_web_fe (its own code)",
      "status": "PARTIAL",
-     "evidence": "11 code files, 14 test files"
+     "evidence": "39 code files under src/main/resources/web/js, 54 .mjs files under src/test/js (48 *.test.mjs); measured 2026-11-18"
     }
    ]
   },

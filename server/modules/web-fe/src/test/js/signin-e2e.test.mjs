@@ -8,12 +8,16 @@ import { x25519 } from '../../main/resources/web/js/vendor/noble-curves/ed25519.
 import { hsalsa, xsalsa20poly1305 } from '../../main/resources/web/js/vendor/noble-ciphers/salsa.js';
 import { blake2b } from '../../main/resources/web/js/vendor/noble-hashes/blake2.js';
 import * as facade from '../../main/resources/web/js/signin-crypto.js';
-import { createSignin, MESSAGES } from '../../main/resources/web/js/signin.js';
+import { createSignin, MESSAGES, conversionSummaryText } from '../../main/resources/web/js/signin.js';
+import { PAGE_MESSAGES } from '../../main/resources/web/js/signin-page.js';
 import { decodeBase64Padded, encodeBase64Padded } from '../../main/resources/web/js/signin-link.js';
+import { createCipher } from '../../main/resources/web/js/aesgcm.js';
 import { KDF_ANDROID, SEAL_VECTORS, WRAP_VECTORS, X25519_BOX } from './signin-vectors.mjs';
 import {
-  CHALLENGE_TEXT, CODE_TEXT, makeDeps, makeInput, patterned, saltAnswer, sessionText, toUrlSafe43, wrapped,
+  CHALLENGE_TEXT, CODE_TEXT, KEYLESS_LOGIN, makeDeps, makeInput, patterned, saltAnswer, sessionText,
+  toUrlSafe43, wrapped,
 } from './signin-fixtures.mjs';
+import { fillForm, happyRoutes, mountPage, response, submitEvent, submitHandler } from './signin-page-fixtures.mjs';
 
 // Test-only opener: the recipient side of the sealed box, the same construction as in signin-seal.test.mjs.
 const wordsOf = (bytes) => {
@@ -62,6 +66,7 @@ const DEK = fromHex(entry(WRAP_VECTORS, 'dek-under-kek').plainHex);
 const BOX_ROW = entry(WRAP_VECTORS, ['box', 'private', 'key', 'under', 'dek'].join('-'));
 const BOX_PRIV = fromHex(BOX_ROW.plainHex);
 const BOX_WRAPPED = fromHex(BOX_ROW.wrappedHex);
+const BOX_AAD = fromHex(BOX_ROW.aadHex);
 const ALICE_PUB = fromHex(entry(X25519_BOX, 'rfc7748-6.1-alice').publicHex);
 const BOB = entry(X25519_BOX, 'rfc7748-6.1-bob');
 const BOB_PRIV = fromHex(BOB.privateHex);
@@ -90,6 +95,7 @@ function replyBody(changes) {
     wrapped_dek: encodeBase64Padded(wrapped(KEK, DEK)),
     wrapped_box_privkey: encodeBase64Padded(BOX_WRAPPED),
     box_pubkey: encodeBase64Padded(ALICE_PUB),
+    key_version: 1,
     ...changes,
   };
 }
@@ -161,7 +167,7 @@ test('the test-only opener opens the shared signin-package-65 box to its plain b
 
 test('happy path: the flow returns ok, calls each step in order, and sends the vector verifier', async () => {
   const { rec, spy, result } = await runFlow();
-  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(result, { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.deepEqual(rec.log, ORDER);
   assert.equal(hex(decodeBase64Padded(rec.login[0].verifierBase64, 32)), KDF.verifier);
   assert.equal(hex(spy.kek[0]), KDF.kek);
@@ -169,7 +175,7 @@ test('happy path: the flow returns ok, calls each step in order, and sends the v
 
 test('happy path package: 113 sealed bytes open to byte 0 = 1, then the DEK, then the box key', async () => {
   const { rec, result } = await runFlow();
-  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(result, { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.notEqual(decodeBase64Padded(rec.start[0].sealed, 113), null);
   const pkg = packageOf(rec);
   assert.equal(pkg.length, 65);
@@ -180,7 +186,7 @@ test('happy path package: 113 sealed bytes open to byte 0 = 1, then the DEK, the
 
 test('the package does not carry the box key twice and does not swap the two keys', async () => {
   const { rec, result } = await runFlow();
-  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(result, { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   const pkg = packageOf(rec);
   assert.notEqual(hex(pkg.subarray(1, 33)), hex(BOX_PRIV));
   assert.notEqual(hex(pkg.subarray(33, 65)), hex(DEK));
@@ -189,7 +195,7 @@ test('the package does not carry the box key twice and does not swap the two key
 
 test('the handoff request carries the challenge, the session token and the sealed text, with one logout', async () => {
   const { rec, spy, result } = await runFlow();
-  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(result, { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.equal(rec.start.length, 1);
   assert.equal(rec.start[0].challenge, CHALLENGE_TEXT);
   assert.equal(rec.start[0].token, sessionText);
@@ -200,7 +206,7 @@ test('the handoff request carries the challenge, the session token and the seale
 
 test('the spied boxPublicKey gets the box key and returns the Alice public key; the spied seal gets Bob public', async () => {
   const { rec, spy, result } = await runFlow();
-  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(result, { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.equal(rec.box.length, 1);
   assert.equal(hex(rec.box[0]), hex(BOX_PRIV));
   assert.equal(hex(spy.boxOut[0]), hex(ALICE_PUB));
@@ -228,4 +234,82 @@ test('box_pubkey of the Bob public key gives box key mismatch, with no seal and 
   assertRefused(result, 'box_key_mismatch');
   assert.equal(rec.seal.length, 0);
   assert.equal(rec.start.length, 0);
+});
+
+// The whole hand-off through the real page: the page is mounted with a fake document/window/location/
+// history and a fake fetch, and the REAL facade (available true) as its crypto. The login reply is
+// built at run time under the real vector KEK, the two wrapped keys open with the real aesgcm.js, the
+// box key is checked against the real public key, the package is sealed with the real sealer, and the
+// app key (Bob) opens the sealed package the handoff request carries.
+const SIGNED_IN_LINE = PAGE_MESSAGES.signed_in + ' '
+  + conversionSummaryText({ converted: 0, skipped: 0, failed: 0 });
+const PAGE_ROUTE_ORDER = ['/v1/auth/salt', '/v1/auth/login', '/v1/sync/pending-sealed',
+  '/v1/auth/handoff/start', '/v1/auth/logout'];
+const KEYLESS_ROUTE_ORDER = ['/v1/auth/salt', '/v1/auth/login', '/v1/auth/keys',
+  '/v1/sync/pending-sealed', '/v1/auth/handoff/start', '/v1/auth/logout'];
+
+// The bootstrap upload carries the two wrapped keys the page just made. Opening them with the derived KEK
+// and the box purpose AAD recovers the DEK and the box key, so the sealed package can be checked against
+// exactly what the page uploaded rather than against a fixture value the page never saw.
+function uploadedKeys(body) {
+  const dek = createCipher(KEK).unwrapDek(decodeBase64Padded(body.wrapped_dek, 60));
+  const boxKey = createCipher(dek).unwrapDek(decodeBase64Padded(body.wrapped_box_privkey, 60), BOX_AAD);
+  return { dek, boxKey };
+}
+
+test('the whole hand-off runs through the real page with the real crypto and reaches the return link', async () => {
+  const answers = happyRoutes({
+    '/v1/auth/salt': async () => response(200, saltAnswer({ salt: encodeBase64Padded(SALT), kdf_params: KDF_PARAMS }).body),
+    '/v1/auth/login': async () => response(200, replyBody()),
+  });
+  const m = mountPage({ hash: LINK_HASH, crypto: facade, answers });
+  assert.equal(m.els['signin-submit'].disabled, false);
+  fillForm(m, 'account one', KDF.password);
+  await submitHandler(m)(submitEvent());
+  assert.equal(m.els['signin-status'].textContent, SIGNED_IN_LINE);
+  assert.deepEqual(m.calls.map((call) => call.url), PAGE_ROUTE_ORDER);
+  assert.deepEqual(m.loc.replaced, ['breaker://handoff?code=' + CODE_TEXT]);
+  const start = m.calls.find((call) => call.url === '/v1/auth/handoff/start');
+  const pkg = openBox(decodeBase64Padded(start.body.sealed_package, 113), BOB_PRIV);
+  assert.equal(pkg.length, 65);
+  assert.equal(pkg[0], 1);
+  assert.equal(hex(pkg.subarray(1, 33)), hex(DEK));
+  assert.equal(hex(pkg.subarray(33, 65)), hex(BOX_PRIV));
+});
+
+test('the keyless account bootstraps through the real page and reaches the return link', async () => {
+  const answers = happyRoutes({
+    '/v1/auth/salt': async () => response(200, saltAnswer({ salt: encodeBase64Padded(SALT), kdf_params: KDF_PARAMS }).body),
+    '/v1/auth/login': async () => response(200, replyBody({ ...KEYLESS_LOGIN })),
+    '/v1/auth/keys': async () => response(200, { key_version: 1 }),
+  });
+  const m = mountPage({ hash: LINK_HASH, crypto: facade, answers });
+  assert.equal(m.els['signin-submit'].disabled, false);
+  fillForm(m, 'account one', KDF.password);
+  await submitHandler(m)(submitEvent());
+  assert.equal(m.els['signin-status'].textContent, SIGNED_IN_LINE);
+  assert.deepEqual(m.calls.map((call) => call.url), KEYLESS_ROUTE_ORDER);
+  assert.deepEqual(m.loc.replaced, ['breaker://handoff?code=' + CODE_TEXT]);
+  const upload = m.calls.find((call) => call.url === '/v1/auth/keys');
+  assert.equal(upload.init.method, 'POST');
+  const { dek, boxKey } = uploadedKeys(upload.body);
+  const start = m.calls.find((call) => call.url === '/v1/auth/handoff/start');
+  const pkg = openBox(decodeBase64Padded(start.body.sealed_package, 113), BOB_PRIV);
+  assert.equal(pkg.length, 65);
+  assert.equal(pkg[0], 1);
+  assert.equal(hex(pkg.subarray(1, 33)), hex(dek));
+  assert.equal(hex(pkg.subarray(33, 65)), hex(boxKey));
+});
+
+test('a wrapped DEK under another KEK refuses through the real page and never starts the handoff', async () => {
+  const answers = happyRoutes({
+    '/v1/auth/salt': async () => response(200, saltAnswer({ salt: encodeBase64Padded(SALT), kdf_params: KDF_PARAMS }).body),
+    '/v1/auth/login': async () => response(200, replyBody({ wrapped_dek: encodeBase64Padded(wrapped(patterned(0x11, 32), DEK)) })),
+  });
+  const m = mountPage({ hash: LINK_HASH, crypto: facade, answers });
+  assert.equal(m.els['signin-submit'].disabled, false);
+  fillForm(m, 'account one', KDF.password);
+  await submitHandler(m)(submitEvent());
+  assert.equal(m.els['signin-status'].textContent, MESSAGES.keys_refused);
+  assert.equal(m.calls.some((call) => call.url === '/v1/auth/handoff/start'), false);
 });

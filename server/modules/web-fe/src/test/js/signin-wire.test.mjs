@@ -10,7 +10,8 @@ import {
 } from './signin-fixtures.mjs';
 
 const SIGNED_IN = 'Signed in. Returning to the app.';
-const ROUTES = ['/v1/auth/salt', '/v1/auth/login', '/v1/auth/handoff/start', '/v1/auth/logout'];
+const SIGNED_IN_LINE = SIGNED_IN + ' Pending transcriptions: 0 converted, 0 skipped, 0 failed.';
+const ROUTES = ['/v1/auth/salt', '/v1/auth/login', '/v1/sync/pending-sealed', '/v1/auth/handoff/start', '/v1/auth/logout'];
 
 // Mounts the page with the real network and the real flow, runs one submit, and returns the mounted page.
 async function run(overrides = {}, log = []) {
@@ -28,6 +29,7 @@ test('success calls the four routes in order and then the redirect', async () =>
     'derive',
     'fetch /v1/auth/login',
     'box',
+    'fetch /v1/sync/pending-sealed',
     'seal',
     'fetch /v1/auth/handoff/start',
     'fetch /v1/auth/logout',
@@ -35,12 +37,12 @@ test('success calls the four routes in order and then the redirect', async () =>
   ]);
   assert.deepEqual(m.calls.map((call) => call.url), ROUTES);
   assert.deepEqual(m.loc.replaced, ['breaker://handoff?code=' + CODE_TEXT]);
-  assert.equal(m.els['signin-status'].textContent, SIGNED_IN);
+  assert.equal(m.els['signin-status'].textContent, SIGNED_IN_LINE);
 });
 
 test('every request omits credentials and sends no store cache', async () => {
   const m = await run();
-  assert.equal(m.calls.length, 4);
+  assert.equal(m.calls.length, 5);
   for (const call of m.calls) {
     assert.equal(call.init.credentials, 'omit');
     assert.equal(call.init.cache, 'no-store');
@@ -61,7 +63,7 @@ test('the login request carries the username and the verifier text only', async 
 
 test('the start request carries the challenge the sealed package and the bearer token', async () => {
   const m = await run();
-  const start = m.calls[2];
+  const start = m.calls[3];
   assert.deepEqual(Object.keys(start.body).sort(), ['challenge', 'sealed_package']);
   assert.equal(start.body.challenge, CHALLENGE_TEXT);
   assert.equal(start.body.sealed_package, encodeBase64Padded(SEALED));
@@ -70,7 +72,7 @@ test('the start request carries the challenge the sealed package and the bearer 
 
 test('the logout request carries the bearer token keepalive true and no body', async () => {
   const m = await run();
-  const out = m.calls[3];
+  const out = m.calls[4];
   assert.equal(out.init.keepalive, true);
   assert.equal(out.init.headers.Authorization, 'Bearer ' + sessionText);
   assert.equal(out.body, null);
@@ -79,7 +81,7 @@ test('the logout request carries the bearer token keepalive true and no body', a
 test('the logout answer is never read', async () => {
   const answer = response(204);
   const m = await run({ '/v1/auth/logout': async () => answer });
-  assert.equal(m.calls.length, 4);
+  assert.equal(m.calls.length, 5);
   assert.equal(answer.reads, 0);
 });
 
@@ -114,6 +116,6 @@ test('a failing handoff start after login still ends with one logout call', asyn
 test('a stuck logout request does not hold up the redirect', async () => {
   const hold = deferred();
   const m = await run({ '/v1/auth/logout': () => hold.promise });
-  assert.equal(m.els['signin-status'].textContent, SIGNED_IN);
+  assert.equal(m.els['signin-status'].textContent, SIGNED_IN_LINE);
   assert.deepEqual(m.loc.replaced, ['breaker://handoff?code=' + CODE_TEXT]);
 });

@@ -72,7 +72,7 @@ test('alice and bob give different public keys, and a repeated key gives the sam
   assert.equal(hex(facade.boxPublicKey(privateOf(BOB))), hex(facade.boxPublicKey(privateOf(BOB))));
 });
 
-test('seal of no arguments returns null and available is exactly false', () => {
+test('seal of no arguments returns null and available is exactly true', () => {
   assert.strictEqual(facade.seal(), null);
-  assert.strictEqual(facade.available, false);
+  assert.strictEqual(facade.available, true);
 });
