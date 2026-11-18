@@ -54,6 +54,7 @@ open class AppLayoutGateRules {
         "wiring/UpdateKeyList.kt", "wiring/UpdateTimesStore.kt",
         "wiring/PackageInstallRun.kt", "wiring/InstallStatusRule.kt",
         "wiring/UpdaterWiring.kt",
+        "wiring/AboutControlWiring.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */

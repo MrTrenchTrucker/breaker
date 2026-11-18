@@ -109,7 +109,7 @@ server-side (T16).
 - With `keyPorts`, a login or register derives the key exactly once, the key-encryption key never outlives that derivation, and a failure after the server issued a token logs that token out and stores nothing.
 - Built (PR 678, PR 679): `ServerAuthService` overrides the core three-argument register (`register(username, password, installCode)`). The install code is a parameter only: it is never a property, and it never reaches a log line, an exception message or a toString. A null code sends the same request body as the two-argument register. A wrong or missing install code gets the same 400 `invalid_field` as any bad field, so it ends in the generic `SERVER_ERROR` failure and the phone cannot tell the two apart. Tested by: `ServerRegisterInstallCodeTest`, `RegisterInstallCodeWireTest` and `InstallCodeNoLeakTest`.
 - Built (PR 681): a 403 `registration_closed` reply on register gets its own reason, `AuthFailureReason.REGISTRATION_CLOSED`, with the fixed sentence "Registration is closed." No other reason gets a new sentence, so a wrong or missing install code stays generic.
-- Planned, not built (F21): the force-check button is visible only to admins. No force-check button exists on main.
+- Built (F21): the force-check button is visible only to admins. The About screen's Check for updates button is built and wired for admins; built, not tried on a phone.
 - Change-password revokes every other outstanding token; it requires both
   the live token AND `old_auth_verifier` — a token alone is refused.
 - A completed reset leaves the account able to log in with whatever password
