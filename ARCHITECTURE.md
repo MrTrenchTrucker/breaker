@@ -807,8 +807,11 @@ on-device model + checksums (licensing permitting) so the phone downloads it fro
 the Breaker container instead of upstream. Until then the phone downloads it from
 GitHub and treats it as untrusted until checked (F43, ADR-025, [2]); moving the
 host changes the model registry and ADR-025 together.
-**Update rollback (D28):** the updater keeps the previous APK; a rollback button
-restores it if a release misbehaves.
+**Update rollback (D28, superseded 2026-11-18):** the phone has no rollback. Decided
+2026-11-18 by the project owner: no Roll back button and no rollback action on the phone.
+A bad release is undone by a server re-offer of an older build under a higher version
+code; the phone takes it as an ordinary update. The removal of the held-rollback code is
+planned, not built: until it lands, the built updater still holds a rollback-shaped offer.
 
 ## 15. Deployment & Git
 

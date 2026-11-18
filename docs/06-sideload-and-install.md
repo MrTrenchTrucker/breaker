@@ -99,7 +99,7 @@
 
 ## Updates
 
-> Built, not tried on a phone: the daily check, the APK download and signature check, the install through the system installer and the daily timer are wired into the app, but nothing has run on a phone yet. The Home buttons (the admin force-check and the rollback button) are not there yet (another module), so no user sees an update notice, a force-check button or a rollback button today.
+> Built, not tried on a phone: the daily check, the APK download and signature check, the install through the system installer and the daily timer are wired into the app, but nothing has run on a phone yet. The Home buttons (the admin force-check and the install) are not there yet (another module), so no user sees an update notice, a force-check button or an install button today. There is no rollback on the phone (decided 2026-11-18, ADR-011).
 
 - Breaker checks for updates **once a day** automatically. When a new tagged
   release is available you'll get a notification: **"Breaker X.Y.Z is available —

@@ -42,9 +42,9 @@ upgrade path (ARCHITECTURE section 8). Shake + tap remain the manual fallbacks.
   https for any host, plain http only for the configured server
 - `training-client` — record phrase samples, upload, download trained model
 - `updater` — the update check, the APK download, the signature check, the verify step, the daily rule,
-  the rollback offer, the install port, the daily timer and the key list are built (pure Kotlin, with the
+  the rollback offer (still built; its removal is planned, decided 2026-11-18), the install port, the daily timer and the key list are built (pure Kotlin, with the
   app wiring in `android/app`, built and not tried on a phone); the Home buttons (the admin force-check,
-  the install and the rollback) are not built yet (another module)
+  and the install) are not built yet (another module)
 - `crypto` — client-side key derivation (Argon2id + HKDF), data-key unwrap, AES-256-GCM
   encrypt/decrypt and opening the sign-in package; generating and wrapping the data key and the
   account's X25519 box keypair, and unsealing results to the account, are built
