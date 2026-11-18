@@ -156,6 +156,8 @@ README and the Known Gotchas section of `AGENTS.md`.
 
 The server formatter slot holds the on-device rule-based formatter. The server engine sends nothing before a signed-in session is plugged in (see the sign-in bullet above).
 
+- Decided, not built (ADR-050): a second speech model (Parakeet, labelled Better), the second first-run button, the Settings speech-model section with download, delete and use-this-one, the truck ratings, and the third-party notices entry in About. How two model downloads that run at once are handled is not decided there.
+
 ## Running the tests
 
 The tests run on a plain JVM, with no Android classes:

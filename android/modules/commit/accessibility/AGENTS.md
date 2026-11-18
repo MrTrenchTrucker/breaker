@@ -12,8 +12,8 @@ approach (ADR-005, now dead code in `commit/ime`).
 
 **First working piece built.** The service, the focused-field resolver that it
 publishes into the parent, and the pure insert rule exist, with tests that read
-this module's own files. **Not built yet:** `ACTION_PASTE` (it would come only
-behind a parent clipboard seam), and
+this module's own files. **Decided not used:** `ACTION_PASTE` (ADR-049; a refused field keeps the
+parent's clipboard fallback). **Not built yet:**
 anything proven on a device: nothing here has been run on a device.
 
 **Build phase:** Phase 7. Needs first: `commit` (this module's parent, for the
@@ -30,8 +30,7 @@ This module owns:
   new text, `AccessibilityNodeInfo.ACTION_SET_TEXT` to merge it in at the
   cursor (since `ACTION_SET_TEXT` replaces the node's whole text, the merge is
   this module's own job), then `ACTION_SET_SELECTION` to place the cursor after
-  the inserted text. `ACTION_PASTE` is NOT built: it would come only behind a
-  parent clipboard seam.
+  the inserted text. `ACTION_PASTE` is not used (ADR-049).
 - The rules of the merge: hint text counts as empty text; a selection is
   replaced and a cursor is an insert point; a reported selection of -1 means
   the end of the text; selection values are clamped and a reversed selection is
@@ -196,4 +195,5 @@ agents, not required: an outside contributor may write the code themselves
   - The Android 13+ restricted-setting flow (owned by `ui`).
   - Recycling a node on Android 11 and 12 compared with the no-op from Android 13.
   - Whether the service survives the system binding it again.
-  - The paste fallback, only if `ACTION_SET_TEXT` turns out to be refused widely.
+  - Whether real apps refuse `ACTION_SET_TEXT` or answer true without changing the text (the measurement that
+    could reopen ADR-049), and whether the clipboard fallback write lands on each Android version.

@@ -117,6 +117,15 @@ screens render with ui-tokens; light/dark toggle persists.
   answers `DownloadControl`, so the app can redraw the screen and focus the download button while the download runs.
 - Not built yet. Delete All and search are in the design but not built: Delete All (the port has no delete-all, and it needs type-to-confirm); search (the port has none, and the node model has no text input); long-press delete; true paging (needs a port change). The app route to the history screen is built in the app: it draws the view through `createHistoryView`.
 
+## Decided, not built (ADR-050)
+
+Decided in ADR-050, not built. None of this is in the code yet.
+
+- First run: a second button, directly under "Download the speech model", downloads Parakeet instead. Each button shows its label (Good or Better), its rating in truck emoji (1 of 3 or 2 of 3) and its download size from the registry. A screen reader reads "Good, 1 of 3" and "Better, 2 of 3". Exactly one model is downloaded at first run, and that one becomes the selected model. `createFirstRunView` will take both models; its parameters change when built.
+- Settings: a speech model section lists both models. For each model: Download (when not installed), Delete (when installed and not in use) and Use this one (when installed and not in use). The model in use is never deleted.
+- About: a third-party notices entry carries the Parakeet attribution text (ADR-050, H). The rule that the About screen shows exactly two lines changes when that entry is built.
+- The star system for ratings is out of scope for now. Trucks are the rating.
+
 ## Test Locations
 - Unit (Kotlin): `android/ui/src/test/kotlin/dev/breaker/dictation/ui/`. Run: `./gradlew :android:ui:test`. Test classes by folder:
   - gate/: `AndroidConfinementGateTest`, `DeclarationReadingGateTest`, `FirstRunViewsGateTest`, `FrameworkReferenceReadingGateTest`, `GateSelfTest`, `NoColourGateTest`, `NoPrivateSpacingGateTest`, `PersistenceGateTest`, `PublicSurfaceGateTest`

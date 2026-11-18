@@ -1,7 +1,9 @@
 # ADR-013: Model hosting in the Breaker container + checksum verification
 
-**Status:** accepted
+**Status:** accepted, amended 2026-11-18 (the pin is our own sha256 per model; the upstream checksum.txt is advisory, not required)
 **Date:** 2026-09-29
+
+**Amendment 2026-11-18 (ADR-050, decided, not built).** The Decision below says every download is verified against upstream's checksum.txt before load. That rule is replaced: each model is pinned by our own sha256, byte size and release-asset id, and the download is verified against that pin. Upstream checksum.txt is advisory. The second model, Parakeet TDT 0.6B v3, has no checksum.txt line. The original text below is kept as written.
 
 ## Context
 On-device models download over the network and are parsed by sherpa-onnx —

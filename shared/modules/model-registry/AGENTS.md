@@ -2,15 +2,14 @@
 
 ## Purpose
 
-Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag. The canonical list of ASR models for on-device and, as planned (ADR-016), server use; no server code reads it today:
+Model sizes, immutable release-asset URLs, our SHA-256 pin per model, the upstream checksum.txt provenance, licenses, hosted flag. The canonical list of ASR models for on-device and, as planned (ADR-016), server use; no server code reads it today:
 sizes, download URLs, **SHA-256 pins** (integrity gate, T1), and **per-model
 license terms** (Security Review: runtime ASR models carry their own upstream terms,
 outside the audit).
 
 **Integrity policy (Security Review mitigation 1) [2]:** treat every `.onnx` as
 untrusted. Model URLs are **pinned to immutable release-asset ids** (never the moving
-asr-models ref), and every download is verified against the **checksum.txt the
-upstream already publishes** — not just our own recorded SHA-256 [2].
+asr-models ref), and every download is verified against our own recorded SHA-256 pin [2]. Decided, not built (ADR-050): upstream's checksum.txt becomes advisory, not required; today's check still requires the pin to appear in that file.
 
 **On-device (sherpa-onnx compatible, S25 Ultra 16 GB):**
 - `tiny`, `small` — streaming Zipformer (English); `small` is the recommended
@@ -72,7 +71,7 @@ speech list) only.
 - Every entry has a license field (R8).
 - URLs pinned to specific releases (no floating "latest").
 - Registry versioned; app refuses unknown model ids.
-- **Every entry verifies against upstream's checksum.txt** (T21) [2]. The fetch
+- **Every entry verifies against its own SHA-256 pin** (T21) [2]. Decided, not built (ADR-050): the pin is the rule and upstream's checksum.txt is advisory; today's check still requires the pin to appear in that file. The fetch
   route, fetch date, upstream file size and sha256, and the byte-exact
   upstream line are recorded in `fixtures/upstream-checksum-excerpt.txt`;
   each entry's own `notes` field carries the rest of its provenance. The
@@ -91,7 +90,7 @@ speech list) only.
   too. CI runs it, so a bad entry never reaches the app.
 
 ## Owns
-Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag.
+Model sizes, immutable release-asset URLs, our SHA-256 pin per model, the upstream checksum.txt provenance, licenses, hosted flag.
 
 ## Public Interface
 Generated Kotlin model registry (ADR-016)
@@ -138,10 +137,16 @@ This is how the project's own team builds modules. It is recommended for AI
 agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
+## Decided, not built (ADR-050)
+
+- A fifth entry, `parakeet` (Parakeet TDT 0.6B v3, CC BY 4.0, the sherpa-onnx int8 release asset of 487,211,443 bytes), with our own SHA-256 pin, byte size and asset id.
+- Each entry gains a label and a rating, read by the app: `small` is "Good" with 1 of 3 truck emoji, `parakeet` is "Better" with 2 of 3. The field names are not chosen yet.
+- Not in `models.yaml` until the build lands; `models.yaml` still holds four entries.
+
 ## Known Gotchas
 - GitHub's web asset-id route returns 404, so entries pin the immutable asset id and use the API asset route (host `api.github.com`), which returns the file only with `Accept: application/octet-stream` — without it the route returns JSON metadata (HTTP 200) and the sha256 pin rejects it; sending the header is the downloader's concern (stt-ondevice).
 - `models.yaml` and `tools/gen_model_registry.py` are in the tree (ADR-016): the generated Kotlin is committed, and the contract test fails if it drifts from the generator's output. Nothing parses `models.yaml` at runtime (ADR-016).
-- URLs pin to immutable release-asset ids; verify upstream checksum.txt [2].
+- URLs pin to immutable release-asset ids; verify the model's own SHA-256 pin [2] (ADR-050: the upstream checksum.txt is advisory once built).
 - The generated Kotlin file is never hand-edited: edit `models.yaml`, rerun the
   generator, commit both. A contract test fails if they drift (ADR-016).
 - Do not add a runtime YAML or JSON reader here or in a consumer (ADR-016).

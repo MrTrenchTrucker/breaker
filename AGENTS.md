@@ -47,7 +47,7 @@ this repo without being told by a person first.
    security review) are signed off, and sync is not released until Phase 19
    (encryption by default). Gate status and evidence: `docs/04-build-order.md`,
    "Gates and releases".
-7. **Models are untrusted.** Every `.onnx` is pinned to immutable release-asset ids and verified against upstream checksum.txt before use [2].
+7. **Models are untrusted.** Every `.onnx` is pinned to immutable release-asset ids and verified against its own SHA-256 pin before use [2] (ADR-050 amends the upstream checksum.txt rule: that file becomes advisory once built).
 8. **No plaintext transcriptions in logs, ever** (F32). Events only, per-user.
 
 ## Definition of done (repo-wide)
