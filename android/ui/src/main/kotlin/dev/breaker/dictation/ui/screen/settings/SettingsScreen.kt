@@ -134,6 +134,7 @@ internal class SettingsScreen {
         -> null
         is ScreenIntent.History -> null
         is ScreenIntent.Home -> null
+        is ScreenIntent.About -> null
     }
 
     /**

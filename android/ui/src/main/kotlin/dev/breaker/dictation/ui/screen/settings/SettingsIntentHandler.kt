@@ -131,6 +131,7 @@ internal class SettingsIntentHandler(
             is ScreenIntent.Setup -> notice = Notice.NOT_ACCEPTED
             is ScreenIntent.History -> notice = Notice.NOT_ACCEPTED
             is ScreenIntent.Home -> notice = Notice.NOT_ACCEPTED
+            is ScreenIntent.About -> notice = Notice.NOT_ACCEPTED
             // The settings screen has no back control: a Back changes neither the settings nor the message.
             ScreenIntent.Back -> Unit
         }

@@ -74,6 +74,7 @@ class SettingsScreenTest {
         is ScreenIntent.Setup -> listOf(intent.action)
         is ScreenIntent.History -> listOf(intent.action, intent.id)
         is ScreenIntent.Home -> listOf(intent.action)
+        is ScreenIntent.About -> listOf(intent.action)
         ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme, ScreenIntent.Back -> emptyList()
         is ScreenIntent.AddServerAddress -> listOf(intent.index.toString())
         is ScreenIntent.RemoveServerAddress -> listOf(intent.index.toString())
