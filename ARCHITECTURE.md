@@ -626,9 +626,14 @@ Settings tab shows a quiet notice with a way to sign in.
 is **admin by default**. Admins can: assign/revoke admin on other accounts,
 trigger an immediate update check on their own device (Home menu → About → Check for updates — the same daily-poll endpoint, called on demand; this is not a push to other users' devices), and see server health. Users have
 isolated data and no admin powers. Roles are stored server-side and enforced by
-the API (N13). **Registration stays closed after the first account** - decided
-in ADR-043 (registration_open switch, default closed once any account exists),
-not built yet.
+the API (N13). **Registration closes after the first account** (ADR-043). Built on the
+server: the first account needs the install code the server writes at its first
+start (file `install-code`, mode 0600), the admin's `registration_open` switch
+(default closed once any account exists) and a 403 `registration_closed` while it
+is off. The auth client sends the code on register. Planned, approved 2026-11-18:
+the phone's Create account screen gets one optional install-code field, the phone
+shows "Registration is closed." on that 403, and the install script prints the
+code once at the end of install.
 
 **Encryption by default (F24):** every transcription is encrypted at rest with a
 per-user key — the server stores **ciphertext only**, so a passive reader of

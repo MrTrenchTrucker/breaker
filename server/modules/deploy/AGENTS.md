@@ -132,3 +132,4 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Keep an offline copy of the APK signing key — loss = unsigned updates.
+- Planned, approved 2026-11-18, not built: `scripts/install.sh` prints the first-admin install code once, at the end of install, with one line telling the admin to use it on the first account. The code is read from the `install-code` file in the data folder. This is an exception to the Invariant above (no API key or secret in logs or env dumps) for this one printed value; the sync-api itself still never writes the code to a log.

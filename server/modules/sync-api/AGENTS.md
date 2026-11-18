@@ -38,6 +38,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   `invalid_field`, and a wrong code costs no password hash. The code is compared in the register transaction as
   well as before the hash. Once an account exists the field is ignored and the file is deleted after the first
   account commits (best effort).
+- Planned, approved 2026-11-18, not built in this module: the deploy install script (`server/modules/deploy`) prints the install code once at the end of install. Nothing here changes; the sync-api still prints only the one notice line.
 - `GET/PUT /v1/admin/registration-open` - **admin-only**: read and flip the
   `registration_open` switch (server_settings key, integer 0/1). GET answers
   `{"enabled":true}` or `{"enabled":false}`; PUT accepts exactly one member,

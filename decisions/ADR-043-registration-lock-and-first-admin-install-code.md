@@ -54,9 +54,24 @@ only if the project owner wants them.
 5. **Reset flow untouched.** Account reset is not affected by the registration
 lock and keeps its own behaviour.
 
-6. **To be designed.** The client field and the website / phone first-run
-screen (where the install code is shown and entered) are under To be designed
-— not decided here.
+6. **Phone and install script (approved by the project owner 2026-11-18;
+planned, not built).**
+   (a) The phone's register screen gets ONE optional text field, on the Create
+   account face only (hidden on the sign-in face), labelled "Install code
+   (optional)". A blank field sends no code (null). The field is cleared after a
+   successful register and kept after a failed one. The submit passes the code to
+   the three-argument register.
+   (b) When register answers 403 registration_closed, the phone shows the fixed
+   line "Registration is closed." through a new auth-client reason,
+   AuthFailureReason.REGISTRATION_CLOSED. A wrong or missing install code gets no
+   new sentence: it stays the generic failure of any bad field.
+   (c) The app's sign-in submit handler passes the code to the three-argument
+   register and shows the closed line.
+   (d) The install script (server/modules/deploy/scripts/install.sh) prints the
+   install code at the end of install, with one line telling the admin to use it
+   on the first account. Today the admin reads the code from the install-code
+   file in the data folder.
+   (e) The web front end's register page is not part of this decision.
 
 ## Reasons
 
@@ -81,17 +96,19 @@ once an account exists => 403 {"error":"registration_closed"} unless switch on;
 default after upgrade on a server with accounts = closed; check in the same
 transaction as the insert; install code generated at first start, 0600 in the
 data dir (one notice line is printed, never the code; the project owner reads
-the file), required in the first registration body, consumed in the same
-transaction; reset flow untouched; client field + first-run screen
-under To be designed.
+the file; the install script prints it once at the end of install, planned, see
+item 6), required in the first registration body, consumed in the same
+transaction; reset flow untouched; phone register field, closed line and
+sign-in submit change decided 2026-11-18, planned.
 
 Rules out: registration open by default on an upgraded server that already has
 accounts; a separate registration-open code path that does not mirror
 wrong-pw-limit; a check outside the insert transaction; admin-minted invites
 (slice D) in this slice.
 
-To be designed (not decided here): the client field and the website / phone
-first-run screen where the install code is shown and entered.
+Decided 2026-11-18 (item 6): the phone register field and the closed line, and
+the install script's print of the code, are planned. The web front end's register
+page is not decided here.
 
 Honesty: ADR-009 already records first-account-is-admin; this ADR adds the
 switch, the default-closed upgrade behaviour, the install code, and the
@@ -111,4 +128,16 @@ replaces "logged once" above, because the sync-api never writes a secret to a lo
 `install_code`; a missing code and a wrong code get the same 400, and a wrong code
 costs no password hash. Once an account exists the field is ignored, and the file
 is deleted after the first account commits (best effort). The client field and the
-first-run screen stay under To be designed.
+first-run screen were then under To be designed; they are decided in item 6 above
+(2026-11-18), see the amendment below.
+
+Amended 2026-11-18: item 6 is decided (phone field, the closed line, the sign-in
+submit, and the install script's print). Built on main: the server side (the
+registration_open switch, the 403, and the install code file and its check) and
+the auth client's register overload, which sends the code last only when one is
+given. Planned, not built: the phone field, AuthFailureReason.REGISTRATION_CLOSED,
+the sign-in submit change, and the install script's print. The print is a change
+to the two sentences above that say the code is never shown beyond the file: for
+the install script's output only, the code is printed once at the end of install.
+The sync-api itself still never writes the code to a log. The web front end's
+register page is not changed.
