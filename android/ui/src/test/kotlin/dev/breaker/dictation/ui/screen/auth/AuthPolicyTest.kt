@@ -74,4 +74,9 @@ class AuthPolicyTest {
         assertEquals("Ok", ratingName(AuthPolicy.rate(pw)))
     }
 
+    @Test
+    fun `the install code cap is the approved 128 utf-16 units`() {
+        assertEquals(128, AuthPolicy.INSTALL_CODE_MAX_CHARS)
+    }
+
 }

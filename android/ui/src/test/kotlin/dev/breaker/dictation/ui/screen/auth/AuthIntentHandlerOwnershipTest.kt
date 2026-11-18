@@ -68,7 +68,7 @@ class AuthIntentHandlerOwnershipTest {
     @Test
     fun `the callback gets an array that is not the caller array`() {
         var seen: CharArray? = null
-        val handler = AuthIntentHandler { _, password, _ -> seen = password }
+        val handler = AuthIntentHandler { _, password, _, _ -> seen = password }
         val caller = okFixture()
         handler.submit(caller)
         assertNotSame(caller, checkNotNull(seen))
@@ -77,7 +77,7 @@ class AuthIntentHandlerOwnershipTest {
     @Test
     fun `the callback copy still holds the typed text after submit returns while the caller array is zero`() {
         var seen: CharArray? = null
-        val handler = AuthIntentHandler { _, password, _ -> seen = password }
+        val handler = AuthIntentHandler { _, password, _, _ -> seen = password }
         val caller = okFixture()
         handler.submit(caller)
         assertEquals("fixture-only-xyz", String(checkNotNull(seen)))
@@ -89,7 +89,7 @@ class AuthIntentHandlerOwnershipTest {
     @Test
     fun `a throwing callback leaves its copy zero and the failure reaches the caller`() {
         var seen: CharArray? = null
-        val handler = AuthIntentHandler { _, password, _ ->
+        val handler = AuthIntentHandler { _, password, _, _ ->
             seen = password
             throw IllegalStateException("fixture failure")
         }
@@ -108,7 +108,7 @@ class AuthIntentHandlerOwnershipTest {
     @Test
     fun `a too short submit makes no callback`() {
         var calls = 0
-        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+        val handler = AuthIntentHandler { _, _, _, _ -> calls++ }
         handler.submit("short".toCharArray())
         assertEquals(0, calls)
     }
@@ -116,7 +116,7 @@ class AuthIntentHandlerOwnershipTest {
     @Test
     fun `a submit while busy makes no second callback`() {
         var calls = 0
-        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+        val handler = AuthIntentHandler { _, _, _, _ -> calls++ }
         handler.submit(okFixture())
         assertTrue(handler.current() is AuthState.Busy)
         handler.submit(okFixture())
@@ -126,7 +126,7 @@ class AuthIntentHandlerOwnershipTest {
     @Test
     fun `a submit while warning makes no second callback`() {
         var calls = 0
-        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+        val handler = AuthIntentHandler { _, _, _, _ -> calls++ }
         handler.submit(weakFixture())
         assertTrue(handler.current() is AuthState.Warning)
         handler.submit(weakFixture())

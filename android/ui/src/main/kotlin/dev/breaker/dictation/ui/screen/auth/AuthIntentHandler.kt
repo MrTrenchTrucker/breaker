@@ -13,7 +13,7 @@ package dev.breaker.dictation.ui.screen.auth
  */
 
 internal class AuthIntentHandler(
-    private val onSubmit: (username: String, password: CharArray, register: Boolean) -> Unit,
+    private val onSubmit: (username: String, password: CharArray, register: Boolean, installCode: String?) -> Unit,
 ) {
 
     /** The face currently chosen: create on one, sign in on the other. */
@@ -21,6 +21,10 @@ internal class AuthIntentHandler(
 
     /** The last typed username, carried as text so the submit callback can hand it back. */
     var username = ""
+        internal set
+
+    /** The last typed install code, carried as text so the submit callback can hand it back. */
+    var installCode = ""
         internal set
 
     private var state: AuthState = AuthState.Idle(register)
@@ -57,17 +61,18 @@ internal class AuthIntentHandler(
             if (state is AuthState.Busy || state is AuthState.Warning) {
                 return
             }
+            val code = if (register) installCode.trim().ifEmpty { null } else null
             when (AuthPolicy.rate(password)) {
                 AuthPolicy.Rating.TooShort -> {
                     state = AuthState.Refused(register, AuthTexts.REFUSED)
                 }
                 AuthPolicy.Rating.Weak -> {
                     state = AuthState.Warning(register, AuthTexts.WEAK_WARNING)
-                    onSubmitOnce(username, password, register)
+                    onSubmitOnce(username, password, register, code)
                 }
                 AuthPolicy.Rating.Ok -> {
                     state = AuthState.Busy(register)
-                    onSubmitOnce(username, password, register)
+                    onSubmitOnce(username, password, register, code)
                 }
             }
         } finally {
@@ -83,10 +88,10 @@ internal class AuthIntentHandler(
      * returns or throws. The callback owns the copy and zeroes it; if the callback throws, the
      * copy is zero-filled here and the same failure is rethrown.
      */
-    private fun onSubmitOnce(username: String, password: CharArray, register: Boolean) {
+    private fun onSubmitOnce(username: String, password: CharArray, register: Boolean, installCode: String?) {
         val own = password.copyOf()
         try {
-            onSubmit(username, own, register)
+            onSubmit(username, own, register, installCode)
         } catch (failure: Throwable) {
             own.fill('\u0000')
             throw failure

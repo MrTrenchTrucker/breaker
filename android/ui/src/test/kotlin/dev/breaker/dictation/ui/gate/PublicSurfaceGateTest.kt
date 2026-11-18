@@ -101,7 +101,7 @@ private const val SETTLED_HOME_CONTROL = "interface HomeControl"
 private const val SETTLED_AUTH_VIEW =
     "fun createAuthView(context: android.content.Context, " +
         "settings: dev.breaker.dictation.core.port.SettingsStore, " +
-        "onSubmit: (username: String, password: CharArray, register: Boolean) -> Unit): android.view.View"
+        "onSubmit: (username: String, password: CharArray, register: Boolean, installCode: String?) -> Unit): android.view.View"
 
 /** The auth control interface, as written in its file. */
 private const val SETTLED_AUTH_CONTROL = "interface AuthControl"

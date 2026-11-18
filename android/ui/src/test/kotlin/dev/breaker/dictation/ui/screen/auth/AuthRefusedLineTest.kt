@@ -33,7 +33,7 @@ class AuthRefusedLineTest {
 
     @Test
     fun `the handler carries the app line into the refused state on the submitted face`() {
-        val handler = AuthIntentHandler { _, _, _ -> }
+        val handler = AuthIntentHandler { _, _, _, _ -> }
         handler.tap(AuthNodeIds.FACE_LOGIN)
         val state = handler.refused(register = false, text = "line-from-the-app")
         assertTrue(state is AuthState.Refused)

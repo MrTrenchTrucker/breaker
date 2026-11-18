@@ -63,6 +63,8 @@ class AuthHostViewRulesTest {
         val show = bodyOf(code, "private fun show(state: AuthState) {")
         val name = submit.indexOf("handler.username = userField.typedName()")
         val setsName = name >= 0 && name < submit.indexOf("submitThenWipe(")
+        val codeAt = submit.indexOf("handler.installCode = codeField.typedCode()")
+        val setsCode = codeAt >= 0 && codeAt < submit.indexOf("submitThenWipe(")
         val onlyOne = count(code, "submitThenWipe(") == 1
         val takes = code.contains("submitThenWipe(passField.takeTyped(), handler::submit)")
         val wipes = code.contains("{ passField.wipeTyped() }")
@@ -70,8 +72,20 @@ class AuthHostViewRulesTest {
         val fills = code.contains("fill(") || code.contains(NUL_LITERAL)
         val touches = show.contains("userField") || show.contains("passField")
         val addedOnce = count(code, "addView(userField") == 1 && count(code, "addView(passField") == 1
+        val codeAddedOnce = count(code, "addView(codeField") == 1
+        val captionPlaced = show.contains("place(codeCaption, title, codeSegment())")
+        val keysOffRegister = show.contains("val codeShown = state.register")
+        val captionKeys =
+            show.contains("codeCaption.visibility = if (codeShown) View.VISIBLE else View.GONE")
+        val fieldKeys = show.contains("codeField.visibility = if (codeShown) View.VISIBLE else View.GONE")
+        val passAt = code.indexOf("column.addView(passField")
+        val captionAt = code.indexOf("column.addView(codeCaption")
+        val codeViewAt = code.indexOf("column.addView(codeField")
+        val bottomAt = code.indexOf("column.addView(bottomHolder")
+        val ordered = passAt >= 0 && captionAt > passAt && codeViewAt > captionAt && bottomAt > codeViewAt
         return listOfNotNull(
             "the submit does not set the user name from the box before the handover".takeUnless { setsName },
+            "the submit does not set the install code from the box before the handover".takeUnless { setsCode },
             "the host does not hand over through exactly one submitThenWipe call".takeUnless { onlyOne },
             "the handover call does not take the password only from the box".takeUnless { takes },
             "the handover call does not wipe the password box".takeUnless { wipes },
@@ -79,6 +93,13 @@ class AuthHostViewRulesTest {
             "the host fills an array it handed over".takeIf { fills },
             "the redraw touches a text box".takeIf { touches },
             "a text box is not added to the column exactly once".takeUnless { addedOnce },
+            "the install code box is not added to the column exactly once".takeUnless { codeAddedOnce },
+            "the redraw does not place the install code caption".takeUnless { captionPlaced },
+            "the install code visibility does not key off the register face".takeUnless { keysOffRegister },
+            "the install code caption is not hidden on the sign-in face".takeUnless { captionKeys },
+            "the install code box is not hidden on the sign-in face".takeUnless { fieldKeys },
+            "the install code caption and box are not after the password box and before the controls"
+                .takeUnless { ordered },
         )
     }
 
@@ -153,6 +174,74 @@ class AuthHostViewRulesTest {
     fun `a host that does not add each text box to the column once is reported`() {
         val missing = replaceOnce(host, "        column.addView(passField, inputParams())\n", "")
         assertFires("a box never added", hostProblemsIn(missing), "exactly once")
+    }
+
+    @Test
+    fun `a submit that never sets the install code is reported`() {
+        val old = "        handler.installCode = codeField.typedCode()\n"
+        val missing = replaceOnce(host, old, "")
+        assertFires("no install code", hostProblemsIn(missing), "does not set the install code")
+    }
+
+    @Test
+    fun `an install code box that is not added to the column once is reported`() {
+        val missing = replaceOnce(host, "        column.addView(codeField, inputParams())\n", "")
+        assertFires("an install code box never added", hostProblemsIn(missing), "exactly once")
+    }
+
+    @Test
+    fun `a column that puts the install code above the password box is reported`() {
+        val old = "        column.addView(passField, inputParams())\n" +
+            "        column.addView(codeCaption)\n" +
+            "        column.addView(codeField, inputParams())"
+        val moved = replaceOnce(
+            host,
+            old,
+            "        column.addView(codeCaption)\n" +
+                "        column.addView(codeField, inputParams())\n" +
+                "        column.addView(passField, inputParams())",
+        )
+        assertFires("a moved install code", hostProblemsIn(moved), "after the password box")
+    }
+
+    @Test
+    fun `a caption that the redraw never places is reported`() {
+        val missing = replaceOnce(host, "        place(codeCaption, title, codeSegment())\n", "")
+        assertFires("no caption placement", hostProblemsIn(missing), "does not place the install code caption")
+    }
+
+    @Test
+    fun `a visibility that does not key off the register face is reported`() {
+        val unbound = replaceOnce(host, "        val codeShown = state.register\n", "")
+        assertFires("no register binding", hostProblemsIn(unbound), "key off the register face")
+    }
+
+    @Test
+    fun `a caption that is always visible is reported`() {
+        val old = "codeCaption.visibility = if (codeShown) View.VISIBLE else View.GONE"
+        val always = replaceOnce(host, old, "codeCaption.visibility = View.VISIBLE")
+        assertFires("an always-visible caption", hostProblemsIn(always), "hidden on the sign-in face")
+    }
+
+    @Test
+    fun `a caption whose visibility line is deleted is reported`() {
+        val old = "        codeCaption.visibility = if (codeShown) View.VISIBLE else View.GONE\n"
+        val missing = replaceOnce(host, old, "")
+        assertFires("no caption visibility", hostProblemsIn(missing), "hidden on the sign-in face")
+    }
+
+    @Test
+    fun `a box that is always visible is reported`() {
+        val old = "codeField.visibility = if (codeShown) View.VISIBLE else View.GONE"
+        val always = replaceOnce(host, old, "codeField.visibility = View.VISIBLE")
+        assertFires("an always-visible box", hostProblemsIn(always), "hidden on the sign-in face")
+    }
+
+    @Test
+    fun `a box whose visibility line is deleted is reported`() {
+        val old = "        codeField.visibility = if (codeShown) View.VISIBLE else View.GONE\n"
+        val missing = replaceOnce(host, old, "")
+        assertFires("no box visibility", hostProblemsIn(missing), "hidden on the sign-in face")
     }
 
     @Test

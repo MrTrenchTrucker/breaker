@@ -6,6 +6,7 @@ import dev.breaker.dictation.ui.AuthControl
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -22,12 +23,20 @@ class SignInSubmitHandlerTest {
     private class RecordingAuth(private val throwOn: Boolean) : AuthService {
         @Volatile var recordedCall: CharArray? = null // the exact instance handed to register/login
         @Volatile var lastKind: String? = null // "register" or "login", whichever the handler called
+        @Volatile var registerCodeCalls: Int = 0 // how many times the three-argument register ran
+        @Volatile var lastCode: String? = null // the install code the three-argument register was given
 
         override fun register(username: String, password: CharArray): dev.breaker.dictation.core.model.AuthSession {
             recordedCall = password // remember the very instance passed in (identity)
             lastKind = "register"
             if (throwOn) throw IllegalStateException("auth refused")
             return auth_session(username)
+        }
+
+        override fun register(username: String, password: CharArray, installCode: String?): dev.breaker.dictation.core.model.AuthSession {
+            registerCodeCalls += 1
+            lastCode = installCode
+            return register(username, password)
         }
 
         override fun login(username: String, password: CharArray): dev.breaker.dictation.core.model.AuthSession {
@@ -115,7 +124,7 @@ class SignInSubmitHandlerTest {
         h.handler.authControl = h.control
         assertEquals("state starts signed out", false, h.state.liveNow())
         // submit(login=false) runs off the worker's thread, settles the state live, posts submitted(false).
-        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), false)
+        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), false, null)
 
         assertEquals("success leaves the session live", true, h.state.liveNow())
         assertEquals("the control received submit exactly once with register=false", 1, h.control.count)
@@ -130,7 +139,7 @@ class SignInSubmitHandlerTest {
 
         h.handler.authControl = h.control
         // A thrown failure settles the state not live and still posts submitted(false) exactly once.
-        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), false)
+        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), false, null)
 
         assertEquals("state stays signed out on a refused login", false, h.state.liveNow())
         assertEquals("the control received submit exactly once even though it threw", 1, h.control.count)
@@ -142,12 +151,36 @@ class SignInSubmitHandlerTest {
 
         h.handler.authControl = h.control
         // submit(register=true) settles the state live and posts submitted(true).
-        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), true)
+        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), true, null)
 
         assertEquals("register leaves the session live", true, h.state.liveNow())
         assertEquals("the control received submitted exactly once with register=true", 1, h.control.count)
         assertEquals("submitted flag is register=true on register", true, h.control.lastFlag)
         assertEquals("a register submit calls the service register", "register", h.auth.lastKind)
+    }
+
+    @Test
+    fun `a register with an install code reaches the three argument register with that code`() {
+        val h = Harness.build(throwOn = false)
+        h.handler.authControl = h.control
+        // The handler forwards the code it was given to the three-argument register, unchanged.
+        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), true, "invite-1")
+
+        assertEquals("the three argument register ran once", 1, h.auth.registerCodeCalls)
+        assertEquals("the three argument register got the exact code", "invite-1", h.auth.lastCode)
+        assertEquals("the register face still calls register", "register", h.auth.lastKind)
+    }
+
+    @Test
+    fun `a sign in never sends an install code`() {
+        val h = Harness.build(throwOn = false)
+        h.handler.authControl = h.control
+        // A code handed in on the sign-in face must not reach the register fake at all.
+        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), false, "invite-1")
+
+        assertEquals("a sign in never reaches the three argument register", 0, h.auth.registerCodeCalls)
+        assertEquals("a sign in calls login, not register", "login", h.auth.lastKind)
+        assertNull("a sign in leaves no code with the register fake", h.auth.lastCode)
     }
 
     @Test
@@ -157,7 +190,7 @@ class SignInSubmitHandlerTest {
         val password = charArrayOf('p', 'a', 's')
 
         h.handler.authControl = h.control
-        h.handler.submit("ada@example.test", password, false)
+        h.handler.submit("ada@example.test", password, false, null)
 
         assertEquals(
             "the array handed to the service is the same instance the handler was given",
@@ -173,7 +206,7 @@ class SignInSubmitHandlerTest {
 
         val okPassword = charArrayOf('p', 'a', 's')
         ok.handler.authControl = ok.control
-        ok.handler.submit("ada@example.test", okPassword, false)
+        ok.handler.submit("ada@example.test", okPassword, false, null)
         assertEquals(
             "the password is all \\u0000 after the success path returns",
             true,
@@ -182,7 +215,7 @@ class SignInSubmitHandlerTest {
 
         val failPassword = charArrayOf('p', 'a', 's')
         failing.handler.authControl = failing.control
-        failing.handler.submit("ada@example.test", failPassword, false)
+        failing.handler.submit("ada@example.test", failPassword, false, null)
         assertEquals(
             "the password is all \\u0000 after the throw path returns",
             true,
@@ -196,7 +229,7 @@ class SignInSubmitHandlerTest {
 
         h.handler.authControl = h.control
         // The submitted block ran on the worker's thread, never the caller's.
-        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), false)
+        h.handler.submit("ada@example.test", charArrayOf('p', 'a', 's'), false, null)
 
         assertNotNull("the service call must go through the background", h.bg.runOn)
         assertNotEquals(

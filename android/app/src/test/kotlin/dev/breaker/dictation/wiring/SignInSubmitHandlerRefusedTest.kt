@@ -73,7 +73,7 @@ class SignInSubmitHandlerRefusedTest {
     fun `a locked name reaches the control as a refused line and not as a return to idle`() {
         val failure = AuthFailure(AuthFailureReason.NAME_LOCKED)
         val (handler, control, _) = harness(failure)
-        handler.submit("ada", charArrayOf('p', 'a', 's'), false)
+        handler.submit("ada", charArrayOf('p', 'a', 's'), false, null)
         assertEquals(false, control.refusedRegister)
         assertNotNull(control.refusedLine)
         assertEquals("the refused line is the failure's own message", failure.message, control.refusedLine)
@@ -83,7 +83,7 @@ class SignInSubmitHandlerRefusedTest {
     @Test
     fun `a failure with no line of its own returns to idle as before`() {
         val (handler, control, _) = harness(AuthFailure(AuthFailureReason.BAD_CREDENTIALS, null))
-        handler.submit("ada", charArrayOf('p', 'a', 's'), false)
+        handler.submit("ada", charArrayOf('p', 'a', 's'), false, null)
         assertNull(control.refusedLine)
         assertEquals(1, control.submittedCount)
     }
@@ -91,7 +91,7 @@ class SignInSubmitHandlerRefusedTest {
     @Test
     fun `a plain exception returns to idle as before`() {
         val (handler, control, _) = harness(IllegalStateException("no network"))
-        handler.submit("ada", charArrayOf('p', 'a', 's'), false)
+        handler.submit("ada", charArrayOf('p', 'a', 's'), false, null)
         assertNull(control.refusedLine)
         assertEquals(1, control.submittedCount)
     }
@@ -100,8 +100,30 @@ class SignInSubmitHandlerRefusedTest {
     fun `the password is zeroed on the refused path too`() {
         val (handler, _, auth) = harness(AuthFailure(AuthFailureReason.NAME_LOCKED))
         val password = charArrayOf('p', 'a', 's')
-        handler.submit("ada", password, false)
+        handler.submit("ada", password, false, null)
         assertTrue(password.contentEquals(charArrayOf('\u0000', '\u0000', '\u0000')))
         assertNotNull(auth.recorded)
+    }
+
+    @Test
+    fun `a closed registration on the register face reaches the control as a refused line on that face`() {
+        val failure = AuthFailure(AuthFailureReason.REGISTRATION_CLOSED)
+        val (handler, control, _) = harness(failure)
+        handler.submit("ada", charArrayOf('p', 'a', 's'), true, null)
+        assertEquals(true, control.refusedRegister)
+        assertNotNull(control.refusedLine)
+        assertEquals("the refused line is the failure's own message", failure.message, control.refusedLine)
+        assertEquals(0, control.submittedCount)
+    }
+
+    @Test
+    fun `a closed registration reaches the control as a refused line and not as a return to idle`() {
+        val failure = AuthFailure(AuthFailureReason.REGISTRATION_CLOSED)
+        val (handler, control, _) = harness(failure)
+        handler.submit("ada", charArrayOf('p', 'a', 's'), false, null)
+        assertEquals(false, control.refusedRegister)
+        assertNotNull(control.refusedLine)
+        assertEquals("the refused line is the failure's own message", failure.message, control.refusedLine)
+        assertEquals(0, control.submittedCount)
     }
 }
