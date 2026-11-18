@@ -26,7 +26,10 @@ internal class ServerAuthServiceOps(
     private val serverAddresses: () -> List<String> = { listOf(baseUrl()) },
 ) {
 
-    internal fun doRegister(username: String, password: CharArray): AuthSession {
+    internal fun doRegister(username: String, password: CharArray): AuthSession =
+        doRegister(username, password, null)
+
+    internal fun doRegister(username: String, password: CharArray, installCode: String?): AuthSession {
         val base = baseUrl()
         val registerUrl = resolve(base, AccountRules.REGISTER_PATH)
         requireUsername(username)
@@ -34,7 +37,7 @@ internal class ServerAuthServiceOps(
         val salt = saltSource()
         if (salt.size != AccountRules.SALT_BYTES) throw KdfRefused(KdfRefusal.BAD_SALT_LENGTH)
         val session = withDerived(password, salt, registerParams) { verifier, kek ->
-            postRegister(registerUrl, username, salt, verifier)
+            postRegister(registerUrl, username, salt, verifier, installCode)
             settleKeys(base, username, verifier, kek, salt, loginReply(base, username, verifier))
         }
         revokePrevious()
@@ -189,12 +192,13 @@ internal class ServerAuthServiceOps(
         return ServerAuthReplies.salt(jsonPost(url, body))
     }
 
-    private fun postRegister(url: String, username: String, salt: ByteArray, verifier: String) {
+    private fun postRegister(url: String, username: String, salt: ByteArray, verifier: String, installCode: String?) {
         val sharedParams = dev.breaker.shared.api.KdfParams(
             AccountRules.MEMORY_KIB, AccountRules.ITERATIONS, AccountRules.PARALLELISM,
         )
         val request = RegisterRequest(
             username, Base64.getEncoder().encodeToString(salt), sharedParams, AccountRules.KDF_VERSION, verifier,
+            installCode,
         )
         val reply = jsonPost(url, RequestEncoder.encodeRegister(request))
         when (reply.status) {

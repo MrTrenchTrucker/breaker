@@ -59,6 +59,14 @@ internal object RequestEncoder {
             append(refuseInvalidVersion(req.kdfVersion))
             append(",\"auth_verifier\":")
             append(jsonStr(req.authVerifier))
+            // The optional first-admin install code is appended last, only when present, so a
+            // registration without one serialises to the exact bytes it always did. It is read once
+            // into a local: the DTO lives in another module, so its property cannot be smart-cast.
+            val code = req.installCode
+            if (code != null) {
+                append(",\"install_code\":")
+                append(jsonStr(code))
+            }
             append("}")
         }
         return body.encodeToByteArray()
