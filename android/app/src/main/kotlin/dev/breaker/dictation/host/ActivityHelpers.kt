@@ -78,7 +78,13 @@ private fun systemBarHeightPx(context: Context, name: String): Int {
 /** Copies [text] to the phone's primary clip, labelled with the app's name. */
 internal fun copyToClip(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Breaker", text))
+    clipboard.setPrimaryClip(
+        android.content.ClipData.newPlainText("Breaker", text).also { clip ->
+            clip.description.setExtras(
+                android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) },
+            )
+        },
+    )
 }
 
 /** The download control of the screen that is showing: the first run's while it is up, the settings' otherwise. */
