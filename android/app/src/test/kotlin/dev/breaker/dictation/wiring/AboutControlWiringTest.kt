@@ -29,7 +29,7 @@ class AboutControlWiringTest {
     )
 
     /** A fake [AboutControl] that records every show and holds the two callbacks it is given. */
-    private class RecordingControl : AboutControl {
+    internal class RecordingControl : AboutControl {
         val shows: MutableList<Show> = ArrayList()
         var bound: Boolean = false
         var onCheck: (() -> Unit)? = null
@@ -49,7 +49,7 @@ class AboutControlWiringTest {
     }
 
     /** Runs the submitted block at once; a block that throws is dropped, as the real worker drops one. */
-    private class InlineBackground : Background {
+    internal class InlineBackground : Background {
         var submissions: Int = 0
         var hold: Boolean = false
         var throwOnSubmit: Boolean = false
@@ -76,7 +76,7 @@ class AboutControlWiringTest {
     }
 
     /** Runs every posted block at once on the calling thread. */
-    private class InlineMainPost : MainPost {
+    internal class InlineMainPost : MainPost {
         var posts: Int = 0
 
         override fun post(block: () -> Unit) {
@@ -86,11 +86,13 @@ class AboutControlWiringTest {
     }
 
     /** A scripted [UpdateChecker]: the result it returns, or a throw, and the force flag it was given. */
-    private class ScriptedChecker : UpdateChecker {
+    internal class ScriptedChecker : UpdateChecker {
         var result: UpdateCheckResult? = null
         var throwOn: Boolean = false
         var calls: Int = 0
         var lastForce: Boolean? = null
+        val installed: MutableList<ReleaseInfo> = ArrayList()
+        var throwOnInstall: Boolean = false
 
         override fun check(force: Boolean): UpdateCheckResult? {
             calls += 1
@@ -99,16 +101,20 @@ class AboutControlWiringTest {
             return result
         }
 
-        override fun install(release: ReleaseInfo) {}
+        override fun install(release: ReleaseInfo) {
+            installed.add(release)
+            if (throwOnInstall) throw IllegalStateException("the installer refused")
+        }
     }
 
-    private class Harness {
+    internal class Harness {
         val control: RecordingControl = RecordingControl()
         val background: InlineBackground = InlineBackground()
         val main: InlineMainPost = InlineMainPost()
         val checker: ScriptedChecker = ScriptedChecker()
         var admin: Boolean = true
-        val wiring: AboutControlWiring = AboutControlWiring(control, background, main, { checker }, { admin })
+        val answers: InstallAnswerRelay = InstallAnswerRelay(main)
+        val wiring: AboutControlWiring = AboutControlWiring(control, background, main, { checker }, { admin }, answers)
 
         val shows: List<Show> get() = control.shows
         val last: Show get() = control.shows.last()
@@ -173,7 +179,7 @@ class AboutControlWiringTest {
     }
 
     @Test
-    fun `an available check draws updateAvailable and no install row`() {
+    fun `an available check draws updateAvailable and an install row while nothing runs`() {
         val h = Harness()
         h.checker.result = UpdateCheckResult.Available(release())
         h.wiring.bind()
@@ -181,7 +187,7 @@ class AboutControlWiringTest {
         val done = h.last
         assertFalse("the row is free again", done.checking)
         assertTrue("the row says an update is available", done.updateAvailable)
-        assertFalse("the install row is not offered before the install path lands", done.installReady)
+        assertTrue("a held release with nothing running offers the install row", done.installReady)
         assertFalse("an available update is not a failure and not up to date", done.failed || done.upToDate)
     }
 
@@ -278,11 +284,12 @@ class AboutControlWiringTest {
     }
 
     @Test
-    fun `the install callback is held and does nothing`() {
+    fun `an install with nothing held draws nothing and runs nothing`() {
         val h = Harness()
         h.wiring.bind()
         h.control.onInstall!!.invoke()
         assertEquals("the install callback draws nothing", 1, h.shows.size)
         assertEquals("the install callback submits no check", 0, h.background.submissions)
+        assertEquals("the install callback runs no install", 0, h.checker.installed.size)
     }
 }

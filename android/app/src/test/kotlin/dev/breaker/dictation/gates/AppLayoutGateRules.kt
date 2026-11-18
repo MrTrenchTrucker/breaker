@@ -52,7 +52,7 @@ open class AppLayoutGateRules {
         "wiring/PhraseFeedTap.kt", "wiring/PhraseSendHandler.kt", "wiring/PhraseStreamSource.kt", "wiring/PhraseWiring.kt",
         "wiring/TileSpokenSend.kt",
         "wiring/UpdateKeyList.kt", "wiring/UpdateTimesStore.kt",
-        "wiring/PackageInstallRun.kt", "wiring/InstallStatusRule.kt",
+        "wiring/PackageInstallRun.kt", "wiring/InstallStatusRule.kt", "wiring/InstallNonce.kt", "wiring/InstallAnswerRelay.kt",
         "wiring/UpdaterWiring.kt",
         "wiring/AboutControlWiring.kt",
     )

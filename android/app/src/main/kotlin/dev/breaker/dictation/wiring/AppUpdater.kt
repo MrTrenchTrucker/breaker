@@ -3,6 +3,7 @@ package dev.breaker.dictation.wiring
 import android.content.pm.PackageInfo
 import android.content.res.AssetManager
 import dev.breaker.dictation.BreakerApp
+import dev.breaker.dictation.host.MainLooperPost
 import dev.breaker.dictation.http.JdkHttpTransport
 import dev.breaker.dictation.updater.InstallResult
 import dev.breaker.dictation.updater.Updater
@@ -31,6 +32,9 @@ object AppUpdater {
     /** The answer of the last install request, or null when no install was answered yet. */
     @Volatile
     var lastInstallResult: InstallResult? = null
+
+    /** The one holder that carries an install answer to the About screen, handed over on the main thread. */
+    internal val installAnswers: InstallAnswerRelay = InstallAnswerRelay(MainLooperPost())
 
     /** The app's updater, built on first use and kept for the life of the process. */
     fun updater(app: BreakerApp): Updater =
@@ -61,11 +65,14 @@ object AppUpdater {
             isAdmin = { appIsAdmin(app.compositionRoot.addressedSession) },
             installedVersionCode = { installedInfo(app).longVersionCode },
             installedVersionName = { installedInfo(app).versionName ?: "" },
-            installer = AndroidApkInstaller(app),
+            installer = AndroidApkInstaller(app, onSessionFinished = { code -> installAnswers.reportFinished(code) }),
             times = UpdateTimesStore(File(app.filesDir, "updater")),
             nowMs = System::currentTimeMillis,
             scheduler = HandlerTimerScheduler(),
-            onInstallResult = { result -> lastInstallResult = result },
+            onInstallResult = { result ->
+                lastInstallResult = result
+                installAnswers.report(result)
+            },
         )
 
     private fun installedInfo(app: BreakerApp): PackageInfo {

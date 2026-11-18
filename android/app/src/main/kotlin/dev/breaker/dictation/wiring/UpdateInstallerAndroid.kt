@@ -40,13 +40,26 @@ import java.util.concurrent.atomic.AtomicBoolean
  * On API 33 and later the receiver is registered as not exported. Below API 33 the platform has no such
  * flag, so the receiver is registered the plain way and only a session id this adapter opened is accepted.
  *
- * This file names Android types, so the JVM cannot run it; its source pins are in UpdateInstallerGateTest,
+ * Each opened session also gets a random nonce, held by the adapter and carried in the status intent under
+ * the extra named by nonceExtra. A status callback counts as ours only when its session id is known and its
+ * nonce matches the stored one; the nonce is never logged.
+ *
+ * A session that finishes in the status receiver, or is abandoned by this adapter after the confirm step, is
+ * reported to onSessionFinished with its status code. A session abandoned before commit is reported through the
+ * launch result instead.
+ *
+ * This file names Android types, so the JVM cannot run it; its source pins are in UpdateInstallerGateTest and
+ * UpdateInstallerNonceGateTest and UpdateInstallerFinishGateTest,
  * and the device checks are listed with the record.
  */
-class AndroidApkInstaller(private val context: Context) : ApkInstaller {
+class AndroidApkInstaller(
+    private val context: Context,
+    private val onSessionFinished: (Int) -> Unit = {},
+) : ApkInstaller {
 
     private val statusAction: String = context.packageName + ".action.INSTALL_STATUS"
-    private val ownSessions: MutableSet<Int> = ConcurrentHashMap.newKeySet<Int>()
+    private val nonceExtra: String = context.packageName + ".extra.INSTALL_NONCE"
+    private val ownSessions: MutableMap<Int, String> = ConcurrentHashMap()
     private val receiverOn: AtomicBoolean = AtomicBoolean(false)
     private val opener: PackageSessionOpener = PackageSessionOpener { openAdapterSession() }
     private val statusReceiver: BroadcastReceiver = object : BroadcastReceiver() {
@@ -68,7 +81,7 @@ class AndroidApkInstaller(private val context: Context) : ApkInstaller {
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         params.setAppPackageName(context.packageName)
         val sessionId: Int = installer.createSession(params)
-        ownSessions.add(sessionId)
+        ownSessions[sessionId] = InstallNonce.generate()
         val session: PackageInstaller.Session = try {
             installer.openSession(sessionId)
         } catch (e: Exception) {
@@ -112,9 +125,11 @@ class AndroidApkInstaller(private val context: Context) : ApkInstaller {
     }
 
     private fun statusIntent(sessionId: Int): PendingIntent {
+        val nonce: String = ownSessions[sessionId].orEmpty()
         val intent = Intent(statusAction)
             .setPackage(context.packageName)
             .putExtra(PackageInstaller.EXTRA_SESSION_ID, sessionId)
+            .putExtra(nonceExtra, nonce)
         return PendingIntent.getBroadcast(context, sessionId, intent, pendingFlags())
     }
 
@@ -144,12 +159,21 @@ class AndroidApkInstaller(private val context: Context) : ApkInstaller {
         val sessionId: Int = received.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, NO_SESSION_ID)
         val status: Int = received.getIntExtra(PackageInstaller.EXTRA_STATUS, NO_STATUS)
         val confirm: Intent? = confirmIntent(received)
-        val ours: Boolean = ownSessions.contains(sessionId)
+        val ours: Boolean = isOwnSession(sessionId, received.getStringExtra(nonceExtra))
         when (InstallStatusRule.decide(status, confirm != null, ours)) {
             StatusAction.IGNORE -> Unit
             StatusAction.SHOW_CONFIRM -> showConfirm(sessionId, confirm)
-            StatusAction.FINISHED -> forget(sessionId)
+            StatusAction.FINISHED -> {
+                forget(sessionId)
+                onSessionFinished(status)
+            }
         }
+    }
+
+    /** True only when [sessionId] is a session this adapter opened and [received] equals the nonce stored for it. */
+    private fun isOwnSession(sessionId: Int, received: String?): Boolean {
+        val stored: String = ownSessions[sessionId] ?: return false
+        return InstallNonce.matches(stored, received)
     }
 
     @Suppress("DEPRECATION")
@@ -193,6 +217,7 @@ class AndroidApkInstaller(private val context: Context) : ApkInstaller {
             // best effort: the session may already be gone
         } finally {
             forget(sessionId)
+            onSessionFinished(PackageInstaller.STATUS_FAILURE)
         }
     }
 

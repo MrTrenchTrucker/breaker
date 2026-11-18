@@ -44,7 +44,7 @@ upgrade path (ARCHITECTURE section 8). Shake + tap remain the manual fallbacks.
 - `updater` — the update check, the APK download, the signature check, the verify step, the daily rule,
   the install port, the daily timer and the key list are built (pure Kotlin, with the
   app wiring in `android/app`, built and not tried on a phone); the About screen's Check for updates
-  button is built and wired for admins; the Install button is not wired yet (another module); the phone
+  button is built and wired for admins; the Install row is wired (built, UNVERIFIED ON A DEVICE; it is drawn only while an update is held and nothing runs, and a cancelled install returns it to offered); the phone
   shows no rollback button or action (project owner's decision 2026-11-18)
 - `crypto` — client-side key derivation (Argon2id + HKDF), data-key unwrap, AES-256-GCM
   encrypt/decrypt and opening the sign-in package; generating and wrapping the data key and the
