@@ -278,7 +278,7 @@ class TileCoordinator(
         when (end) {
             is TakeEnd.Back -> push()
             is TakeEnd.NothingHeard -> { push(); guarded { tile.showNotice(RunnerSentences.NOTHING_HEARD) } }
-            is TakeEnd.Sent -> { lastCommit = end.outcome; lastLocalFallback = end.localFallback; push(); guarded { tile.clearNotice() } }
+            is TakeEnd.Sent -> { lastCommit = end.outcome; lastLocalFallback = end.localFallback; push(); guarded { val d = end.detail; if (d != null) tile.showNotice(d) else tile.clearNotice() } }
             is TakeEnd.Failure -> fail(end.sentence)
         }
     }
