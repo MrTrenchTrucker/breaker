@@ -793,7 +793,7 @@ then installs the APK. Honest note: pairing is superseded by ADR-034; no certifi
 reads a **release manifest file** named by `BREAKER_SYNC_API_MANIFEST_FILE`. When a
 newer version exists:
 1. The app notifies the user ("Breaker 1.2.0 is available — update?").
-2. On confirm, it downloads the **signed APK**. For an https address the APK address is trusted by the phone's normal trust. ADR-034 decides that a plain http address is allowed too, because the update host is the configured server. The cleartext switch and the address rule are built, and so are the update check, the APK download with its SHA-256 check and the signature check; the install, the schedule and the app wiring are not built.
+2. On confirm, it downloads the **signed APK**. For an https address the APK address is trusted by the phone's normal trust. ADR-034 decides that a plain http address is allowed too, because the update host is the configured server. The cleartext switch and the address rule are built, and so are the update check, the APK download with its SHA-256 check and the signature check; the install through the system installer, the daily timer and the app wiring are built as well, and none of it has run on a phone yet.
 3. It verifies the APK **signature + SHA-256** (published on the endpoint).
 4. Android installs over the existing app — same package ID + signature →
    treated as an update, **data/settings preserved**.
@@ -807,11 +807,11 @@ on-device model + checksums (licensing permitting) so the phone downloads it fro
 the Breaker container instead of upstream. Until then the phone downloads it from
 GitHub and treats it as untrusted until checked (F43, ADR-025, [2]); moving the
 host changes the model registry and ADR-025 together.
-**Update rollback (D28, superseded 2026-11-18):** the phone has no rollback. Decided
-2026-11-18 by the project owner: no Roll back button and no rollback action on the phone.
+**Undoing a bad release (D28, superseded 2026-11-18):** the phone has no way back to an older build.
+Decided 2026-11-18 by the project owner: no button and no action on the phone for it.
 A bad release is undone by a server re-offer of an older build under a higher version
-code; the phone takes it as an ordinary update. The removal of the held-rollback code is
-planned, not built: until it lands, the built updater still holds a rollback-shaped offer.
+code; the phone takes it as an ordinary update. The phone code that held such an offer
+is removed.
 
 ## 15. Deployment & Git
 

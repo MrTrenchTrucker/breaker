@@ -8,7 +8,7 @@ import java.io.File
  * names no Android class and no app store. [buildUpdater] wires them together.
  *
  * [serverUrl] and [apkFolder] are read when they are needed, not copied. [installedVersionCode] and
- * [installedVersionName] are read on every check. [isAdmin] is read on every forced check and rollback.
+ * [installedVersionName] are read on every check. [isAdmin] is read on every forced check.
  */
 public class UpdaterConfig(
     val transport: HttpTransport,

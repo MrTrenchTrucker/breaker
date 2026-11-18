@@ -18,9 +18,6 @@ interface UpdateChecker {
      */
     fun check(force: Boolean): UpdateCheckResult?
 
-    /** Install a verified [release], keeping the current version for rollback. */
+    /** Install a verified [release]. */
     fun install(release: ReleaseInfo)
-
-    /** Go back to the version kept from before the last update. */
-    fun rollback()
 }

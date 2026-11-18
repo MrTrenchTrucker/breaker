@@ -6,7 +6,7 @@ import dev.breaker.dictation.core.model.UpdateCheckResult
  * Joins the due decision, one check and the record of the check time.
  *
  * The daily check asks whether it is time yet, runs [runCheck] when it is, and remembers when that
- * happened. Nothing else: no timer, no download, no install, no rollback, no app wiring. Every
+ * happened. Nothing else: no timer, no download, no install, no app wiring. Every
  * collaborator is passed in, so a test fakes the clock, the stored time and the recorder.
  *
  * Never throws. An exception from [nowMs], [lastCheckAtMs] or [runCheck] (an interrupt included)

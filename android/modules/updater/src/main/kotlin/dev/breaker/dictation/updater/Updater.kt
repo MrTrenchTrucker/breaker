@@ -7,12 +7,11 @@ import java.io.File
 private const val APK_FILE_NAME = "update.apk"
 
 /**
- * What the app holds of the updater: the checker it calls, the version of the held rollback offer (or
- * null when none is held), and the start and the stop of the daily timer.
+ * What the app holds of the updater: the checker it calls, and the start and the stop of the daily
+ * timer.
  */
 public class Updater(
     val checker: UpdateChecker,
-    val heldRollbackVersion: () -> String?,
     val start: () -> Unit,
     val stop: () -> Unit,
 )
@@ -22,11 +21,10 @@ public class Updater(
  * download and no timer start.
  */
 public fun buildUpdater(config: UpdaterConfig): Updater {
-    val held = HeldRollback()
     val fetch = ManifestFetch(config.transport, config.serverUrl)
-    val aware = RollbackAwareCheck(fetch, config.installedVersionCode, config.installedVersionName, held)
+    val check = UpdateCheck(fetch, config.installedVersionCode, config.installedVersionName)
     val scheduled = ScheduledUpdateCheck(
-        runCheck = aware::check,
+        runCheck = check::check,
         lastCheckAtMs = config.times::lastCheckAtMs,
         recordCheckAtMs = config.times::recordCheckAtMs,
         nowMs = config.nowMs,
@@ -47,13 +45,11 @@ public fun buildUpdater(config: UpdaterConfig): Updater {
             verification.verify(release.version, release.apkUrl, release.sha256, release.signature)
         },
         installReady = installer::install,
-        held = held,
         onInstallResult = config.onInstallResult,
     )
     val timer = UpdateTimer(runCheck = { scheduled.check(false) }, scheduler = config.scheduler)
     return Updater(
         checker = impl,
-        heldRollbackVersion = { held.current()?.version },
         start = timer::start,
         stop = timer::stop,
     )

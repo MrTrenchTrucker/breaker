@@ -35,6 +35,7 @@ import dev.breaker.dictation.core.testing.ScriptedConnectivityProbe
 import dev.breaker.dictation.core.testing.SequentialIds
 import dev.breaker.dictation.core.testing.aTranscription
 import dev.breaker.dictation.core.usecase.DictateUseCase
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -215,7 +216,6 @@ class PortContractTest {
         val updater = object : UpdateChecker {
             override fun check(force: Boolean) = null
             override fun install(release: ReleaseInfo) = Unit
-            override fun rollback() = Unit
         }
         assertNull(updater.check(force = true))
     }
@@ -276,5 +276,27 @@ class PortContractTest {
         }
         sync.enqueue(aTranscription(source = TranscriptionSource.SERVER))
         assertEquals(dev.breaker.dictation.core.model.SyncReport(1, 0), sync.pushPending())
+    }
+
+    @Test
+    fun `the update checker port declares exactly check and install`() {
+        val port = File("src/main/kotlin/dev/breaker/dictation/core/port/UpdateChecker.kt")
+        assertTrue("expected the update checker port at ${port.absolutePath}", port.isFile)
+
+        val declared = port.readLines()
+            .map { it.trim() }
+            .filter { it.startsWith("fun ") }
+        assertEquals(
+            "android_core: the update checker port must declare exactly check and install",
+            listOf(
+                "fun check(force: Boolean): UpdateCheckResult?",
+                "fun install(release: ReleaseInfo)",
+            ),
+            declared,
+        )
+        assertFalse(
+            "android_core: the update checker port must not mention rollback",
+            port.readText().contains("rollback", ignoreCase = true),
+        )
     }
 }

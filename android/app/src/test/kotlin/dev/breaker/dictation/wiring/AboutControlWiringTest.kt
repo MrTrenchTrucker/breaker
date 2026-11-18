@@ -100,8 +100,6 @@ class AboutControlWiringTest {
         }
 
         override fun install(release: ReleaseInfo) {}
-
-        override fun rollback() {}
     }
 
     private class Harness {
