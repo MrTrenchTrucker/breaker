@@ -16,6 +16,10 @@ class TakenClipboardAndroid(private val context: Context) : TakenClipboard {
         val clipboard = context.getSystemService(
             android.content.Context.CLIPBOARD_SERVICE,
         ) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("Breaker", text))
+        val clip = ClipData.newPlainText("Breaker", text)
+        clip.description.setExtras(
+            android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) },
+        )
+        clipboard.setPrimaryClip(clip)
     }
 }

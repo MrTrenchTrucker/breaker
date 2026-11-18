@@ -60,8 +60,20 @@ internal class AppHostingGateTest {
     /** Harmless edits to the helper that writes the clipboard: each keeps every rule true. */
     private val quietHelpers: List<Quiet> = listOf(
         Quiet(
-            "clipboard.setPrimaryClip(android.content.ClipData.newPlainText(\"Breaker\", text))",
-            "clipboard.setPrimaryClip(android.content.ClipData.newPlainText(\"Breaker app\", text))",
+            """    clipboard.setPrimaryClip(
+        android.content.ClipData.newPlainText("Breaker", text).also { clip ->
+            clip.description.setExtras(
+                android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) },
+            )
+        },
+    )""",
+            """    clipboard.setPrimaryClip(
+        android.content.ClipData.newPlainText("Breaker app", text).also { clip ->
+            clip.description.setExtras(
+                android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) },
+            )
+        },
+    )""",
         ),
         Quiet(
             "getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager",
@@ -96,12 +108,24 @@ internal class AppHostingGateTest {
         Sample("ACTIVITY_WIRES_ON_COPY", "onCopy = { sentence -> copyToClip(activity, sentence) },", "onCopy = { text -> copyToClip(activity, text) },"),
         Sample(
             "ACTIVITY_WRITES_THE_CLIPBOARD",
-            "clipboard.setPrimaryClip(android.content.ClipData.newPlainText(\"Breaker\", text))",
+            """    clipboard.setPrimaryClip(
+        android.content.ClipData.newPlainText("Breaker", text).also { clip ->
+            clip.description.setExtras(
+                android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) },
+            )
+        },
+    )""",
             "clipboard.setPrimaryClip(clipboard.primaryClip)",
         ),
         Sample(
             "ACTIVITY_WRITES_THE_CLIPBOARD",
-            "clipboard.setPrimaryClip(android.content.ClipData.newPlainText(\"Breaker\", text))",
+            """    clipboard.setPrimaryClip(
+        android.content.ClipData.newPlainText("Breaker", text).also { clip ->
+            clip.description.setExtras(
+                android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) },
+            )
+        },
+    )""",
             "",
         ),
         Sample("ACTIVITY_REACHES_THE_CLIPBOARD_MANAGER", "getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager", "getSystemService(Context.CLIPBOARD_SERVICE) as Any"),
