@@ -17,6 +17,7 @@ enum class AuthFailureReason {
     PUBLIC_KEY_MISMATCH,
     KEY_UPLOAD_REFUSED,
     KEY_STORE_FAILED,
+    REGISTRATION_CLOSED,
 }
 
 /**
@@ -46,4 +47,5 @@ private fun sentenceFor(reason: AuthFailureReason): String = when (reason) {
     AuthFailureReason.PUBLIC_KEY_MISMATCH -> "The stored account key does not match its public key."
     AuthFailureReason.KEY_UPLOAD_REFUSED -> "The account keys could not be set up."
     AuthFailureReason.KEY_STORE_FAILED -> "The account keys could not be stored on this phone."
+    AuthFailureReason.REGISTRATION_CLOSED -> "Registration is closed."
 }
