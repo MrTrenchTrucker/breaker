@@ -205,6 +205,7 @@ internal class ServerAuthServiceOps(
             201 -> Unit
             409 -> throw AuthFailure(AuthFailureReason.USERNAME_TAKEN)
             429 -> throw AuthFailure(AuthFailureReason.RATE_LIMITED, ServerAuthReplies.retryAfterSeconds(reply.headers))
+            403 -> throw AuthFailure(AuthFailureReason.REGISTRATION_CLOSED)
             else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
         }
     }

@@ -22,6 +22,7 @@ class AuthFailureTest {
         AuthFailureReason.PUBLIC_KEY_MISMATCH to "The stored account key does not match its public key.",
         AuthFailureReason.KEY_UPLOAD_REFUSED to "The account keys could not be set up.",
         AuthFailureReason.KEY_STORE_FAILED to "The account keys could not be stored on this phone.",
+        AuthFailureReason.REGISTRATION_CLOSED to "Registration is closed.",
     )
 
     @Test
@@ -31,9 +32,9 @@ class AuthFailureTest {
         }
     }
 
-    // Re-pointed: the pin lists all fifteen entries of AuthFailureReason, in the enum order.
+    // Re-pointed: the pin lists all sixteen entries of AuthFailureReason, in the enum order.
     @Test
-    fun `the failure has exactly fifteen reasons one for each account outcome`() {
+    fun `the failure has exactly sixteen reasons one for each account outcome`() {
         assertEquals(
             "the failure reasons changed",
             listOf(
@@ -52,6 +53,7 @@ class AuthFailureTest {
                 "PUBLIC_KEY_MISMATCH",
                 "KEY_UPLOAD_REFUSED",
                 "KEY_STORE_FAILED",
+                "REGISTRATION_CLOSED",
             ),
             AuthFailureReason.entries.map { it.name },
         )
