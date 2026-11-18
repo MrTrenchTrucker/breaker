@@ -153,4 +153,102 @@ class TileCoordinatorOutcomeTest {
             assertFalse("app: the dictated text must never reach the tile, a notice or the launcher", entry.contains(privateText))
         }
     }
+
+    /** The sentence the commit service returns when the field refused the text, as a literal like the commit tests hold it. */
+    private val copiedAfterRefusal: String = "The field did not accept the text, so it was copied instead."
+
+    @Test
+    fun `a refused commit shows the existing refusal sentence after the state`() {
+        val rig = TileRig()
+        rig.take.sendResult = sentResult(CommitOutcome.COPIED, copiedAfterRefusal)
+        rig.startRecording()
+        rig.tile.calls.clear()
+        rig.coordinator.onSend()
+        rig.settle()
+        assertEquals(
+            "app: a refused commit should push SENDING, then SENT, then show the refusal sentence",
+            listOf("state:SENDING", "state:SENT", "notice"),
+            rig.tile.calls,
+        )
+        assertEquals("app: a refused commit should show the existing refusal sentence", listOf(copiedAfterRefusal), rig.tile.notices)
+    }
+
+    @Test
+    fun `a clean commit and a no-field copy show no notice and still clear it`() {
+        val committed = TileRig()
+        committed.take.sendResult = sentResult(CommitOutcome.COMMITTED, null)
+        committed.startRecording()
+        committed.tile.calls.clear()
+        committed.coordinator.onSend()
+        committed.settle()
+        assertEquals(
+            "app: a clean commit should push SENDING, then SENT, then clear the notice",
+            listOf("state:SENDING", "state:SENT", "clearNotice"),
+            committed.tile.calls,
+        )
+        assertTrue("app: a clean commit should show no notice", committed.tile.notices.isEmpty())
+
+        val copied = TileRig()
+        copied.take.sendResult = sentResult(CommitOutcome.COPIED, null)
+        copied.startRecording()
+        copied.tile.calls.clear()
+        copied.coordinator.onSend()
+        copied.settle()
+        assertEquals(
+            "app: a no-field copy should push SENDING, then SENT, then clear the notice",
+            listOf("state:SENDING", "state:SENT", "clearNotice"),
+            copied.tile.calls,
+        )
+        assertTrue("app: a no-field copy should show no notice", copied.tile.notices.isEmpty())
+    }
+
+    @Test
+    fun `a blank detail shows no notice and still clears it`() {
+        val rig = TileRig()
+        rig.take.sendResult = sentResult(CommitOutcome.COPIED, "   ")
+        rig.startRecording()
+        rig.tile.calls.clear()
+        rig.coordinator.onSend()
+        rig.settle()
+        assertEquals(
+            "app: a blank detail should push SENDING, then SENT, then clear the notice",
+            listOf("state:SENDING", "state:SENT", "clearNotice"),
+            rig.tile.calls,
+        )
+        assertTrue("app: a blank detail should show no notice", rig.tile.notices.isEmpty())
+    }
+
+    @Test
+    fun `a fallback send with a refusal detail still ends local and shows the sentence`() {
+        val rig = TileRig()
+        rig.take.finishResult = FinishResult.ReadyToSend(tileTranscription("local words").copy(serverPathFailed = true))
+        rig.take.sendResult = sentResult(CommitOutcome.COPIED, copiedAfterRefusal)
+        rig.startRecording()
+        rig.tile.calls.clear()
+        rig.coordinator.onSend()
+        rig.settle()
+        assertEquals(
+            "app: a fallback send should push SENDING, then SENT_LOCAL, then show the refusal sentence",
+            listOf("state:SENDING", "state:SENT_LOCAL", "notice"),
+            rig.tile.calls,
+        )
+        assertEquals("app: a fallback send should end on SENT_LOCAL", TileState.SENT_LOCAL, rig.tile.states.last())
+        assertEquals("app: a fallback send should show the existing refusal sentence", listOf(copiedAfterRefusal), rig.tile.notices)
+    }
+
+    @Test
+    fun `a failed send still shows its own sentence and not the refusal one`() {
+        val rig = TileRig()
+        rig.take.sendResult = sentResult(CommitOutcome.FAILED, "The field refused the text.")
+        rig.startRecording()
+        rig.tile.calls.clear()
+        rig.coordinator.onSend()
+        rig.settle()
+        assertEquals(
+            "app: a failed send should push SENDING, then FAILED, then show its own sentence",
+            listOf("state:SENDING", "state:FAILED", "notice"),
+            rig.tile.calls,
+        )
+        assertEquals("app: a failed send should show its own sentence", listOf("The field refused the text."), rig.tile.notices)
+    }
 }
