@@ -6,10 +6,10 @@ Whisper Flow-style formatted text, with CB-slang voice control.
 
 **Status on main:** this summary describes the target system, not only what is
 built today. Not built yet: server `training` and the phone's
-`training-client` (each holds only a card, a README and a build file); most of `deploy`
-(its helper scripts, image recipes, compose file, env example and secrets gate are built;
-the install/update/rollback scripts, the APK build + sign + serve step, the release manifest
-writer and the key rotation are not); most of the
+`training-client` (each holds only a card, a README and a build file); part of `deploy`
+(its eight scripts and their shared helpers, image recipes, compose file, env example and
+secrets gate are built; the APK build + sign + serve step, the release manifest writer and
+the key rotation are not); most of the
 updater (its update check, APK download and signature check are built; the
 daily scheduler (only the pure due check exists), the install, the rollback and the app wiring are not); the web front end
 beyond its sign-in page (no history view, APK or model hosting, or admin panel);

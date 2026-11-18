@@ -322,9 +322,14 @@
      "evidence": "server/modules/deploy/images/{sync-api,whisper-server,web-fe}/Dockerfile, server/modules/deploy/images/{sync-api,whisper-server,web-fe}/Dockerfile.dockerignore, server/modules/deploy/docker-compose.yml, server/modules/deploy/.env.example, tests/unit/server/deploy/{test_images,test_compose,test_secrets_gate}.py, .gitignore, .github/gitleaks.toml"
     },
     {
-     "item": "git-pull build, sign and serve steps, APK signing, auth key rotation, install/update/rollback scripts",
+     "item": "the deploy scripts install.sh, update.sh, rollback.sh with the shared deploy-common.sh helpers and the schema-record helper, and their tests",
+     "status": "DONE",
+     "evidence": "server/modules/deploy/scripts/{install,update,rollback,deploy-common}.sh; tests/unit/server/deploy/{test_install,test_update,test_rollback,test_deploy_common,test_entry_modes}.py"
+    },
+    {
+     "item": "git-pull build, sign and serve steps, APK signing, auth key rotation",
      "status": "NOT_STARTED",
-     "evidence": "deploy card Status: the build, sign and serve steps, APK signing, auth key rotation and the install/update/rollback scripts do not exist"
+     "evidence": "deploy card Status: the build, sign and serve steps, APK signing and auth key rotation do not exist"
     }
    ]
   },

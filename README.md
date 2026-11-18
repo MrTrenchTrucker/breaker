@@ -103,7 +103,7 @@ The four words, once: **Built** means the module's code and tests are on `main` 
 | `server/modules/web-fe` | 12 | Partly built | The sign-in page and the device list are built; the sign-in form stays off until the browser can run the crypto; the admin status banner modules and the admin panel client modules (users, agent tokens, store clear, settings) are built with node tests, and no page shows any of them yet. |
 | `android/modules/training-client` | 13 | Not built | Not started: only a card. |
 | `server/modules/training` | 13 | Not built | Not started: only a card. |
-| `server/modules/deploy` | 14 | Partly built | Five helper scripts are built (pull, health check, backup, release tags, address check); the three image recipes, the one compose file, the env example and the secrets gate are built; the build, sign and serve steps, the install/update/rollback scripts, the APK signing and the release manifest writer are not. |
+| `server/modules/deploy` | 14 | Partly built | Eight scripts are built (pull, health check, backup, release tags, address check, install, update, rollback) with the shared `deploy-common.sh` helpers and the schema-record helper, and tests; rollback deploys the previous of the remote latest release tag (`--previous`), and the health retry in `deploy_check_health` is env-injectable through `HEALTH_STEP` (default 2) and `HEALTH_WAIT` (default 60), with no CLI flag; the three image recipes, the one compose file, the env example and the secrets gate are built; the build, sign and serve steps, the APK signing and the release manifest writer are not. |
 | `android/modules/updater` | 16 | Partly built | The module and its tests exist; the app does not use it yet. |
 
 ## Contributing

@@ -118,11 +118,15 @@ class GitPullTest(unittest.TestCase):
         self.assertEqual(r.stdout, 'v1.2.0\n')
 
     def test_named_tag_not_a_release_tag_refused(self):
+        # D13: a pull/selection refusal is a failure (1), not a usage error (2);
+        # install.sh/update.sh forward this code to the operator, where 2 reads
+        # as "bad command line".
         self.bare = self.standard_bare()
         r = self.run_pull(['--tag', '2.0.0-rc1'])
-        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertEqual(r.returncode, 1, r.stderr)
         self.assertEqual(r.stdout, '')
         self.assertIn('not a release tag', r.stderr)
+        self.assertIn('pull', r.stderr)
         self.assertFalse(os.path.exists(self.dest))
 
     def test_named_tag_absent_from_remote_exit_3(self):
