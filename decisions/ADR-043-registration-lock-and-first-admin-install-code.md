@@ -55,11 +55,13 @@ only if the project owner wants them.
 lock and keeps its own behaviour.
 
 6. **Phone and install script (approved by the project owner 2026-11-18;
-planned, not built).**
+built 2026-11-18).**
    (a) The phone's register screen gets ONE optional text field, on the Create
    account face only (hidden on the sign-in face), labelled "Install code
-   (optional)". A blank field sends no code (null). The field is cleared after a
-   successful register and kept after a failed one. The submit passes the code to
+   (optional)". A blank field sends no code (null). The field is kept after a
+   failed register; on success the app closes the screen, so the field goes
+   with it (amended 2026-11-18 at build: the view cannot tell a success from a
+   failure, so it never clears the field itself). The submit passes the code to
    the three-argument register.
    (b) When register answers 403 registration_closed, the phone shows the fixed
    line "Registration is closed." through a new auth-client reason,
@@ -99,16 +101,16 @@ data dir (one notice line is printed, never the code; the project owner reads
 the file; the install script prints it once at the end of install, built 2026-11-18,
 see item 6), required in the first registration body, consumed in the same
 transaction; reset flow untouched; phone register field, closed line and
-sign-in submit change decided 2026-11-18, planned.
+sign-in submit change decided and built 2026-11-18.
 
 Rules out: registration open by default on an upgraded server that already has
 accounts; a separate registration-open code path that does not mirror
 wrong-pw-limit; a check outside the insert transaction; admin-minted invites
 (slice D) in this slice.
 
-Decided 2026-11-18 (item 6): the phone register field and the closed line are
-planned; the install script's print of the code is built (deploy `install.sh`
-step 12, 2026-11-18). The web front end's register
+Decided 2026-11-18 (item 6) and built the same day: the phone register field,
+the closed line, the sign-in submit and the install script's print of the code
+(deploy `install.sh` step 12). The web front end's register
 page is not decided here.
 
 Honesty: ADR-009 already records first-account-is-admin; this ADR adds the
@@ -136,8 +138,9 @@ Amended 2026-11-18: item 6 is decided (phone field, the closed line, the sign-in
 submit, and the install script's print). Built on main: the server side (the
 registration_open switch, the 403, and the install code file and its check) and
 the auth client's register overload, which sends the code last only when one is
-given. Planned, not built: the phone field, AuthFailureReason.REGISTRATION_CLOSED,
-the sign-in submit change, and the install script's print. The print is a change
+given. Built later the same day: AuthFailureReason.REGISTRATION_CLOSED, the install
+script's print, the phone field and the sign-in submit change (none run on a
+real device or server yet). The print is a change
 to the two sentences above that say the code is never shown beyond the file: for
 the install script's output only, the code is printed once at the end of install.
 The sync-api itself still never writes the code to a log. The web front end's

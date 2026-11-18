@@ -35,7 +35,7 @@ class EntrySurfaceTest {
     private val AUTH_VIEW_SIGNATURE =
         "fun createAuthView(context: android.content.Context, " +
             "settings: dev.breaker.dictation.core.port.SettingsStore, " +
-            "onSubmit: (username: String, password: CharArray, register: Boolean) -> Unit): android.view.View"
+            "onSubmit: (username: String, password: CharArray, register: Boolean, installCode: String?) -> Unit): android.view.View"
 
     /** The auth control interface the view answers to, pinned on its own members. */
     private val AUTH_CONTROL_MEMBERS = setOf(

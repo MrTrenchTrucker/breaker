@@ -37,12 +37,12 @@ internal class SignInSubmitHandler(
     /** The settle callback the host holds, run on the main post after each submit settles, with the new live state. */
     var onSettled: ((Boolean) -> Unit)? = null
 
-    fun submit(username: String, password: CharArray, register: Boolean) {
+    fun submit(username: String, password: CharArray, register: Boolean, installCode: String?) {
         background.submit {
             var live = false
             var line: String? = null
             try {
-                if (register) authService.register(username, password) else authService.login(username, password)
+                if (register) authService.register(username, password, installCode) else authService.login(username, password)
                 live = true
             } catch (failure: Exception) {
                 // The failure never reaches the user as a crash; a locked name carries its line to the view.

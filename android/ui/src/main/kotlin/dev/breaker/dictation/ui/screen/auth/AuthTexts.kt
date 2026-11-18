@@ -13,6 +13,9 @@ internal object AuthTexts {
     /** The label of the username field. */
     const val USERNAME_LABEL = "Username"
 
+    /** The label of the optional install code field. */
+    const val INSTALL_CODE_LABEL = "Install code (optional)"
+
     /** The caption shown over the masked password field, with no typed value in it. */
     const val PASSWORD_CAPTION = "Password"
 

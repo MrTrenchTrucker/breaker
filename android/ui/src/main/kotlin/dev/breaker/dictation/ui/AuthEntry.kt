@@ -29,13 +29,15 @@ import dev.breaker.dictation.ui.theme.storedTheme
  *
  * @param context the context the views are built with, normally an activity's.
  * @param settings the shared store, through which this screen reads its one stored value.
- * @param onSubmit asks the app to submit with the username and password chosen from the faces.
+ * @param onSubmit asks the app to submit with the username and password chosen from the faces and the
+ *   install code: null when the field is blank after a trim, null on the sign-in face, otherwise the
+ *   trimmed text.
  * @return a view that shows the auth screen and can be put in a layout as it stands.
  */
 fun createAuthView(
     context: android.content.Context,
     settings: dev.breaker.dictation.core.port.SettingsStore,
-    onSubmit: (username: String, password: CharArray, register: Boolean) -> Unit,
+    onSubmit: (username: String, password: CharArray, register: Boolean, installCode: String?) -> Unit,
 ): android.view.View {
     val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
     val handler = AuthIntentHandler(onSubmit)

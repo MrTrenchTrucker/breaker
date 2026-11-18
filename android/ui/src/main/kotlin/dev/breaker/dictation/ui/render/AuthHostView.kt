@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.render
 
 import android.content.Context
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -24,13 +25,16 @@ import dev.breaker.dictation.ui.theme.Theme
 /*
  * The view the app puts on the display for the auth screen.
  *
- * It holds two real text boxes, one for the user name and one for the password, built once and kept
- * in a column between three holders. A redraw replaces only what the kit draws in the holders (the
- * captions, the face toggle, the submit control and the state line) and never touches the two boxes,
- * so a face toggle keeps the typed text. The submit control copies the user name into the handler,
- * takes the typed password as a new array, hands it to the handler, and then always wipes the
- * password box, whether the answer was a refusal or not. The user name stays. The array handed over
- * is never reused by this view: the handler zeroes it and the callback gets its own copy.
+ * It holds three real text boxes, one for the user name, one for the password and one for the
+ * install code, built once and kept in a column between four holders. A redraw replaces only what
+ * the kit draws in the holders (the captions, the face toggle, the submit control and the state
+ * line) and never touches the three boxes, so a face toggle keeps the typed text. The install code
+ * box is hidden, not removed, on the sign-in face, and its caption is drawn only on the register
+ * face. The submit control copies the user name and the install code into the handler, takes the
+ * typed password as a new array, hands it to the handler, and then always wipes the password box,
+ * whether the answer was a refusal or not. The user name and the install code stay. The array
+ * handed over is never reused by this view: the handler zeroes it and the callback gets its own
+ * copy.
  *
  * Everything here runs on the main thread: taps, attachment and focus changes. There is no thread,
  * no posted work and no lock.
@@ -50,6 +54,8 @@ internal class AuthHostView(
     private val userField = UsernameEntryView(context, theme, AuthTexts.USERNAME_LABEL)
     private val middleHolder = FrameLayout(context)
     private val passField = PasswordEntryView(context, theme, AuthTexts.PASSWORD_CAPTION)
+    private val codeCaption = FrameLayout(context)
+    private val codeField = InstallCodeEntryView(context, theme, AuthTexts.INSTALL_CODE_LABEL)
     private val bottomHolder = FrameLayout(context)
 
     init {
@@ -57,6 +63,8 @@ internal class AuthHostView(
         column.addView(userField, inputParams())
         column.addView(middleHolder)
         column.addView(passField, inputParams())
+        column.addView(codeCaption)
+        column.addView(codeField, inputParams())
         column.addView(bottomHolder)
         addView(column)
         openForBleed()
@@ -69,12 +77,16 @@ internal class AuthHostView(
             bottomMargin = (spaceDp(theme.metrics, Space.S) * density).toInt()
         }
 
-    /** Redraws the three kit segments from [state], keeping the scroll position and both text boxes. */
+    /** Redraws the four kit segments from [state], keeping the scroll position and the three text boxes. */
     private fun show(state: AuthState) {
         val held = scrollY
         val title = state.line()
         place(topHolder, title, topSegment())
         place(middleHolder, title, middleSegment())
+        val codeShown = state.register
+        place(codeCaption, title, codeSegment())
+        codeCaption.visibility = if (codeShown) View.VISIBLE else View.GONE
+        codeField.visibility = if (codeShown) View.VISIBLE else View.GONE
         place(bottomHolder, title, bottomSegment(state))
         setBackgroundColor(theme.color(PaletteSlot.BACKGROUND).argb)
         scrollTo(0, held)
@@ -106,12 +118,13 @@ internal class AuthHostView(
     }
 
     /**
-     * Hands the typed user name and password to the handler, in this order, then wipes the password
-     * box, also when the submit callback throws, and redraws from the state the handler holds. The
-     * array is not read or changed here after the handler has it.
+     * Hands the typed user name, install code and password to the handler, in this order, then
+     * wipes the password box, also when the submit callback throws, and redraws from the state the
+     * handler holds. The array is not read or changed here after the handler has it.
      */
     private fun submitNow() {
         handler.username = userField.typedName()
+        handler.installCode = codeField.typedCode()
         submitThenWipe(passField.takeTyped(), handler::submit) { passField.wipeTyped() }
         drawn = handler.current()
         show(drawn)
@@ -168,7 +181,16 @@ private fun middleSegment(): Box = Box(
     ),
 )
 
-/** The kit nodes below the password box: the face toggle, the submit control and the state line. */
+/** The kit node between the password box and the install code box: the install code caption, drawn on the register face only. */
+private fun codeSegment(): Box = Box(
+    id = "auth.code",
+    background = PaletteSlot.BACKGROUND,
+    children = listOf(
+        Label("auth.installcode", AuthTexts.INSTALL_CODE_LABEL, TypeRole.BODY, PaletteSlot.TEXT_MUTED),
+    ),
+)
+
+/** The kit nodes below the install code box: the face toggle, the submit control and the state line. */
 private fun bottomSegment(state: AuthState): Box {
     val register = state.register
     return Box(

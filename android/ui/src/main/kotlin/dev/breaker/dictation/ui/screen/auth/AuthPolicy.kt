@@ -30,6 +30,12 @@ internal object AuthPolicy {
     internal const val USERNAME_MAX_CHARS: Int = 64
 
     /**
+     * The longest install code the screen accepts, counted in UTF-16 units; the cap exists against a
+     * runaway paste, not a rule the auth client states.
+     */
+    internal const val INSTALL_CODE_MAX_CHARS: Int = 128
+
+    /**
      * The fixed common-password entries, each carried as its own char array rather than a string
      * literal copied at runtime; no copy of the typed password is made from them, which is what
      * keeps the comparison free of any un-zeroable text.
