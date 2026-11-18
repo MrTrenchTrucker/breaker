@@ -37,7 +37,7 @@ modules implement, and the use cases that run a dictation.
   seen by the next; the adapter's single-slot dispatcher gives that ordering.
   Word times are capture-relative (see `HeardWord`). An adapter in another module
   implements it, and the app wires it.
-- `AuthService` — `register`, `login`, `logout`, `currentSession`
+- `AuthService` — `register`, `login`, `logout`, `currentSession`. Registration may also carry a one-time install code; an implementation that has not opted in refuses a code it was given rather than dropping it, and a caller that passes none is unchanged.
 - `CryptoService` - five methods. `unwrapDek(WrappedDek, KeyEncryptionKey)` opens the data
   key with the key-encryption key the caller derived, never a password.
   `openSignInPackage(SealedSignInPackage, SignInPrivateKey)` opens the key package the
