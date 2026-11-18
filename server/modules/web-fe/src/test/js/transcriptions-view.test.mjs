@@ -299,6 +299,79 @@ test('typing in the search field filters the rows and sends nothing', async () =
   assert.equal(net.calls.length, callsAfterLoad, 'search must not call the server');
 });
 
+test('after a delete the view re-applies the typed term, and an empty term shows every survivor', async () => {
+  const doomed = rowOf({ clientId: CLIENT_A, text: 'Truck engine oil' });
+  const survivor = rowOf({ clientId: CLIENT_B, text: 'Grocery list' });
+  let served = [doomed, survivor];
+  const net = netOf({ delete: { status: 204, body: null } });
+  net.listTranscriptions = async (token, since) => {
+    net.calls.push({ op: 'list', token, since });
+    return { status: 200, body: { items: served, next: null, more: false } };
+  };
+  const { root } = mount({ net });
+  await flush();
+  assert.deepEqual(
+    listOf(root).children.map((cell) => cell.children[0].textContent),
+    ['Truck engine oil', 'Grocery list'],
+  );
+
+  searchOf(root).value = 'engine';
+  searchOf(root).input();
+  await flush();
+  assert.deepEqual(
+    listOf(root).children.map((cell) => cell.children[0].textContent),
+    ['Truck engine oil'],
+  );
+
+  // The delete removes CLIENT_A; the reload then holds only CLIENT_B.
+  served = [survivor];
+  const callsAfterSearch = net.calls.length;
+  const doomedRow = listOf(root).children[0];
+  deleteButton(doomedRow).click();
+  await flush();
+  confirmDeleteButton(doomedRow).click();
+  await flush();
+
+  // The term is still typed, so the surviving row must be filtered out.
+  assert.deepEqual(listOf(root).children.map((cell) => cell.children[0].textContent), []);
+  assert.equal(messageOf(root).textContent, MESSAGES.empty);
+  const deletes = net.calls.filter((call) => call.op === 'delete');
+  assert.equal(deletes.length, 1, 'exactly one delete call');
+  assert.equal(deletes[0].clientId, CLIENT_A);
+  assert.equal(net.calls.length, callsAfterSearch + 2, 'one delete and one reload, no other call');
+
+  // An empty term shows every surviving row.
+  searchOf(root).value = '';
+  searchOf(root).input();
+  await flush();
+  assert.deepEqual(
+    listOf(root).children.map((cell) => cell.children[0].textContent),
+    ['Grocery list'],
+  );
+  assert.equal(messageOf(root).textContent, '');
+});
+
+test('a delete that signs out does not re-apply the term', async () => {
+  const net = netOf({
+    list: { status: 200, body: { items: [
+      rowOf({ clientId: CLIENT_A, text: 'Truck engine oil' }),
+    ], next: null, more: false } },
+    delete: { status: 401, body: null },
+  });
+  const { root, signedOut } = mount({ net });
+  await flush();
+  searchOf(root).value = 'engine';
+  searchOf(root).input();
+  await flush();
+  const doomedRow = listOf(root).children[0];
+  deleteButton(doomedRow).click();
+  await flush();
+  confirmDeleteButton(doomedRow).click();
+  await flush();
+  assert.equal(signedOut.length, 1);
+  assert.equal(listOf(root).children.length, 0, 'no row is drawn after sign-out');
+});
+
 test('the stored_at cell carries the formatted text and the raw stamp as the title', async () => {
   const { root } = mount({
     net: netOf({ list: { status: 200, body: { items: [

@@ -62,7 +62,11 @@ NODE_MIN_MINOR = 19
 # bootstraps) + 3 (register: the bootstrap dek and box private key are zeroed after a finished
 # run, a thrown upload and an early return) + 2 (bootstrap-crypto: the raw drawn buffers are zero
 # after a bootstrap and after a shape refusal).
-PASSED_COUNT = 950
+# 1000 = 950 + 48 (transcriptions/conversion-encrypt: a valid local, server and reordered body
+# reads as before; the hole {"text":"x"} and 19 refused plaintext shapes become the fixed
+# unreadable row) + 2 (transcriptions-view: a delete re-applies the typed term, and a delete that
+# signs out does not).
+PASSED_COUNT = 1000
 
 
 def _run(args, env=None):

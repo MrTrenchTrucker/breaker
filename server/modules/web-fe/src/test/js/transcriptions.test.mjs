@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   createTranscriptions,
+  decryptRowText,
   MESSAGES,
   UNREADABLE,
   transcriptionAad,
 } from '../../main/resources/web/js/transcriptions.js';
+import { createCipher } from '../../main/resources/web/js/aesgcm.js';
 import {
   DEK,
   OTHER_DEK,
@@ -561,4 +563,143 @@ test('the three transcriptions source files contain no DOM or storage tokens', (
       assert.equal(source.includes(token), false, file.pathname + ' contains forbidden token: ' + token);
     }
   }
+});
+
+// --- the strict body reader in decryptRowText -----------------------------------
+//
+// decryptRowText reads the decrypted plaintext with isStrictBody: the writer's
+// decodeBody level (six members, types and ranges, source local or server, any
+// key order). A plaintext that is not a valid R1 body is refused, so the row
+// keeps its place and shows the fixed unreadable text.
+
+// The six members as a JSON text, in the writer's order. An override replaces
+// one member's RAW JSON text, so a test can plant a bad token.
+function plainBody(overrides = {}) {
+  const members = {
+    v: '1',
+    text: JSON.stringify('the words'),
+    source: JSON.stringify('local'),
+    model: JSON.stringify('test-model'),
+    duration_ms: '1200',
+    created_at: JSON.stringify('2026-10-11T12:00:00.000Z'),
+    ...overrides,
+  };
+  return '{' + Object.keys(members).map((key) => JSON.stringify(key) + ':' + members[key]).join(',') + '}';
+}
+
+// Seal raw bytes (not a string) under the row's own AAD through the real cipher.
+function sealRawFrame(bytes, aad) {
+  return frameOf(createCipher(DEK).seal(bytes, aad));
+}
+
+// A live row whose encrypted field seals the given plaintext (string or bytes).
+function rowSealing(plaintext, { clientId = CLIENT_A, keyVersion = 1 } = {}) {
+  const bytes = typeof plaintext === 'string' ? new TextEncoder().encode(plaintext) : plaintext;
+  return {
+    client_id: clientId,
+    change: 7,
+    deleted: false,
+    key_version: keyVersion,
+    encrypted: sealRawFrame(bytes, aadFor(clientId, keyVersion)),
+    stored_at: '2026-10-11T12:00:05.000Z',
+  };
+}
+
+// Load a one-row list and hand back the texts the view was shown.
+async function textsAfterLoad(plaintext) {
+  const net = netOf({
+    list: { status: 200, body: { items: [rowSealing(plaintext)], next: null, more: false } },
+  });
+  const { flow, rows } = flowOf({ net });
+  await flow.load();
+  return rows[0].map((row) => row.text);
+}
+
+test('a valid local body reads exactly as before', async () => {
+  assert.deepEqual(await textsAfterLoad(plainBody()), ['the words']);
+});
+
+test('a valid server body reads', async () => {
+  assert.deepEqual(await textsAfterLoad(plainBody({ source: JSON.stringify('server') })), ['the words']);
+});
+
+test('a valid body with the six keys in any order reads', async () => {
+  const reordered = '{"text":"the words","v":1,"source":"local","model":"test-model",'
+    + '"duration_ms":1200,"created_at":"2026-10-11T12:00:00.000Z"}';
+  assert.deepEqual(await textsAfterLoad(reordered), ['the words']);
+});
+
+test('the hole: a plaintext that is valid JSON with a string text but not an R1 body is unreadable', async () => {
+  const net = netOf({
+    list: { status: 200, body: { items: [rowSealing('{"text":"x"}')], next: null, more: false } },
+  });
+  const { flow, rows } = flowOf({ net });
+  await flow.load();
+  assert.equal(rows[0].length, 1, 'the row must not vanish');
+  assert.equal(rows[0][0].text, 'cannot be read');
+  assert.equal(rows[0][0].text, UNREADABLE);
+  assert.equal(rows[0][0].unreadable, true);
+});
+
+// Every plaintext the strict reader refuses, through the row path. Each shape is
+// its own test so a failure names the shape.
+const REFUSED_PLAINTEXTS = [
+  ['a duplicated key', '{"v":1,"text":"the words","source":"local","model":"test-model","duration_ms":1200,"created_at":"2026-10-11T12:00:00.000Z","v":1}'],
+  ['an unknown key', '{"v":1,"text":"the words","source":"local","model":"test-model","duration_ms":1200,"created_at":"2026-10-11T12:00:00.000Z","resave":true}'],
+  ['a missing key', '{"v":1,"text":"the words","source":"local","duration_ms":1200,"created_at":"2026-10-11T12:00:00.000Z"}'],
+  ['a top level that is not an object', '[{"text":"the words"}]'],
+  ['v that is not the integer token 1', plainBody({ v: '"1"' })],
+  ['text that is not a string', plainBody({ text: '5' })],
+  ['a source that is not local or server', plainBody({ source: JSON.stringify('Server') })],
+  ['a model that is not a string', plainBody({ model: '5' })],
+  ['a duration_ms that is not an integer token', plainBody({ duration_ms: '1.5' })],
+  ['a duration_ms above the maximum', plainBody({ duration_ms: '9007199254740992' })],
+  ['a created_at that is not the exact form', plainBody({ created_at: JSON.stringify('2026-10-11T12:00:00Z') })],
+  ['a created_at that is not a real calendar date', plainBody({ created_at: JSON.stringify('2026-02-30T12:00:00.000Z') })],
+  ['a member value that is an object', plainBody({ model: '{"a":1}' })],
+  ['a member value that is an array', plainBody({ model: '[1]' })],
+  ['text after the object', plainBody() + ' x'],
+  ['a lone surrogate escape', plainBody({ text: JSON.stringify('a\ud800b') })],
+  ['a raw control character inside a string', '{"v":1,"text":"a\u0001b","source":"local","model":"test-model","duration_ms":1200,"created_at":"2026-10-11T12:00:00.000Z"}'],
+  ['invalid UTF-8 bytes', Uint8Array.of(0x7b, 0xff, 0x7d)],
+  ['a leading BOM', Uint8Array.of(0xef, 0xbb, 0xbf, ...new TextEncoder().encode(plainBody()))],
+];
+
+for (const [shape, plaintext] of REFUSED_PLAINTEXTS) {
+  test('a plaintext with ' + shape + ' shows cannot be read and keeps the row', async () => {
+    const net = netOf({
+      list: { status: 200, body: { items: [rowSealing(plaintext)], next: null, more: false } },
+    });
+    const { flow, rows } = flowOf({ net });
+    await flow.load();
+    assert.equal(rows[0].length, 1, 'the row must not vanish');
+    assert.equal(rows[0][0].text, 'cannot be read', shape);
+    assert.equal(rows[0][0].unreadable, true, shape);
+  });
+}
+
+test('decryptRowText returns null for a plaintext that is not a valid R1 body', () => {
+  const cipher = { open: () => new TextEncoder().encode('{"text":"x"}') };
+  const row = rowSealing('{"text":"x"}');
+  assert.equal(decryptRowText(row, cipher), null);
+});
+
+test('decryptRowText hands the frame and the row AAD to cipher.open', () => {
+  const seen = [];
+  const plaintext = new TextEncoder().encode(plainBody());
+  const cipher = {
+    open: (frame, aad) => {
+      seen.push({ frame, aad });
+      return plaintext;
+    },
+  };
+  const row = rowSealing(plainBody(), { clientId: CLIENT_A, keyVersion: 3 });
+  assert.equal(decryptRowText(row, cipher), 'the words');
+  assert.equal(seen.length, 1);
+  assert.deepEqual(Array.from(seen[0].aad), Array.from(aadFor(CLIENT_A, 3)));
+  assert.ok(seen[0].frame.nonce instanceof Uint8Array);
+  assert.equal(seen[0].frame.nonce.length, 12);
+  assert.ok(seen[0].frame.ciphertext instanceof Uint8Array);
+  assert.ok(seen[0].frame.tag instanceof Uint8Array);
+  assert.equal(seen[0].frame.tag.length, 16);
 });

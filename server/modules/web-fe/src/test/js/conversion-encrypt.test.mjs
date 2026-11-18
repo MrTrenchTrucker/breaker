@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createCipher } from '../../main/resources/web/js/aesgcm.js';
 import { decodeBase64Padded } from '../../main/resources/web/js/signin-link.js';
-import { recordAad, createRecordEncrypt } from '../../main/resources/web/js/conversion-encrypt.js';
+import { recordAad, createRecordEncrypt, isStrictBody } from '../../main/resources/web/js/conversion-encrypt.js';
 import {
   DEK,
   CLIENT_ID,
@@ -339,4 +339,167 @@ test('the conversion modules hold no DOM, storage or network code of their own',
       assert.equal(source.includes(token), false, token);
     }
   }
+});
+
+// --- isStrictBody: the shared decodeBody-level reader ---------------------------
+//
+// isStrictBody is the level transcriptions.js reads a decrypted row at: every
+// decodeBody rule (the six members, the types and ranges, source local or
+// server) with ANY key order. The writer's isStrictServerBody adds the exact
+// key order and source === 'server' on top of it, so the writer's accept set is
+// unchanged: it still refuses a local body and a reordered body.
+
+test('isStrictBody accepts a valid server body', () => {
+  assert.equal(isStrictBody(bodyBytes()), true);
+});
+
+test('isStrictBody accepts a valid local body', () => {
+  assert.equal(isStrictBody(bodyBytes({ source: 'local' })), true);
+});
+
+test('isStrictBody accepts the six keys in any order', () => {
+  const reordered = [
+    ['created_at', '"2026-10-11T12:00:00.000Z"'],
+    ['duration_ms', '1200'],
+    ['model', '"test-model"'],
+    ['source', '"local"'],
+    ['text', '"the words"'],
+    ['v', '1'],
+  ];
+  assert.equal(isStrictBody(bodyWith(reordered)), true);
+});
+
+test('isStrictBody accepts JSON whitespace, the standard escapes and a surrogate pair', () => {
+  const spaced = rawBytes(
+    '{ "v" : 1 , "text" : "a b" , "source" : "local" , "model" : "m" ,'
+      + ' "duration_ms" : 1200 , "created_at" : "2026-10-11T12:00:00.000Z" }',
+  );
+  assert.equal(isStrictBody(spaced), true);
+  assert.equal(isStrictBody(bodyBytes({ text: 'quote " backslash \\ newline \n tab \t' })), true);
+  assert.equal(isStrictBody(bodyBytes({ text: '\ud83d\ude00' })), true);
+});
+
+test('isStrictBody accepts duration_ms 0 and the maximum', () => {
+  assert.equal(isStrictBody(bodyBytes({ duration_ms: '0' })), true);
+  assert.equal(isStrictBody(bodyBytes({ duration_ms: '9007199254740991' })), true);
+});
+
+test('isStrictBody refuses a input that is not a Uint8Array', () => {
+  for (const bad of [null, undefined, 'text', {}, [], new ArrayBuffer(8)]) {
+    assert.equal(isStrictBody(bad), false);
+  }
+});
+
+test('isStrictBody refuses a top level that is not an object', () => {
+  for (const bad of ['[]', '"x"', '5', 'true', 'null', '']) {
+    assert.equal(isStrictBody(rawBytes(bad)), false, bad);
+  }
+});
+
+test('isStrictBody refuses a duplicated key', () => {
+  assert.equal(isStrictBody(bodyWith(goodEntries().concat([['v', '1']]))), false);
+});
+
+test('isStrictBody refuses an unknown key', () => {
+  assert.equal(isStrictBody(bodyWith(goodEntries().concat([['resave', 'true']]))), false);
+});
+
+test('isStrictBody refuses a missing key', () => {
+  const missing = goodEntries().filter(([key]) => key !== 'model');
+  assert.equal(isStrictBody(bodyWith(missing)), false);
+});
+
+test('isStrictBody refuses v that is not the integer token 1', () => {
+  for (const bad of ['"1"', '1.0', '01', '2', '1e0', '-1', 'true', 'null']) {
+    const entries = goodEntries().map(([key, value]) => (key === 'v' ? ['v', bad] : [key, value]));
+    assert.equal(isStrictBody(bodyWith(entries)), false, bad);
+  }
+});
+
+test('isStrictBody refuses a text that is not a string', () => {
+  const entries = goodEntries().map(([key, value]) => (key === 'text' ? ['text', '5'] : [key, value]));
+  assert.equal(isStrictBody(bodyWith(entries)), false);
+});
+
+test('isStrictBody refuses a source that is not local or server', () => {
+  for (const bad of ['Server', '', 'phone', 'LOCAL']) {
+    assert.equal(isStrictBody(bodyBytes({ source: bad })), false, bad);
+  }
+});
+
+test('isStrictBody refuses a model that is not a string', () => {
+  const entries = goodEntries().map(([key, value]) => (key === 'model' ? ['model', '5'] : [key, value]));
+  assert.equal(isStrictBody(bodyWith(entries)), false);
+});
+
+test('isStrictBody refuses duration_ms that is not an in-range integer token', () => {
+  for (const bad of ['-1', '1.5', '1e3', '01', '9007199254740992', 'true', '']) {
+    assert.equal(isStrictBody(bodyBytes({ duration_ms: bad })), false, bad);
+  }
+});
+
+test('isStrictBody refuses created_at that is not the exact form or a real date', () => {
+  const badStamps = [
+    '2026-10-11T12:00:00Z',
+    '2026-10-11T12:00:00.000+00:00',
+    '2026-10-11t12:00:00.000Z',
+    '2026-10-11T12:00:60.000Z',
+    '2026-02-30T12:00:00.000Z',
+    '2023-02-29T12:00:00.000Z',
+    '1969-12-31T23:59:59.999Z',
+  ];
+  for (const created_at of badStamps) {
+    assert.equal(isStrictBody(bodyBytes({ created_at })), false, created_at);
+  }
+});
+
+test('isStrictBody refuses a member value that is an object or an array', () => {
+  for (const bad of ['{"a":1}', '[1]', '{}', '[]']) {
+    const entries = goodEntries().map(([key, value]) => (key === 'model' ? ['model', bad] : [key, value]));
+    assert.equal(isStrictBody(bodyWith(entries)), false, bad);
+  }
+});
+
+test('isStrictBody refuses bytes after the object', () => {
+  const body = bodyBytes();
+  const trailing = new Uint8Array(body.length + 2);
+  trailing.set(body, 0);
+  trailing.set(rawBytes(' x'), body.length);
+  assert.equal(isStrictBody(trailing), false);
+});
+
+test('isStrictBody refuses invalid UTF-8 bytes', () => {
+  assert.equal(isStrictBody(Uint8Array.of(0x7b, 0xff, 0x7d)), false);
+  assert.equal(isStrictBody(Uint8Array.of(...bodyBytes(), 0xe2, 0x82)), false);
+});
+
+test('isStrictBody refuses a leading BOM', () => {
+  assert.equal(isStrictBody(Uint8Array.of(0xef, 0xbb, 0xbf, ...bodyBytes())), false);
+});
+
+test('isStrictBody refuses a lone surrogate escape', () => {
+  assert.equal(isStrictBody(bodyBytes({ text: '\ud800' })), false);
+  assert.equal(isStrictBody(bodyBytes({ text: '\udc00' })), false);
+});
+
+test('isStrictBody refuses a raw control character inside a string', () => {
+  const entries = goodEntries().map(([key, value]) =>
+    (key === 'text' ? ['text', '"a\u0001b"'] : [key, value]));
+  assert.equal(isStrictBody(bodyWith(entries)), false);
+});
+
+test('isStrictBody accepts the local and reordered bodies the writer refuses', () => {
+  const reordered = [
+    ['text', '"the words"'],
+    ['v', '1'],
+    ['source', '"server"'],
+    ['model', '"test-model"'],
+    ['duration_ms', '1200'],
+    ['created_at', '"2026-10-11T12:00:00.000Z"'],
+  ];
+  assert.equal(isStrictBody(bodyBytes({ source: 'local' })), true);
+  assert.equal(isStrictBody(bodyWith(reordered)), true);
+  // The writer's accept set is unchanged: both are still refused by the adapter.
+  assert.equal(sealOnce(bodyBytes({ source: 'local' })), null);
+  assert.equal(sealOnce(bodyWith(reordered)), null);
 });
