@@ -45,8 +45,8 @@ class HomeArtRulesTest {
     private val slotHeightParts = listOf(
         "fun slotHeightDp(usableDp: Float): Float",
         "(usableDp - nonMicHeightDp()).coerceIn(MIC_SLOT_MIN_DP, MIC_SLOT_MAX_DP)",
-        "const val MIC_SLOT_MIN_DP: Float = 100f",
-        "const val MIC_SLOT_MAX_DP: Float = 150f",
+        "const val MIC_SLOT_MIN_DP: Float = 75f",
+        "const val MIC_SLOT_MAX_DP: Float = 112.5f",
     )
     private val oldMicParts = listOf("MicArtDrawable", "breaker_mic_tile")
     private val bleedOpenParts = listOf("scroll.openForBleed() page = scroll")
@@ -91,6 +91,10 @@ class HomeArtRulesTest {
     @Test
     fun `the Home mic slot takes the ruled slot height and the home screen draws no mic of its own`() {
         assertEquals("the real slot height", emptyList<String>(), missing(geometry, slotHeightParts))
+        val oldFloor = replaceOnce(geometry, "const val MIC_SLOT_MIN_DP: Float = 75f", "const val MIC_SLOT_MIN_DP: Float = 100f")
+        assertEquals("the old floor value is caught", listOf(slotHeightParts[2]), missing(oldFloor, slotHeightParts))
+        val oldCap = replaceOnce(geometry, "const val MIC_SLOT_MAX_DP: Float = 112.5f", "const val MIC_SLOT_MAX_DP: Float = 150f")
+        assertEquals("the old cap value is caught", listOf(slotHeightParts[3]), missing(oldCap, slotHeightParts))
         assertEquals("the old mic drawing read by the home screen", emptyList<String>(), present(homeScreen, oldMicParts))
         val edited = replaceOnce(geometry, "coerceIn(MIC_SLOT_MIN_DP, MIC_SLOT_MAX_DP)", "MIC_SLOT_MAX_DP")
         assertEquals("the slot height not the usable height less the non-mic parts", listOf(slotHeightParts[1]), missing(edited, slotHeightParts))

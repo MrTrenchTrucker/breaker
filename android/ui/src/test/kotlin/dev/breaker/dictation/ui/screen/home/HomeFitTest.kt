@@ -17,7 +17,7 @@ import org.junit.Test
  * overlay builds the mic view, and the slot's height is this module's to give).
  * The page fits the usable height while the subtraction is at or above the
  * floor; below that the slot keeps the floor and the page may scroll, so this
- * rule does not apply under 610 dp.
+ * rule does not apply under 585 dp.
  *
  * All heights are read from HomeGeometry and SpaceScale; no view is run.
  */
@@ -73,10 +73,10 @@ class HomeFitTest {
     private val usableHeightDp: Float = 640f
 
     /** The usable height at which the subtraction reaches the mic slot's floor. */
-    private val floorUsableHeightDp: Float = 610f
+    private val floorUsableHeightDp: Float = 585f
 
     /** The usable height at which the subtraction reaches the mic slot's cap. */
-    private val capUsableHeightDp: Float = 660f
+    private val capUsableHeightDp: Float = 622.5f
 
     /**
      * The total height of the page's own non-mic parts, summed here from the parts the page draws.
@@ -96,9 +96,9 @@ class HomeFitTest {
     @Test
     fun `the mic slot is the usable height less the non-mic parts`() {
         assertEquals(
-            "the slot at the 640 dp phone",
-            usableHeightDp - HomeGeometry.nonMicHeightDp(),
-            HomeGeometry.slotHeightDp(usableHeightDp),
+            "the slot at the 585 dp floor",
+            floorUsableHeightDp - HomeGeometry.nonMicHeightDp(),
+            HomeGeometry.slotHeightDp(floorUsableHeightDp),
             0.001f,
         )
         assertEquals(
@@ -119,45 +119,52 @@ class HomeFitTest {
         )
     }
 
-    /** A failure means the 360×640 dp phone no longer gives the mic slot 130 dp. */
+    /** A failure means the 360×640 dp phone no longer gives the mic slot 112.5 dp, the cap. */
     @Test
-    fun `a 360 by 640 dp phone gives the mic slot 130 dp`() {
-        assertEquals("the slot on the 640 dp phone", 130f, HomeGeometry.slotHeightDp(usableHeightDp), 0.001f)
+    fun `a 360 by 640 dp phone gives the mic slot 112 point 5 dp`() {
+        assertEquals("the slot on the 640 dp phone", 112.5f, HomeGeometry.slotHeightDp(usableHeightDp), 0.001f)
     }
 
     /** A failure means a tall phone no longer stops the mic slot at the cap. */
     @Test
     fun `a tall phone stops the mic slot at the cap`() {
-        assertEquals("the slot on an 800 dp phone", 150f, HomeGeometry.slotHeightDp(800f), 0.001f)
+        assertEquals("the slot on an 800 dp phone", 112.5f, HomeGeometry.slotHeightDp(800f), 0.001f)
     }
 
-    /** A failure means the usable height at the slot's floor no longer gives the mic slot 100 dp. */
+    /** A failure means the usable height at the slot's floor no longer gives the mic slot 75 dp. */
     @Test
-    fun `the usable height at the slot's floor gives the mic slot 100 dp`() {
-        assertEquals("the slot at 610 dp", 100f, HomeGeometry.slotHeightDp(floorUsableHeightDp), 0.001f)
+    fun `the usable height at the slot's floor gives the mic slot 75 dp`() {
+        assertEquals("the slot at 585 dp", 75f, HomeGeometry.slotHeightDp(floorUsableHeightDp), 0.001f)
     }
 
-    /** A failure means the page does not fit the usable height at or above 610 dp. */
+    /** A failure means the page does not fit the usable height at or above 585 dp, or fits below it. */
     @Test
-    fun `the page fits the usable height at or above 610 dp`() {
-        for (usableDp in listOf(floorUsableHeightDp, usableHeightDp, 700f, 800f, 1000f)) {
+    fun `the page fits the usable height at or above 585 dp`() {
+        for (usableDp in listOf(580f, floorUsableHeightDp, usableHeightDp, 700f, 800f, 1000f)) {
             val totalDp = HomeGeometry.nonMicHeightDp() + HomeGeometry.slotHeightDp(usableDp)
-            assertTrue(
-                "the page is $totalDp dp tall on a usable $usableDp dp, and must fit it",
-                totalDp <= usableDp + 0.001f,
-            )
+            if (usableDp >= floorUsableHeightDp) {
+                assertTrue(
+                    "the page is $totalDp dp tall on a usable $usableDp dp, and must fit it",
+                    totalDp <= usableDp + 0.001f,
+                )
+            } else {
+                assertTrue(
+                    "the page is $totalDp dp tall on a usable $usableDp dp, and must not fit it",
+                    totalDp > usableDp + 0.001f,
+                )
+            }
         }
         assertEquals(
             "the page on the 360x640 dp phone",
-            usableHeightDp,
+            HomeGeometry.nonMicHeightDp() + HomeGeometry.MIC_SLOT_MAX_DP,
             HomeGeometry.nonMicHeightDp() + HomeGeometry.slotHeightDp(usableHeightDp),
             0.001f,
         )
     }
 
-    /** A failure means the slot keeps growing on a phone taller than 660 dp instead of holding the cap. */
+    /** A failure means the slot keeps growing on a phone taller than 622.5 dp instead of holding the cap. */
     @Test
-    fun `the slot holds the cap on every phone taller than 660 dp`() {
+    fun `the slot holds the cap on every phone taller than 622 point 5 dp`() {
         for (usableDp in listOf(capUsableHeightDp, 700f, 800f, 1000f)) {
             assertEquals(
                 "the slot on a usable $usableDp dp",
@@ -168,10 +175,10 @@ class HomeFitTest {
         }
     }
 
-    /** A failure means the slot falls below its floor on a phone shorter than 610 dp. */
+    /** A failure means the slot falls below its floor on a phone shorter than 585 dp. */
     @Test
-    fun `the slot holds its floor on every phone shorter than 610 dp`() {
-        for (usableDp in listOf(500f, 550f, 600f, floorUsableHeightDp)) {
+    fun `the slot holds its floor on every phone shorter than 585 dp`() {
+        for (usableDp in listOf(500f, 550f, 580f, floorUsableHeightDp)) {
             assertEquals(
                 "the slot on a usable $usableDp dp",
                 HomeGeometry.MIC_SLOT_MIN_DP,
@@ -184,7 +191,7 @@ class HomeFitTest {
     /** A failure means the slot no longer grows with the usable height: a fixed slot sits at one height on every phone. */
     @Test
     fun `the slot grows one dp for each dp of usable height up to the cap`() {
-        val heights = listOf(620f, 630f, usableHeightDp, 650f, capUsableHeightDp)
+        val heights = listOf(590f, 600f, 610f, 620f, capUsableHeightDp)
         heights.zipWithNext().forEach { (lower, higher) ->
             assertEquals(
                 "the slot's growth from a usable $lower dp to $higher dp",
@@ -193,5 +200,48 @@ class HomeFitTest {
                 0.001f,
             )
         }
+    }
+
+    /** A failure means a touch zone of the recording window is under the 48 dp the design allows. */
+    @Test
+    fun `every touch zone of the recording window is at least 48 dp`() {
+        for (usableDp in listOf(500f, floorUsableHeightDp, 600f, usableHeightDp, capUsableHeightDp, 800f)) {
+            val slotDp = HomeGeometry.slotHeightDp(usableDp)
+            val zoneDp = 48f * slotDp / 64f
+            assertTrue(
+                "the zone is $zoneDp dp at a slot of $slotDp dp on a usable $usableDp dp, and must be at least 48 dp",
+                zoneDp >= 48f,
+            )
+        }
+    }
+
+    /** A failure means the slot escapes its floor or its cap on some usable height. */
+    @Test
+    fun `the slot never leaves its floor and its cap`() {
+        for (usableDp in listOf(400f, 500f, floorUsableHeightDp, 600f, usableHeightDp, capUsableHeightDp, 800f, 1200f)) {
+            val slotDp = HomeGeometry.slotHeightDp(usableDp)
+            assertTrue(
+                "the slot is $slotDp dp on a usable $usableDp dp, and must be at least ${HomeGeometry.MIC_SLOT_MIN_DP} dp",
+                slotDp >= HomeGeometry.MIC_SLOT_MIN_DP,
+            )
+            assertTrue(
+                "the slot is $slotDp dp on a usable $usableDp dp, and must be at most ${HomeGeometry.MIC_SLOT_MAX_DP} dp",
+                slotDp <= HomeGeometry.MIC_SLOT_MAX_DP,
+            )
+        }
+    }
+
+    /** A failure means the recording window is wider than the Home page on a 360 dp phone. */
+    @Test
+    fun `the recording window fits the Home width at the cap on a 360 dp phone`() {
+        // The overlay's recording window is three touch zones wide (TileLayout.windowSize(RECORDING, s) = 3*zone(s);
+        // zone(s) = 48*s/64 dp, rounded half-up to whole px, TileGlyph TOUCH_ZONE_DP=48 and TILE_SIZE_DP=64). At the
+        // cap s=112.5 dp each zone is 84.375 dp, so the window is 3*84.375 = 253.125 dp, inside the art's 360 dp width.
+        val capZoneDp = 48f * HomeGeometry.MIC_SLOT_MAX_DP / 64f
+        val windowDp = 3f * capZoneDp
+        assertTrue(
+            "the recording window is $windowDp dp wide at the cap, and must fit the 360 dp Home width",
+            windowDp < 360f,
+        )
     }
 }

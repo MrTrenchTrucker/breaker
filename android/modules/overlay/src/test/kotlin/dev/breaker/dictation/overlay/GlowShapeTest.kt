@@ -12,6 +12,8 @@ import org.junit.Test
  * draws exactly what it drew before this slice: [GlowShapes.reachFor] returns the approved
  * [GlowSpec.SCREEN] instance itself for V1. V2 and V3 are debug-only visual experiments, and all
  * three stay inside the page column at every cell size the layout allows (60, 100 and 150 dp).
+ * Those three are the column rule's own test inputs, not the Home slot range: this test does not read
+ * HomeGeometry, and the real Home slot range 75 dp to 112.5 dp lies inside them, so it stays green.
  *
  * This test only reads [GlowShapes.screen]; GlowShapeReleaseGateTest owns the mutation and the release gate, so no
  * `@Before`/`@After` touches the selector and no assertion reads [GlowShapes.screen].
