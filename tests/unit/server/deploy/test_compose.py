@@ -371,9 +371,14 @@ def _healthcheck_problem(doc):
     return None
 
 
+RELEASES_SYNC_ENTRY = 'breaker_releases:/var/lib/breaker/releases:ro'
+RELEASES_WEB_ENTRY = 'breaker_releases:/srv/breaker/releases:ro'
+
+
 def _volumes_problem(doc):
     """G16: one named volume per data service at the path the image creates; the
-    DB path sits inside it; web-fe and training carry no volume."""
+    DB path sits inside it; web-fe carries only the release volume, read-only;
+    sync-api also mounts the release volume read-only; training carries no volume."""
     declared = set(doc.get('volumes') or {})
     for service in JVM_SERVICES:
         spec = _spec(doc, service)
@@ -391,9 +396,15 @@ def _volumes_problem(doc):
         db = env.get(DB_VAR[service])
         if not (isinstance(db, str) and db.startswith(path + '/')):
             return "%s: the DB path must sit inside %s" % (service, path)
-    for service in ('web-fe', 'training'):
-        if _spec(doc, service).get('volumes'):
-            return "%s: no volume is needed" % service
+    sync_entries = _spec(doc, 'sync-api').get('volumes') or []
+    if sync_entries.count(RELEASES_SYNC_ENTRY) != 1:
+        return ("sync-api: the release volume breaker_releases mounts once at "
+                "/var/lib/breaker/releases, read-only")
+    if _spec(doc, 'web-fe').get('volumes') != [RELEASES_WEB_ENTRY]:
+        return ("web-fe: the only volume is breaker_releases at "
+                "/srv/breaker/releases, read-only")
+    if _spec(doc, 'training').get('volumes'):
+        return "training: no volume is needed"
     return None
 
 
@@ -407,7 +418,8 @@ def _bind_mount_problem(doc):
             if not isinstance(entry, str):
                 continue
             parts = split_volume(entry)
-            if len(parts) == 2 and parts[0] in declared:
+            if (len(parts) in (2, 3) and parts[0] in declared
+                    and (len(parts) == 2 or parts[2] in ('ro', 'rw'))):
                 continue
             binds.append((service, entry))
     if len(binds) != 1:
@@ -945,9 +957,51 @@ class FiringControls(unittest.TestCase):
 
     def test_a_web_fe_volume_fails_the_volumes_guard(self):
         sample = self._mutate(
-            COMPOSE_REL, '    image: breaker/web-fe:${BREAKER_IMAGE_TAG:?BREAKER_IMAGE_TAG is required}\n',
-            '    image: breaker/web-fe:${BREAKER_IMAGE_TAG:?BREAKER_IMAGE_TAG is required}\n'
-            '    volumes:\n      - /etc/localtime:/etc/localtime:ro\n')
+            COMPOSE_REL, '      - breaker_releases:/srv/breaker/releases:ro\n',
+            '      - breaker_releases:/srv/breaker/releases:ro\n'
+            '      - /etc/localtime:/etc/localtime:ro\n')
+        problems = self._compose_problems(sample)
+        self.assertIn(_volumes_problem(parse_compose_text(sample)), problems)
+
+    def test_a_web_fe_releases_mount_read_write_fails_the_volumes_guard(self):
+        sample = self._mutate(
+            COMPOSE_REL, '      - breaker_releases:/srv/breaker/releases:ro\n',
+            '      - breaker_releases:/srv/breaker/releases\n')
+        problems = self._compose_problems(sample)
+        self.assertIn(_volumes_problem(parse_compose_text(sample)), problems)
+
+    def test_a_dropped_web_fe_releases_mount_fails_the_volumes_guard(self):
+        sample = self._mutate(
+            COMPOSE_REL,
+            '    volumes:\n      - breaker_releases:/srv/breaker/releases:ro\n', '')
+        problems = self._compose_problems(sample)
+        self.assertIn(_volumes_problem(parse_compose_text(sample)), problems)
+
+    def test_a_training_volume_fails_the_volumes_guard(self):
+        sample = self._mutate(
+            COMPOSE_REL, '  training:\n',
+            '  training:\n    volumes:\n      - /etc/localtime:/etc/localtime:ro\n')
+        problems = self._compose_problems(sample)
+        self.assertIn(_volumes_problem(parse_compose_text(sample)), problems)
+
+    def test_a_sync_api_releases_mount_read_write_fails_the_volumes_guard(self):
+        sample = self._mutate(
+            COMPOSE_REL, '      - breaker_releases:/var/lib/breaker/releases:ro\n',
+            '      - breaker_releases:/var/lib/breaker/releases\n')
+        problems = self._compose_problems(sample)
+        self.assertIn(_volumes_problem(parse_compose_text(sample)), problems)
+
+    def test_a_duplicated_sync_api_releases_mount_fails_the_volumes_guard(self):
+        line = '      - breaker_releases:/var/lib/breaker/releases:ro\n'
+        sample = self._mutate(COMPOSE_REL, line, line + line)
+        problems = self._compose_problems(sample)
+        message = _volumes_problem(parse_compose_text(sample))
+        self.assertIn('sync-api: the release volume breaker_releases', message)
+        self.assertIn(message, problems)
+
+    def test_a_dropped_sync_api_releases_mount_fails_the_volumes_guard(self):
+        sample = self._mutate(
+            COMPOSE_REL, '      - breaker_releases:/var/lib/breaker/releases:ro\n', '')
         problems = self._compose_problems(sample)
         self.assertIn(_volumes_problem(parse_compose_text(sample)), problems)
 
@@ -965,6 +1019,26 @@ class FiringControls(unittest.TestCase):
             '      - /etc/localtime:/etc/localtime:ro\n')
         problems = self._compose_problems(sample)
         self.assertIn(_bind_mount_problem(parse_compose_text(sample)), problems)
+
+    def test_a_named_volume_with_a_bogus_third_part_counts_as_a_bind(self):
+        sample = self._mutate(
+            COMPOSE_REL, '      - breaker_releases:/srv/breaker/releases:ro\n',
+            '      - breaker_releases:/srv/breaker/releases:bogus\n')
+        problems = self._compose_problems(sample)
+        message = _bind_mount_problem(parse_compose_text(sample))
+        self.assertEqual(message, 'exactly one host bind mount is allowed '
+                         '(the service key file); found 2')
+        self.assertIn(message, problems)
+
+    def test_an_undeclared_name_in_a_three_part_entry_counts_as_a_bind(self):
+        sample = self._mutate(
+            COMPOSE_REL, '      - breaker_releases:/srv/breaker/releases:ro\n',
+            '      - breaker_other:/srv/breaker/releases:ro\n')
+        problems = self._compose_problems(sample)
+        message = _bind_mount_problem(parse_compose_text(sample))
+        self.assertEqual(message, 'exactly one host bind mount is allowed '
+                         '(the service key file); found 2')
+        self.assertIn(message, problems)
 
     def test_a_writable_bind_mount_fails_the_bind_mount_guard(self):
         sample = self._mutate(

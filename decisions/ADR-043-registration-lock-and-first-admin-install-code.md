@@ -96,8 +96,8 @@ once an account exists => 403 {"error":"registration_closed"} unless switch on;
 default after upgrade on a server with accounts = closed; check in the same
 transaction as the insert; install code generated at first start, 0600 in the
 data dir (one notice line is printed, never the code; the project owner reads
-the file; the install script prints it once at the end of install, planned, see
-item 6), required in the first registration body, consumed in the same
+the file; the install script prints it once at the end of install, built 2026-11-18,
+see item 6), required in the first registration body, consumed in the same
 transaction; reset flow untouched; phone register field, closed line and
 sign-in submit change decided 2026-11-18, planned.
 
@@ -106,8 +106,9 @@ accounts; a separate registration-open code path that does not mirror
 wrong-pw-limit; a check outside the insert transaction; admin-minted invites
 (slice D) in this slice.
 
-Decided 2026-11-18 (item 6): the phone register field and the closed line, and
-the install script's print of the code, are planned. The web front end's register
+Decided 2026-11-18 (item 6): the phone register field and the closed line are
+planned; the install script's print of the code is built (deploy `install.sh`
+step 12, 2026-11-18). The web front end's register
 page is not decided here.
 
 Honesty: ADR-009 already records first-account-is-admin; this ADR adds the

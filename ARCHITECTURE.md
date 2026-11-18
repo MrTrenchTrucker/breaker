@@ -630,10 +630,10 @@ the API (N13). **Registration closes after the first account** (ADR-043). Built 
 server: the first account needs the install code the server writes at its first
 start (file `install-code`, mode 0600), the admin's `registration_open` switch
 (default closed once any account exists) and a 403 `registration_closed` while it
-is off. The auth client sends the code on register. Planned, approved 2026-11-18:
-the phone's Create account screen gets one optional install-code field, the phone
-shows "Registration is closed." on that 403, and the install script prints the
-code once at the end of install.
+is off. The auth client sends the code on register, and the install script prints
+the code once at the end of install (only to a terminal with shell tracing off).
+Planned, approved 2026-11-18: the phone's Create account screen gets one optional
+install-code field, and the phone shows "Registration is closed." on that 403.
 
 **Encryption by default (F24):** every transcription is encrypted at rest with a
 per-user key — the server stores **ciphertext only**, so a passive reader of

@@ -53,3 +53,13 @@ The updater takes the update manifest type from the shared api-contracts module 
 The route is a public GET with no session and no secret in the answer. With the variable unset, or with no file at the path, it answers 404 with the fixed body {"error":"not_found","message":"No release yet"}. A file that is there but unusable is a server fault and answers 503 with the fixed body {"error":"unavailable","message":"The service is unavailable, try again later"}, never 400: a folder, an unreadable file, a file over 65,536 bytes, text that is not UTF-8, JSON that is not one object, a missing or blank field, a field of the wrong type, or a version_code that is not a whole number of 1 or more written in at most 18 digits with no leading zero. Nothing from the file text reaches a body or a log. The 200 body is rebuilt from the six validated fields in the order of the contract, so extra members, white space and key order in the file are never echoed.
 
 **Still open.** The signature scheme and the key, and the release tool that writes the file.
+
+## Amendment 2026-11-18: the signature scheme and the release tool, as built
+
+**Recorded 2026-11-18** by the maintainers' manager under the owner's delegation. This closes the two items the amendment of 2026-11-10 left open, as they are built on main.
+
+The signature scheme is Ed25519. The manifest `signature` is the canonical base64 of a 64-byte Ed25519 signature over the ASCII message `breaker-update-v1`, a line feed, the version, a line feed, the SHA-256 as lowercase hex, and a line feed; nothing else is signed. The phone check (`android/modules/updater`, `SignatureCheck`) takes a list of raw 32-byte public keys, so a key rotation ships an app that carries two keys. The public key is built into the app and never served by the manifest.
+
+The release tool that writes the file is built in the deploy module: `write-manifest.sh` writes the six-field manifest and calls `sign-manifest.sh`, which signs with a key file the owner supplies by path and checks the signature before printing it; `serve-release.sh` puts the APK and the manifest on the `breaker_releases` volume, which sync-api reads through `BREAKER_SYNC_API_MANIFEST_FILE`. It has not run on a real release build.
+
+**Still open.** The real keys and their custody are the project owner's call. The app wiring that pins the key, and a key-id field in the manifest for rotation, are not built.

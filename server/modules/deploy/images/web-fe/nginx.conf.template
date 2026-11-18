@@ -23,6 +23,21 @@ http {
         root /usr/share/nginx/html;
         index index.html;
 
+        # Release files, read-only: the apk and its manifest, by the per-release
+        # path the manifest's apk_url names. GET and HEAD only, no listing.
+        location ^~ /releases/ {
+            limit_except GET {
+                deny all;
+            }
+            alias /srv/breaker/releases/releases/;
+            autoindex off;
+            default_type application/octet-stream;
+            types {
+                application/vnd.android.package-archive apk;
+                application/json json;
+            }
+        }
+
         location = /health {
             default_type application/json;
             return 200 '{"status":"ok"}';
