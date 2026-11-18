@@ -29,18 +29,24 @@ class ModelRegistryTest {
      * The ids of the sequence items under the top-level `models:` key, in file
      * order. Anchored to the indent of the first item: block-scalar content
      * (a `notes: >-` body) is prose and is indented deeper, so a notes line
-     * that happens to read like `- id: ...` cannot pass for an entry.
+     * that happens to read like `- id: ...` cannot pass for an entry. The list
+     * ends at the next top-level key (`keyword_models:` follows it), so the
+     * keyword entries are not counted as speech entries.
      */
     private fun yamlIds(lines: List<String> = modelsYaml()): List<String> {
         val modelsAt = lines.indexOfFirst { it == "models:" }
         require(modelsAt >= 0) { "models.yaml has no top-level `models:` key" }
-        val itemIndent = lines.drop(modelsAt + 1)
+        val body = lines.drop(modelsAt + 1).takeWhile { !TOP_KEY.containsMatchIn(it) }
+        val itemIndent = body
             .firstOrNull { ITEM_START.containsMatchIn(it) }
             ?.takeWhile { it == ' ' }?.length
             ?: return emptyList()
         val item = Regex("""^ {${itemIndent}}-\s+id:\s*(\S+)\s*$""")
-        return lines.drop(modelsAt + 1).mapNotNull { item.find(it)?.groupValues?.get(1) }
+        return body.mapNotNull { item.find(it)?.groupValues?.get(1) }
     }
+
+    // A line that starts in column 0 with a key: the end of the list above it.
+    private val TOP_KEY = Regex("""^[A-Za-z_][A-Za-z0-9_]*:""")
 
     // `\s*`, not `\s+`: a sequence written at column 0 is legal YAML, and a
     // `\s+` here made firstOrNull return null, i.e. a populated registry
@@ -118,6 +124,27 @@ class ModelRegistryTest {
         assertEquals(
             "a sequence written at column 0 is still a sequence under `models:`",
             listOf("small", "tiny"),
+            yamlIds(yaml),
+        )
+    }
+
+    @Test
+    fun aKeywordListAfterTheSpeechListIsNotCountedAsSpeechEntries() {
+        // models.yaml carries `keyword_models:` after `models:`; its items sit at
+        // the same indent, so only the top-level key between them separates them.
+        val yaml = listOf(
+            "models:",
+            "  - id: small",
+            "    size_mb: 349",
+            "# a comment line between the lists",
+            "keyword_models:",
+            "  - id: kws-example",
+            "    size_mb: 15",
+            "",
+        )
+        assertEquals(
+            "the speech list ends at the next top-level key",
+            listOf("small"),
             yamlIds(yaml),
         )
     }

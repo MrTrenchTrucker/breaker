@@ -93,10 +93,15 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   decode fails instead of looping. The transcript is one segment that spans the clip, or no segment
   when the text is blank. `release()` frees the native recognizer once, does nothing the second
   time and never throws.
-- `SherpaOnnxBinding` (internal) is the only file that names the library's classes
-  (`com.k2fsa.sherpa.onnx`). It sets 16 kHz, 80 mel bins, the CPU provider, greedy search and no
-  endpoint detection, and leaves the model type empty so the library reads it from the model files.
-  It never loads a native library itself; the library's own classes do that on first use.
+- Exactly two files name the library's classes (`com.k2fsa.sherpa.onnx`): `SherpaOnnxBinding.kt` and
+  `KeywordSpotterBinding.kt`, both internal. The keyword spotter is a second native entry point, so it has its
+  own binding file; the narrow-surface property is unchanged (no third file of this module and no file of any
+  other module names the library; a contract test fails on one). The keyword engine is written, but nothing
+  downloads the keyword model yet, so it is not used by the app. `SherpaOnnxBinding` sets 16 kHz, 80 mel bins,
+  the CPU provider, greedy search and no endpoint detection, and leaves the model type empty so the library
+  reads it from the model files. `KeywordSpotterBinding` sets 16 kHz, 80 mel bins, the CPU provider and an empty
+  model type, passes the keywords file and no boost or threshold; its library field shapes are unverified until
+  a build compiles them. Neither loads a native library itself; the library's own classes do that on first use.
 - `RefusalMapping.kt` holds `mapRefusal` (a loader refusal to a failure result). It was moved out of
   `OnDeviceSttEngine.kt` with its text unchanged except for visibility (`internal`).
 - `OnDeviceWordStream` (internal) implements `FedWordStream` (the core `WordStream` port plus `feed`) over the same native seam. It
@@ -106,6 +111,14 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   run. Each update carries the whole hypothesis of words with capture-relative start times. It stays internal:
   `SherpaOnnxWordStreamFactory` is the public way to build it, and the app is to build its stream through that factory.
 - `FedWordStream.feed` (implemented by `OnDeviceWordStream`) takes 16 kHz mono float samples. It copies them and never blocks: the copy is offered to the run's queue without waiting. It may be called from any thread. Audio fed before the first `start()` call, or after `stop()`, or after the run ended by itself or by a failure, is ignored: it is not queued and not counted. Audio fed once `start()` has claimed the stream is queued for the worker. A chunk fed at the same moment as `stop()` may be queued, and is then discarded without reaching the engine. An empty array is ignored. A full queue drops the chunk and counts it (`droppedChunks` and `droppedSamples` in `OnDeviceWordStream`, reset at each `start()`).
+
+**Keyword side (built, used by the app only when the keyword model is installed; nothing downloads that model yet):**
+- `KeywordModelLoader.load()` gives `KeywordLoad.Ready(KeywordModel)` or `KeywordLoad.Refused`. It wraps `ModelLoader`, so it runs the same checks (registry lookup in the keyword list, family, install, checksums, install stamp or archive check, unpacked files) and opens no engine. After the first load it relies on the install stamp, so it does not hash the archive again; the app asks it once per take.
+- `SherpaOnnxKeywordStreamFactory.create(model)` checks before it writes or opens anything (keyword id and profile, the four files, the install stamp, the token table against the fixed phrases), asks a `KeywordsFileWriter` to put the keywords file on disk, and returns an `OnDeviceWordStream` over `KeywordSpotterBinding`. A refusal is a `SherpaTranscriptionException` with a fixed message.
+- `KeywordSpotterBinding` is the only file that names the library's keyword classes. Each hit is kept as the latest result and the spotter stream is reset once, so a hit is delivered once whether the library keeps or clears the result after a reset. The binding is not run by any unit test.
+- `FixedPhrases` holds the wake and send phrases as constant token lines with no boost and no threshold (the library's defaults); `KeywordsFileText` renders and validates the file. The writer is implemented by the app (private folder, atomic replace).
+- Not built: a download of the keyword model (no code calls the installer for it), waking by voice while the app is idle, training or calibration, and any measurement on a device (latency, false alarms, the default tuning on a real voice).
+- Hit times after a reset are UNVERIFIED: whether the library restarts them from zero after a reset of the stream is not known and has not been run on a device. If they restart, a second hit of one stream would carry a start time that is too small and the send offset would trim too much of the dictation. The stream is created per take, so the send phrase is normally the first hit of its stream with no reset before it; a device check owes the answer and no fix is built.
 
 **Download side:**
 - `HttpModelFetcher` is the real `ModelFetcher`. It is built on the platform's `HttpURLConnection`,

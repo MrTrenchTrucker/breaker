@@ -90,7 +90,7 @@ class SpokenSendRoutingTest {
     }
 
     @Test
-    fun `the app's handler is given no phrase stream until a speech provider exists`() {
+    fun `a handler made with no source gets no phrase stream`() {
         val handler: PhraseSendHandler = phraseHandlerFor(ManualBackground(), ManualMain())
         handler.begun { }
         assertNull("the app's handler found a phrase stream", handler.currentStream())
@@ -160,7 +160,7 @@ class SpokenSendRoutingTest {
     private val serviceStop: String = """setEndedListener\s*\{\s*runnerHolder\s*\.\s*get\s*\(\s*\)\s*\?\.\s*onServiceEnded\s*\(\s*\)\s*;\s*phrase\s*\.\s*onTakeEnded\s*\(\s*\)\s*\}"""
     private val closeStop: String = """compareAndSet\s*\(\s*false\s*,\s*true\s*\)\s*\)\s*return\s+phrase\s*\.\s*onTakeEnded\s*\(\s*\)"""
     private val tee: String = """PhraseFeedTap\s*\(\s*LevelTap\s*\([\s\S]*?\{\s*phrase\s*\.\s*currentStream\s*\(\s*\)\s*\}\s*\)"""
-    private val tileBind: String = """\bval\s+phrase\s*:\s*PhraseSendHandler\s+by\s+lazy\s*\{\s*phraseHandlerFor\s*\(\s*takeWorker\s*,\s*main\s*\)\s*\.\s*also\s*\{\s*root\s*\.\s*phraseSlot\s*\.\s*bind\s*\(\s*it\s*\)\s*\}\s*\}"""
+    private val tileBind: String = """\bval\s+phrase\s*:\s*PhraseSendHandler\s+by\s+lazy\s*\{\s*phraseHandlerFor\s*\(\s*takeWorker\s*,\s*main\s*,\s*keywordPhraseSource\s*\(\s*root\s*\.\s*modelStore\s*,\s*context\s*\.\s*filesDir\s*\)\s*\)\s*\.\s*also\s*\{\s*root\s*\.\s*phraseSlot\s*\.\s*bind\s*\(\s*it\s*\)\s*\}\s*\}"""
     private val rootSlot: String = """\bval\s+phraseSlot\s*:\s*PhraseSlot\s*=\s*PhraseSlot\s*\(\s*\)"""
     private val rootGives: String = """\bphrase\s*=\s*phraseSlot\s*,"""
     private val activityGives: String = """\bphrase\s*=\s*app\s*\.\s*phraseHandler\s*,"""
@@ -192,6 +192,8 @@ class SpokenSendRoutingTest {
         Sample("TILE_SEND_IS_THE_TILE_ENTRY", "TakeOwnerKind.TILE), phrase) { toCoordinator { it.onSend() } }", "TakeOwnerKind.TILE), phrase) { toCoordinator { it.onTap() } }"),
         Sample("TILE_SEND_IS_THE_TILE_ENTRY", ", phrase) { toCoordinator", ", null) { toCoordinator"),
         Sample("TILE_HOST_BINDS_THE_ROOT_SLOT", ".also { root.phraseSlot.bind(it) }", ""),
+        Sample("TILE_HOST_BINDS_THE_ROOT_SLOT", ", keywordPhraseSource(root.modelStore, context.filesDir))", ")"),
+        Sample("TILE_HOST_BINDS_THE_ROOT_SLOT", "keywordPhraseSource(root.modelStore, context.filesDir)", "NoPhraseStream"),
         Sample("HOME_SEND_IS_THE_HOME_ENTRY", "phrase, ::onSpokenSend)", "null, ::onSpokenSend)"),
         Sample("HOME_SPOKEN_SEND_IS_THE_ADAPTER_SEND", "main.post { adapter.onSend() }", "main.post { adapter.onTap() }"),
         Sample("ENDS_ARE_STOPPED_THREE_TIMES", "if (failure != null) phrase.onTakeEnded()", "if (failure != null) Unit"),

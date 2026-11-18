@@ -50,6 +50,7 @@ open class AppLayoutGateRules {
         "wiring/OlderRowsTransport.kt", "wiring/OlderRowsWiring.kt",
         "wiring/ProbeRefreshingSettingsStore.kt",
         "wiring/PhraseFeedTap.kt", "wiring/PhraseSendHandler.kt", "wiring/PhraseStreamSource.kt", "wiring/PhraseWiring.kt",
+        "wiring/KeywordPhraseSource.kt", "wiring/PrivateKeywordsFileWriter.kt",
         "wiring/TileSpokenSend.kt",
         "wiring/UpdateKeyList.kt", "wiring/UpdateTimesStore.kt",
         "wiring/PackageInstallRun.kt", "wiring/InstallStatusRule.kt", "wiring/InstallNonce.kt", "wiring/InstallAnswerRelay.kt",

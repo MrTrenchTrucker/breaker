@@ -59,7 +59,12 @@ class DuplicateIdTest(unittest.TestCase):
         # the small entry's own block, appended after the committed entries:
         # exactly one duplicate id, whichever the committed registry carries
         second = "\n".join(ts.entry_block("small")) + "\n"
-        planted = text + second
+        # the end of the speech list: the keyword list, when the file has
+        # one, follows it, and an entry appended after that would sit in
+        # the keyword list instead
+        at = text.find("\nkeyword_models:")
+        at = len(text) if at < 0 else at + 1
+        planted = text[:at] + second + text[at:]
         msg = ts.refuses(planted)
         self.assertIn("duplicate id 'small'", msg)
         # the clash is the first duplicate the reader meets: the committed

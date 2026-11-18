@@ -1,5 +1,8 @@
 """Source pins for the sherpa-onnx compile route of `android/modules/stt-ondevice`.
 
+The tests of the two binding files (the library name in exactly two files, the keyword binding pin) are in
+`stt_ondevice_aar_binding_pins.py`, mixed into the class below.
+
 Not a `test_*.py` file on purpose: the contract-file bijection counts every
 `tests/contract/test_*.py` as one module's contract test. The class below is
 collected through `test_stt_ondevice_contract.py`, which imports it. The rules
@@ -25,7 +28,6 @@ from stt_ondevice_aar_checks import (
     check_dated_sources,
     check_group,
     check_jdk_names_are_imported,
-    check_library_scope,
     check_no_binaries,
     check_no_native_load,
     check_no_repositories_or_files,
@@ -43,9 +45,11 @@ from stt_ondevice_aar_checks import (
     check_wired,
     code_of
 )
+from stt_ondevice_aar_binding_pins import BindingPins
 from stt_ondevice_aar_rules import check_jdk_simple_names_have_imports, check_task_messages
 
-class SttOndeviceAarPinsTest(unittest.TestCase):
+
+class SttOndeviceAarPinsTest(BindingPins, unittest.TestCase):
 
     def _read(self, rel):
         path = os.path.join(contract_support.ROOT, rel)
@@ -169,10 +173,6 @@ class SttOndeviceAarPinsTest(unittest.TestCase):
         named = {SETTINGS: code_of(self._read(SETTINGS)), BUILD: code_of(self._read(BUILD))}
         named.update(self._main())
         self._ok(check_one_digest(self._read(PROPS), named), "one digest")
-
-    def test_only_the_binding_names_the_sherpa_library(self):
-        """`com.k2fsa` appears in SherpaOnnxBinding.kt and in no other main source."""
-        self._ok(check_library_scope(self._main()), "library scope")
 
     def test_no_main_source_loads_a_native_library(self):
         """No `loadLibrary` and no `System.load(` in code."""

@@ -95,7 +95,7 @@ The four words, once: **Built** means the module's code and tests are on `main` 
 | `android/modules/overlay` | 6 | Partly built | The floating tile works; one open bug: the mic's cancel and confirm marks on Home do not answer a tap while recording, and the check that the tile window is still ours is not built. |
 | `android/modules/commit` | 7 | Built |  |
 | `android/modules/format` | 8 | Built |  |
-| `android/modules/phrases` | 10 | Built, switched off | Spoken send is built but off: nothing feeds it spoken words yet. |
+| `android/modules/phrases` | 10 | Partly built | Spoken send is active only when the keyword model is installed; nothing downloads that model yet, and waking by voice while the app is idle is not wired. |
 | `android/modules/auth-client` | 11 | Built |  |
 | `android/modules/crypto` | 11 | Built | Key handling and opening sealed results are in; the app wires the account key service into the login path; not yet tried on a device. |
 | `android/modules/sync` | 11 | Built | Sync is built and sends plaintext; encrypted sync is built in parts and is not switched on. |

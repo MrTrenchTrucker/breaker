@@ -25,9 +25,13 @@ class PhraseSlot {
     }
 }
 
-/** The app's phrase handler. No speech provider exists yet, so it is given [NoPhraseStream] and the spoken send stays off. */
-internal fun phraseHandlerFor(background: Background, main: MainPost): PhraseSendHandler =
-    PhraseSendHandler(background, main, NoPhraseStream)
+/**
+ * The app's phrase handler over [source]. Without a source it is given [NoPhraseStream] and the spoken send stays off.
+ * The app passes the keyword source, so the spoken send is active only when the keyword model is installed; nothing
+ * downloads that model yet, and waking by voice while idle is not wired.
+ */
+internal fun phraseHandlerFor(background: Background, main: MainPost, source: PhraseStreamSource = NoPhraseStream): PhraseSendHandler =
+    PhraseSendHandler(background, main, source)
 
 /** The Home take port with its spoken send; without a handler the take port is the plain one. */
 internal fun homeSpokenTake(inner: TakePort, handler: PhraseSendHandler?, sendEntry: () -> Unit): TakePort =

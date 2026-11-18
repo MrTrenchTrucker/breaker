@@ -89,7 +89,9 @@ def entry_block(eid):
     end = len(lines)
     for i in range(start + 1, len(lines)):
         m = re.match(r"^(\s*)-\s+id:\s*\S", lines[i])
-        if m and len(m.group(1)) == indent:
+        if (m and len(m.group(1)) == indent) or re.match(
+                r"^[A-Za-z_][A-Za-z0-9_]*:", lines[i]):
+            # the next entry, or the next top-level key (`keyword_models:`)
             end = i
             break
     return lines[start:end]

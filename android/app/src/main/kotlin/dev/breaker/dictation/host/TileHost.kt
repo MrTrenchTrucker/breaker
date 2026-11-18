@@ -29,6 +29,7 @@ import dev.breaker.dictation.wiring.TakeOwnerKind
 import dev.breaker.dictation.wiring.TakePortAdapter
 import dev.breaker.dictation.wiring.PhraseSendHandler
 import dev.breaker.dictation.wiring.TileCoordinator
+import dev.breaker.dictation.wiring.keywordPhraseSource
 import dev.breaker.dictation.wiring.phraseHandlerFor
 import dev.breaker.dictation.wiring.tileSpokenTake
 import dev.breaker.dictation.wiring.WakeGestureGate
@@ -105,7 +106,7 @@ internal class TileHost(
     internal val takeOwner: TakeOwner = TakeOwner()
 
     /** The one spoken-send handler of the app, made on first use over the take worker; the root's slot is bound to it then. */
-    internal val phrase: PhraseSendHandler by lazy { phraseHandlerFor(takeWorker, main).also { root.phraseSlot.bind(it) } }
+    internal val phrase: PhraseSendHandler by lazy { phraseHandlerFor(takeWorker, main, keywordPhraseSource(root.modelStore, context.filesDir)).also { root.phraseSlot.bind(it) } }
 
     /** The composite level sink: the tile's feed is already there; the Home mic adds its own. */
     private val compositeLevelSink = CompositeLevelSink()

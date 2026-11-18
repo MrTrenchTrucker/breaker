@@ -47,6 +47,16 @@ Entry checks (all of them, before any write):
   and its (archive_name, sha256) pair a line of the committed fixture
   fixtures/upstream-checksum-excerpt.txt - the byte-exact upstream
   checksum.txt excerpt the module carries (checked offline, no network).
+
+A second top-level list, `keyword_models:` (optional), holds keyword-spotting
+models. Its entries obey every rule above, with three differences: the id may
+hold single hyphens between alphanumerics (the generated constant turns them
+into underscores), params may carry a decimal point (3.3M: the number as the
+model's own name states it), and upstream_commit is optional (checked when
+given). An id may not appear in both lists, and no id may name a constant the
+generated object already declares (ALL, KEYWORD_MODELS). The generated
+`ModelRegistry.ALL` and `byId` stay speech only; `KEYWORD_MODELS` and
+`byKeywordId` answer for the keyword list only.
 """
 import os
 import re
@@ -81,6 +91,13 @@ HEX40 = re.compile(r"^[0-9a-f]{40}$")
 # An id becomes a Kotlin val name (`val SMALL`), so it starts with a letter.
 ID_SHAPE = re.compile(r"^[a-z][a-z0-9]*$")
 PARAMS_SHAPE = re.compile(r"^[1-9][0-9]*M$")
+# A keyword model's id may hold single hyphens; its params may carry a point.
+KEYWORD_ID_SHAPE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
+KEYWORD_PARAMS_SHAPE = re.compile(r"^[1-9][0-9]*(\.[0-9]+)?M$")
+KEYWORD_OPTIONAL = ("upstream_commit",)
+# Constants the generated object declares itself: an id may not name them.
+RESERVED_CONSTANTS = ("ALL", "KEYWORD_MODELS")
+TOP_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*:")
 DIGITS = re.compile(r"^[1-9][0-9]*$")
 ASSET_PATH = re.compile(r"^/.+/releases/assets/[0-9]+$")
 # The only host that serves an asset id's bytes (the web route 404s).
@@ -98,10 +115,10 @@ BLOCK_SCALAR = re.compile(r"^(\s*)\S[^:]*:\s*[|>][0-9+-]*\s*$")
 ITEM = re.compile(r"^\s*-\s+(\S|$)")
 
 
-def _entry_spans(text):
+def _entry_spans(text, key="models"):
     """(start, end) line spans (1-based, end exclusive) of the sequence items
-    under the top-level `models:` key, in file order. Spans exist so a
-    refusal can point at the entry it refuses.
+    under the top-level `<key>:` key, in file order, up to the next top-level
+    key. Spans exist so a refusal can point at the entry it refuses.
 
     Body lines of a block scalar (`notes: >-`) are free text, not sequence
     items: a note that starts with "- " must not be counted as an entry, or a
@@ -109,14 +126,19 @@ def _entry_spans(text):
     lines = text.splitlines()
     models_at = None
     for i, line in enumerate(lines, start=1):
-        if line == "models:":
+        if line == f"{key}:":
             models_at = i
             break
     if models_at is None:
-        raise RegistryError("the document has no top-level `models:` key")
+        raise RegistryError(f"the document has no top-level `{key}:` key")
+    stop = len(lines)
+    for i in range(models_at, len(lines)):
+        if TOP_KEY.match(lines[i]):
+            stop = i
+            break
     starts = []
     block_indent = None
-    for i in range(models_at - 1, len(lines)):
+    for i in range(models_at - 1, stop):
         line = lines[i]
         if block_indent is not None:
             if not line.strip() or len(line) - len(line.lstrip()) > block_indent:
@@ -128,7 +150,7 @@ def _entry_spans(text):
             continue
         if ITEM.match(line):
             starts.append(i + 1)
-    return [(s, e) for s, e in zip(starts, starts[1:] + [len(lines) + 1])]
+    return [(s, e) for s, e in zip(starts, starts[1:] + [stop + 1])]
 
 def _fixture_pairs():
     """The (archive_name, sha256) data lines of the committed fixture, in file
@@ -247,14 +269,15 @@ def _check_url(url, line, label=""):
         f"pinned (got '{parts.path}')")
 
 
-def _check_entry(raw, span, lines):
+def _check_entry(raw, span, lines, keyword=False):
     """Validate one parsed entry (a string->string map) and return the
-    converted entry (ints and booleans materialised)."""
+    converted entry (ints and booleans materialised). `keyword` selects the
+    keyword-model variant of the id, params and upstream_commit rules."""
     start, _ = span
     keys = set(raw)
 
     for f in REQUIRED_FIELDS:
-        if f not in keys:
+        if f not in keys and not (keyword and f in KEYWORD_OPTIONAL):
             raise RegistryError(
                 f"{_where(raw, span, lines)}: required field '{f}' is missing")
     for k in sorted(keys - KNOWN_FIELDS):
@@ -272,18 +295,31 @@ def _check_entry(raw, span, lines):
 
     eid = value("id")
     label = f"entry '{eid}' "
-    if not ID_SHAPE.match(eid):
+    if not (KEYWORD_ID_SHAPE if keyword else ID_SHAPE).match(eid):
+        hyphens = (", with single hyphens allowed between them"
+                   if keyword else "")
         raise RegistryError(
             f"{label}line {_field_line(lines, span, 'id')}: id '{eid}' must be "
-            f"lowercase alphanumerics starting with a letter (the generated "
-            f"Kotlin names a val after it)")
+            f"lowercase alphanumerics starting with a letter{hyphens} (the "
+            f"generated Kotlin names a val after it)")
+    if _kotlin_constant(eid) in RESERVED_CONSTANTS:
+        raise RegistryError(
+            f"{label}line {_field_line(lines, span, 'id')}: id '{eid}' would "
+            f"name the constant {_kotlin_constant(eid)}, which the generated "
+            f"object already declares")
     family = value("family")
     if family not in FAMILIES:
         raise RegistryError(
             f"{label}line {_field_line(lines, span, 'family')}: family '{family}' "
             f"is not one of {', '.join(FAMILIES)}")
     params = value("params")
-    if not PARAMS_SHAPE.match(params):
+    if keyword:
+        if not KEYWORD_PARAMS_SHAPE.match(params):
+            raise RegistryError(
+                f"{label}line {_field_line(lines, span, 'params')}: params "
+                f"'{params}' must be a positive number with an M suffix "
+                f"(e.g. 3.3M)")
+    elif not PARAMS_SHAPE.match(params):
         raise RegistryError(
             f"{label}line {_field_line(lines, span, 'params')}: params '{params}' "
             f"must be a positive integer with an M suffix (e.g. 70M)")
@@ -299,8 +335,8 @@ def _check_entry(raw, span, lines):
         raise RegistryError(
             f"{label}line {_field_line(lines, span, 'sha256')}: sha256 is not 64 "
             f"lowercase hex characters")
-    commit = value("upstream_commit")
-    if not HEX40.match(commit):
+    commit = value("upstream_commit") if "upstream_commit" in keys else ""
+    if (commit or not keyword) and not HEX40.match(commit):
         raise RegistryError(
             f"{label}line {_field_line(lines, span, 'upstream_commit')}: "
             f"upstream_commit is not 40 lowercase hex characters")
@@ -362,43 +398,69 @@ def _check_entry(raw, span, lines):
     }
 
 
-def check_models(text, name="models.yaml"):
-    """Parse `text` with the stdlib reader and validate EVERY entry before
-    anything is returned. Returns the converted entries in file order; raises
-    RegistryError (message: `entry '<id>' line <n>: <reason>`)."""
+def _check_list(doc, text, lines, key, keyword, speech_lines=None):
+    """Validate every entry of the top-level list `key`; returns the
+    converted entries in file order and a map of id -> id line. For the
+    keyword list `speech_lines` is the speech list's id -> line map, and an
+    id found there is refused (the lists never share an id)."""
+    entries = doc[key]
+    if not isinstance(entries, list) or not entries:
+        raise RegistryError(f"'{key}' must be a non-empty sequence")
+    spans = _entry_spans(text, key)
+    if len(spans) != len(entries):
+        raise RegistryError(
+            f"the reader found {len(entries)} entries but the file carries "
+            f"{len(spans)} sequence items under `{key}:`")
+    seen = {}
+    out = []
+    for raw, span in zip(entries, spans):
+        entry = _check_entry(raw, span, lines, keyword)
+        id_line = _field_line(lines, span, "id")
+        if speech_lines and entry["id"] in speech_lines:
+            raise RegistryError(
+                f"entry '{entry['id']}' line {id_line}: id '{entry['id']}' is "
+                f"also the id of a speech model (speech entry on line "
+                f"{speech_lines[entry['id']]}); the two lists must not share "
+                f"an id")
+        if entry["id"] in seen:
+            # both halves name the line the id is ON: an entry need not open
+            # with `id:`, so the sequence marker is not the id line
+            raise RegistryError(
+                f"entry '{entry['id']}' line {id_line}: duplicate id "
+                f"'{entry['id']}' (first on line {seen[entry['id']]})")
+        seen[entry["id"]] = id_line
+        out.append(entry)
+    return out, seen
+
+
+def check_registry(text, name="models.yaml"):
+    """Parse `text` with the stdlib reader and validate EVERY entry of both
+    lists before anything is returned. Returns (speech entries, keyword
+    entries), each in file order; the keyword list is empty when the optional
+    `keyword_models:` key is absent. Raises RegistryError (message: `entry
+    '<id>' line <n>: <reason>`)."""
     try:
         doc = yaml_subset.loads(text, name=name)
     except yaml_subset.YamlSubsetError as err:
         raise RegistryError(str(err)) from None
     if not isinstance(doc, dict) or "models" not in doc:
         raise RegistryError("the document must be a mapping with a 'models' key")
-    entries = doc["models"]
-    if not isinstance(entries, list) or not entries:
-        raise RegistryError("'models' must be a non-empty sequence")
     lines = text.splitlines()
-    spans = _entry_spans(text)
-    if len(spans) != len(entries):
-        raise RegistryError(
-            f"the reader found {len(entries)} entries but the file carries "
-            f"{len(spans)} sequence items under `models:`")
-    seen = {}
-    out = []
-    for raw, span in zip(entries, spans):
-        entry = _check_entry(raw, span, lines)
-        if entry["id"] in seen:
-            # both halves name the line the id is ON: an entry need not open
-            # with `id:`, so the sequence marker is not the id line
-            id_line = _field_line(lines, span, "id")
-            raise RegistryError(
-                f"entry '{entry['id']}' line {id_line}: duplicate id "
-                f"'{entry['id']}' (first on line {seen[entry['id']]})")
-        seen[entry["id"]] = _field_line(lines, span, "id")
-        out.append(entry)
-    return out
+    speech, speech_lines = _check_list(doc, text, lines, "models", False)
+    if "keyword_models" not in doc:
+        return speech, []
+    keyword, _ = _check_list(
+        doc, text, lines, "keyword_models", True, speech_lines)
+    return speech, keyword
+
+
+def check_models(text, name="models.yaml"):
+    """The speech entries of `check_registry` (both lists are validated)."""
+    return check_registry(text, name)[0]
 
 
 def _kotlin_constant(eid):
-    return re.sub(r"(?<!^)([a-z])([A-Z])", r"\1_\2", eid).upper()
+    return re.sub(r"(?<!^)([a-z])([A-Z])", r"\1_\2", eid).upper().replace("-", "_")
 
 
 def _kotlin_str(s):
@@ -408,9 +470,11 @@ def _kotlin_str(s):
             .replace("$", "\\$") + '"')
 
 
-def render_kotlin(entries):
-    """The committed Kotlin, rendered from converted entries. Deterministic:
-    same entries -> same bytes."""
+def render_kotlin(entries, keyword_entries=()):
+    """The committed Kotlin, rendered from converted entries (speech first,
+    then keyword models). Deterministic: same entries -> same bytes. `ALL` and
+    `byId` name the speech entries only; `KEYWORD_MODELS` and `byKeywordId`
+    the keyword entries only."""
     lines = [
         "// Generated by tools/gen_model_registry.py from models.yaml —",
         "// do not edit by hand. Edit models.yaml and rerun the generator.",
@@ -435,7 +499,7 @@ def render_kotlin(entries):
         "",
         "object ModelRegistry {",
     ]
-    for e in entries:
+    for e in list(entries) + list(keyword_entries):
         fam = "SHERPA_ONNX" if e["family"] == "sherpa-onnx" else "WHISPER"
         lines += [
             f"    val {_kotlin_constant(e['id'])}: ModelEntry = ModelEntry(",
@@ -451,10 +515,17 @@ def render_kotlin(entries):
             "",
         ]
     names = ", ".join(_kotlin_constant(e["id"]) for e in entries)
+    kw_names = ", ".join(_kotlin_constant(e["id"]) for e in keyword_entries)
+    kw_list = f"listOf({kw_names})" if kw_names else "emptyList()"
     lines += [
         "    val ALL: List<ModelEntry> = listOf(" + names + ")",
         "",
+        "    val KEYWORD_MODELS: List<ModelEntry> = " + kw_list,
+        "",
         "    fun byId(id: String): ModelEntry? = ALL.firstOrNull { it.id == id }",
+        "",
+        "    fun byKeywordId(id: String): ModelEntry? = "
+        "KEYWORD_MODELS.firstOrNull { it.id == id }",
         "}",
         "",
     ]
@@ -462,12 +533,13 @@ def render_kotlin(entries):
 
 
 def generate(models_yaml_path=MODELS_YAML, output_path=OUTPUT_KOTLIN):
-    """Check every entry, then write the Kotlin. Returns (entries, output_path).
-    Nothing is written until every entry passes."""
+    """Check every entry, then write the Kotlin. Returns (speech entries,
+    output_path). Nothing is written until every entry passes."""
     with open(models_yaml_path, "r", encoding="utf-8") as fh:
         text = fh.read()
-    entries = check_models(text, name=os.path.basename(models_yaml_path))
-    kotlin = render_kotlin(entries)
+    entries, keyword = check_registry(
+        text, name=os.path.basename(models_yaml_path))
+    kotlin = render_kotlin(entries, keyword)
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(kotlin)

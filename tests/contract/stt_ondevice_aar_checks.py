@@ -265,13 +265,7 @@ def check_jdk_names_are_imported(code):
 
 # --- sources and files ---------------------------------------------------------------------------
 
-def check_library_scope(main):
-    probs = [f"{n} names com.k2fsa; only {BINDING} may" for n, c in sorted(main.items())
-             if n != BINDING and re.search(r"\bcom\s*\.\s*k2fsa\b", c)]
-    if BINDING not in main or not re.search(r"\bcom\s*\.\s*k2fsa\b", main[BINDING]):
-        probs.append(f"{BINDING} must exist and name com.k2fsa")
-    return probs
-
+# The scope rule for the library name (two binding files) lives in stt_ondevice_aar_binding.py.
 
 def check_no_native_load(main):
     probs = [f"{n} loads a native library; the library's own classes do that" for n, c in sorted(main.items())
