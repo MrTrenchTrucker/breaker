@@ -13,6 +13,7 @@ import dev.breaker.dictation.updater.InstallResult
  * It holds the check facts ([checking], [failed], [upToDate] and [updateAvailable]), the release that the
  * last available check gave ([held]) and whether an install is running ([installing]). The control's seven
  * facts come from those. The install row is offered only when a release is held and nothing is running.
+ * The refusal flag ([refused]) also reaches the control, through its setter, before each draw; the seven facts are unchanged.
  *
  * Nothing draws before [bind]: `bind()` is the only caller of `control.bind` and the only place the first
  * `show()` is reached, and [onCheck] and [onInstall] return at once while the screen is unbound. A check or
@@ -39,6 +40,8 @@ internal class AboutControlWiring(
 
     private var checking: Boolean = false
     private var failed: Boolean = false
+    /** Whether the last install was refused by the updater; a refusal sets it, and it is cleared with [failed]. */
+    private var refused: Boolean = false
     private var upToDate: Boolean = false
     private var updateAvailable: Boolean = false
     private var installing: Boolean = false
@@ -67,6 +70,7 @@ internal class AboutControlWiring(
         installing = false
         updateAvailable = false
         failed = false
+        refused = false
         upToDate = false
         show()
         try {
@@ -119,15 +123,15 @@ internal class AboutControlWiring(
         }
     }
 
-    /** Runs on the main thread when the updater answers. A refusal ends the attempt; a start keeps the row installing. */
+    /** Runs on the main thread when the updater answers. A refusal ends the attempt with the refusal line; a start keeps the row installing. */
     private fun onInstallAnswer(result: InstallResult) {
         if (!installing) return
-        if (result is InstallResult.Refused) installFailed()
+        if (result is InstallResult.Refused) installRefused()
     }
 
     /**
      * Runs on the main thread when the installer's session ends. Success is left to the process replacement;
-     * a cancel frees the row and offers it again without a failure; any other status is a failure.
+     * a cancel frees the row and offers it again without a failure or a refusal line; any other status is a failure.
      */
     fun onInstallFinished(status: Int) {
         if (!installing) { return }
@@ -135,20 +139,31 @@ internal class AboutControlWiring(
         if (status == STATUS_ABORTED) {
             installing = false
             failed = false
+            refused = false
             show()
         } else {
             installFailed()
         }
     }
 
-    /** Ends a failed install: the row is free again and shows the failure. */
+    /** Ends a failed install: the row is free again and shows the failure; any refusal line is cleared. */
     private fun installFailed() {
         installing = false
         failed = true
+        refused = false
+        show()
+    }
+
+    /** Ends a refused install: the row is free again and shows the refusal line instead of the failure. */
+    private fun installRefused() {
+        installing = false
+        refused = true
+        failed = false
         show()
     }
 
     private fun show() {
+        control.setInstallRefused(refused)
         control.show(
             admin = isAdmin(),
             updateAvailable = updateAvailable,

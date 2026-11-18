@@ -27,7 +27,7 @@ Entry checks (all of them, before any write):
   entry, 365,748,162 is the byte size of release asset 191972150 from that
   asset's GitHub release metadata, and 191972150 is the asset id in that
   entry's own url (348.8 MiB = 349; in decimal MB it would be 366). Note the
-  upstream checksum.txt that sha256 is checked against is itself 57,134 bytes -
+  upstream checksum.txt that sha256 is checked against is itself 57,685 bytes -
   a different file from the model asset;
 * sha256: 64 lowercase hex; upstream_commit: 40 lowercase hex;
 * tamper_verified and hosted: exactly true or false;

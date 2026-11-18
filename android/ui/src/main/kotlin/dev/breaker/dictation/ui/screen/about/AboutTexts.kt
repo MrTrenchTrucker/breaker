@@ -31,4 +31,7 @@ internal object AboutTexts {
 
     /** The sentence when the last action failed. */
     const val FAILED = "That did not work. Try again."
+
+    /** The sentence when the system installer refused the install, so the person taps Install update again. */
+    const val REFUSED = "The update could not be installed. Tap Install update to try again."
 }

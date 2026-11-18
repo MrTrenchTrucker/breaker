@@ -31,6 +31,14 @@ interface AboutControl {
      */
     fun show(admin: Boolean, updateAvailable: Boolean, installReady: Boolean, checking: Boolean, installing: Boolean, failed: Boolean, upToDate: Boolean)
 
+    /**
+     * Holds whether the last install answer was a refusal, so the screen shows the refusal sentence
+     * rather than the failure sentence. It only stores the value and never draws: the next drawing
+     * shows it. [show] keeps the held value, so a refusal survives a later [show]. The default does
+     * nothing.
+     */
+    fun setInstallRefused(refused: Boolean) {}
+
     /** Redraws the screen from the last facts the app handed in. */
     fun refresh()
 }

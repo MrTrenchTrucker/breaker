@@ -18,7 +18,7 @@ internal data class AboutDecision(
  * A person who is not an admin gets nothing at all: no rows and no sentence, which is the
  * two-line screen as it stood before the rows existed. For an admin the check row is always
  * offered, and the install row only while an update is available and the app can install it. The
- * sentence is the first of these that applies, in this order: installing, checking, failed, update
+ * sentence is the first of these that applies, in this order: installing, checking, refusal, failed, update
  * available, up to date. When none applies there is no sentence.
  */
 internal fun decideAbout(state: AboutState): AboutDecision {
@@ -30,6 +30,7 @@ internal fun decideAbout(state: AboutState): AboutDecision {
     val sentence = when {
         state.installing -> AboutTexts.INSTALLING
         state.checking -> AboutTexts.CHECKING
+        state.installRefused -> AboutTexts.REFUSED
         state.failed -> AboutTexts.FAILED
         state.updateAvailable -> AboutTexts.OFFERED
         state.upToDate -> AboutTexts.UP_TO_DATE

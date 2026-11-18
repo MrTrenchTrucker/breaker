@@ -28,7 +28,7 @@ data class DownloadLimits(
     val checksumsMaxBytes: Long = 1_048_576L,
     val firstHopHosts: Set<String> = setOf("api.github.com"),
     val redirectHosts: Set<String> = setOf("release-assets.githubusercontent.com"),
-    val checksumsUrl: String = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/424735889",
+    val checksumsUrl: String = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/761425283",
     val progressStepBytes: Long = 4_194_304L,
 ) {
     /**
