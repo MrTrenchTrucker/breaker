@@ -236,34 +236,55 @@ function scanBody(text) {
   }
 }
 
-// Everything decodeBody checks, then the exact key order, then source === 'server'.
-function isStrictServerBody(bytes) {
+// The decodeBody-level parse, shared by the row reader and the writer's stricter
+// check. It answers { keys, members } for a valid R1 body -- the six members, the
+// types and ranges, source local or server, ANY key order -- or null. This is the
+// level SyncBodyCodec.decodeBody reads a stored row at (SyncBodyCodec.kt:34-55);
+// the server's decodeStrictServerBody (:65-71) is the one that adds the key order
+// and source === 'server'.
+function parseStrictBody(bytes) {
+  if (!(bytes instanceof Uint8Array)) return null;
   const text = decodeUtf8Strict(bytes);
-  if (text === null) return false;
+  if (text === null) return null;
   const scanned = scanBody(text);
-  if (!scanned.ok) return false;
+  if (!scanned.ok) return null;
   const { keys, members } = scanned;
 
   // Unknown key refused.
   for (const key of keys) {
-    if (!BODY_KEYS.includes(key)) return false;
+    if (!BODY_KEYS.includes(key)) return null;
   }
 
-  // The field rules, in decodeBody's order.
+  // The field rules, in decodeBody's order. A missing member reads as the empty
+  // kind, so a missing key is refused here too.
   const version = members.get('v');
-  if (memberKind(members, 'v') !== 'number' || version.token !== '1') return false;
-  if (memberKind(members, 'text') !== 'string') return false;
+  if (memberKind(members, 'v') !== 'number' || version.token !== '1') return null;
+  if (memberKind(members, 'text') !== 'string') return null;
   const source = members.get('source');
-  if (memberKind(members, 'source') !== 'string') return false;
-  if (source.value !== 'local' && source.value !== 'server') return false;
-  if (memberKind(members, 'model') !== 'string') return false;
+  if (memberKind(members, 'source') !== 'string') return null;
+  if (source.value !== 'local' && source.value !== 'server') return null;
+  if (memberKind(members, 'model') !== 'string') return null;
   const duration = members.get('duration_ms');
-  if (memberKind(members, 'duration_ms') !== 'number' || !DURATION_RE.test(duration.token)) return false;
+  if (memberKind(members, 'duration_ms') !== 'number' || !DURATION_RE.test(duration.token)) return null;
   const durationMs = Number(duration.token);
-  if (!(durationMs >= 0 && durationMs <= MAX_DURATION_MS)) return false;
+  if (!(durationMs >= 0 && durationMs <= MAX_DURATION_MS)) return null;
   if (memberKind(members, 'created_at') !== 'string' || !isCreatedStamp(members.get('created_at').value)) {
-    return false;
+    return null;
   }
+  return { keys, members };
+}
+
+// True when the bytes are a valid R1 body at the decodeBody level: the six
+// members, the types and ranges, source local or server, any key order. This is
+// what transcriptions.js reads a decrypted row with, so reader and writer agree.
+export function isStrictBody(bytes) {
+  return parseStrictBody(bytes) !== null;
+}
+
+// Everything decodeBody checks, then the exact key order, then source === 'server'.
+function isStrictServerBody(bytes) {
+  if (!isStrictBody(bytes)) return false;
+  const { keys, members } = parseStrictBody(bytes);
 
   // The six keys in the exact order.
   if (keys.length !== BODY_KEYS.length) return false;
@@ -271,7 +292,7 @@ function isStrictServerBody(bytes) {
     if (keys[i] !== BODY_KEYS[i]) return false;
   }
 
-  return source.value === 'server';
+  return members.get('source').value === 'server';
 }
 
 export function createRecordEncrypt({ cipher }) {

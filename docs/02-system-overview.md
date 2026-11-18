@@ -69,8 +69,12 @@ shows only the logged-in user's transcriptions.
 - Formatting is non-destructive (N9). The send phrase never appears in the text (F9).
 - Sync is idempotent (N12). Isolation is server-enforced (N13).
 - **Encryption:** transcriptions are ciphertext at rest; the server cannot decrypt
-  without the user's password (F24). Search is client-side. Today (Phase 19 not
-  built) sync still pushes at `key_version` 0.
+  without the user's password (F24). Search is client-side. Each decrypted row is
+  read with the writer's strict R1 body check (`isStrictBody`, shared from
+  `conversion-encrypt.js`): rows whose plaintext is not a valid R1 body show as
+  unreadable; the writers only produce R1. After a delete reloads the list, the
+  view re-applies the current search term, so the rows shown still match what is
+  typed. Today (Phase 19 not built) sync still pushes at `key_version` 0.
 - **Retention:** transcriptions auto-delete after 3 months; audio deletes on job
   completion (F28).
 - **Queue:** transcription jobs are strict FIFO — one at a time, restart-safe (F23).

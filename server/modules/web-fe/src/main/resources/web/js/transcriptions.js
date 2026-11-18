@@ -8,6 +8,7 @@
 // no storage of its own: the view owns the DOM, the net module owns the HTTP.
 
 import { createCipher } from './aesgcm.js';
+import { isStrictBody } from './conversion-encrypt.js';
 
 // The one fixed string a row that cannot be decrypted is shown as. Never blank.
 export const UNREADABLE = 'cannot be read';
@@ -114,13 +115,17 @@ export function decryptRowText(row, cipher) {
   } catch {
     return null;
   }
+  // The writer's decodeBody level, shared: the plaintext must be a valid R1 body
+  // (six members, types and ranges, source local or server, any key order). A
+  // plaintext that is not -- for example {"text":"x"} -- is refused here, so the
+  // row keeps its place and shows the fixed unreadable text.
+  if (!isStrictBody(plain)) return null;
   let body;
   try {
     body = JSON.parse(UTF8.decode(plain));
   } catch {
     return null;
   }
-  if (!isObject(body) || !isString(body.text)) return null;
   return body.text;
 }
 

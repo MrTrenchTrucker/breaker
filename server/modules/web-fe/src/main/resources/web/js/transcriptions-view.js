@@ -97,7 +97,8 @@ export function mountTranscriptions(root, { getToken, onSignedOut, net, dek, cop
             showSignedOut();
             return;
           }
-          await transcriptions.deleteOne(row.id);
+          const answer = await transcriptions.deleteOne(row.id);
+          if (answer === 'ok') transcriptions.search(search.value);
         } finally {
           deleteBusy = false;
           confirmButton.disabled = false;
