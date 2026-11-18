@@ -83,6 +83,7 @@ export function response(status, body = null, retryAfter = null) {
       if (body === null) throw new SyntaxError('no body');
       return body;
     },
+    text: async () => '',
   };
   return answer;
 }
@@ -93,6 +94,7 @@ export function happyRoutes(overrides = {}) {
     '/v1/auth/login': async () => response(200, loginAnswer().body),
     '/v1/auth/handoff/start': async () => response(201, { code: CODE_TEXT }),
     '/v1/auth/logout': async () => response(204),
+    '/v1/sync/pending-sealed': async () => response(200, []),
     ...overrides,
   };
 }

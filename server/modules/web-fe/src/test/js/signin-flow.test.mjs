@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { MESSAGES } from '../../main/resources/web/js/signin.js';
 import { encodeBase64Padded } from '../../main/resources/web/js/signin-link.js';
 import {
-  BOX_PUB, CODE_TEXT, DEK, GOOD_KDF, KEK, flipped, isZero, loginAnswer, makeInput,
-  patterned, readySignin, saltAnswer, wrapped,
+  BOOTSTRAP_BOX_KEY, BOOTSTRAP_BOX_PUB, BOOTSTRAP_DEK, BOX_PUB, CODE_TEXT, DEK, GOOD_KDF, KEK, bootstrapAnswer,
+  bootstrapDeps, flipped, isZero, loginAnswer, makeInput, patterned, readySignin, saltAnswer, sessionText, wrapped,
 } from './signin-fixtures.mjs';
 
 // Runs the flow with the given overrides and checks the refusal code and its fixed message.
@@ -124,17 +124,72 @@ test('session token given as a number gives network', async () => {
   await refused({ login: async () => loginAnswer({ token: 5 }) }, 'network');
 });
 
+test('a keyless account with both wrapped keys null bootstraps, uploads and hands off with the new keys', async () => {
+  const answer = bootstrapAnswer();
+  const uploaded = [];
+  const { rec, signin } = readySignin({
+    ...bootstrapDeps(answer),
+    // copied at call time: the flow wipes those arrays before the run ends
+    postKeys: async (token, members) => {
+      const taken = [members.wrappedDek, members.wrappedBoxPrivkey, members.boxPubkey];
+      uploaded.push({ token, bytes: taken.map((m) => new Uint8Array(m)) });
+      return { ok: true, keyVersion: 1 };
+    },
+  });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
+  assert.deepEqual(rec.log, ['salt', 'derive', 'login', 'box', 'seal', 'start', 'logout', 'replace']);
+  const pkg = rec.seal[0].pkg;
+  assert.equal(pkg[0], 1);
+  assert.deepEqual(pkg.subarray(1, 33), BOOTSTRAP_DEK);
+  assert.deepEqual(pkg.subarray(33, 65), BOOTSTRAP_BOX_KEY);
+  assert.deepEqual(uploaded.map((call) => call.token), [sessionText]);
+  assert.deepEqual(uploaded[0].bytes, [answer.wrappedDek, answer.wrappedBoxPrivkey, BOOTSTRAP_BOX_PUB]);
+});
+
 for (const [name, body] of [
-  ['both wrapped keys null', { wrapped_dek: null, wrapped_box_privkey: null }],
-  ['only the wrapped DEK null', { wrapped_dek: null }],
-  ['only the wrapped box key null', { wrapped_box_privkey: null }],
+  ['only the wrapped DEK null', { wrapped_dek: null }], ['only the wrapped box key null', { wrapped_box_privkey: null }],
+  ['a wrapped DEK present but not decodable', { wrapped_dek: 'not base64 at all' }], ['a wrapped box key present but not decodable', { wrapped_box_privkey: 'not base64 at all' }],
 ]) {
-  test('keyless account with ' + name + ' gives keyless', async () => {
-    const { rec } = await refused({ login: async () => loginAnswer(body) }, 'keyless');
-    assert.equal(rec.derive.length, 1);
-    assert.equal(rec.box.length, 0);
+  test('a wrapped-key answer with ' + name + ' stops with keys refused and uploads nothing', async () => {
+    let uploaded = 0;
+    const { rec, signin } = readySignin({
+      ...bootstrapDeps(),
+      loginBody: body,
+      postKeys: async () => { uploaded += 1; return { ok: true, keyVersion: 1 }; },
+    });
+    assert.deepEqual(await signin.run(makeInput()), { ok: false, code: 'keys_refused', message: MESSAGES.keys_refused });
+    assert.equal(uploaded, 0);
+    assert.deepEqual(rec.log, ['salt', 'derive', 'login', 'logout']);
   });
 }
+
+test('a 409 or a failed keys upload stops with one fixed sentence and nothing reaches the app', async () => {
+  for (const upload of [
+    { ok: false, code: 'conflict', message: 'This account already has keys, so nothing was stored.' },
+    { ok: false, code: 'network', message: MESSAGES.network },
+  ]) {
+    const { rec, signin } = readySignin({ ...bootstrapDeps(), postKeys: async () => upload });
+    assert.deepEqual(await signin.run(makeInput()), { ok: false, code: 'upload_refused', message: MESSAGES.upload_refused });
+    assert.deepEqual(rec.log, ['salt', 'derive', 'login', 'logout']);
+  }
+});
+
+test('a bootstrap that throws or answers a bad shape stops with keys refused and uploads nothing', async () => {
+  for (const bootstrap of [
+    async () => { throw new Error('no entropy'); },
+    async () => bootstrapAnswer({ dek: patterned(0xb0, 31) }),
+  ]) {
+    let uploaded = 0;
+    const { rec, signin } = readySignin({
+      ...bootstrapDeps(),
+      bootstrap,
+      postKeys: async () => { uploaded += 1; return { ok: true, keyVersion: 1 }; },
+    });
+    assert.deepEqual(await signin.run(makeInput()), { ok: false, code: 'keys_refused', message: MESSAGES.keys_refused });
+    assert.equal(uploaded, 0);
+    assert.equal(rec.seal.length + rec.replaced.length, 0);
+  }
+});
 
 test('wrapped DEK of 59 bytes gives keys refused', async () => {
   const plain = wrapped(KEK, DEK).subarray(0, 59);

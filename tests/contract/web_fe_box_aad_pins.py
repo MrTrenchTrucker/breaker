@@ -19,6 +19,7 @@ WEB = os.path.join("server", "modules", "web-fe", "src", "main", "resources", "w
 VECTORS = os.path.join("shared", "modules", "api-contracts", "examples", "crypto_vectors.json")
 AESGCM = "aesgcm.js"
 SIGNIN = "signin.js"
+BOOTSTRAP_CRYPTO = "bootstrap-crypto.js"
 KEY_AESGCM = "aesgcm"
 KEY_SIGNIN = "signin"
 KEY_PAGE = ("web", "signin-page.js")
@@ -160,9 +161,14 @@ def callers(web):
     return found
 
 
+# The wrap sites are pinned to signin.js (the unwrap of a stored account) and bootstrap-crypto.js
+# (the one wrap of a fresh account), two sites each, so a new call site anywhere else is reported.
+WRAP_CALL_SITES = [BOOTSTRAP_CRYPTO, BOOTSTRAP_CRYPTO, SIGNIN, SIGNIN]
+
+
 def rule_callers(inputs):
     found = callers(inputs["web"])
-    if found != [SIGNIN, SIGNIN]:
+    if found != WRAP_CALL_SITES:
         return ["calls of wrapDek or unwrapDek are in " + ", ".join(found)]
     return []
 

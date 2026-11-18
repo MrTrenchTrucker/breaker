@@ -31,7 +31,38 @@ NODE_MIN_MINOR = 19
 # 475 = 484 - 9 (the tests of the locked wait, removed with the Retry-After read).
 # 637 = 475 + 35 users + 54 tokens + 33 store + 40 settings (measured on the
 # assembled whole set, not computed from the file counts).
-PASSED_COUNT = 637
+# 675 = 637 + 16 bootstrap-crypto + 22 bootstrap-net (measured on the
+# assembled whole set, not computed from the file counts).
+# 683 = 675 + 2 bootstrap-crypto + 6 bootstrap-net (the sendback pins,
+# measured on the assembled whole set).
+# 706 = 683 + 2 new signin-flow bootstrap tests + 21 signin-net postKeys tests
+# 691 = 706 - 21 duplicated signin-net postKeys tests (one implementation, tested in bootstrap-net.test.mjs)
+# + 3 non-object member cases there + 1 page wiring test + 2 undecodable-wrapped-key refusal cases
+# (measured on the assembled whole set).
+# 710 = 691 + 19 unseal.test.mjs tests (measured on the assembled whole set).
+# 806 = 710 + 96 new registration tests across register-policy.test.mjs,
+# register.test.mjs, register-net.test.mjs and register-view.test.mjs
+# (measured on the assembled whole set).
+# 807 = 806 + 1 register wipe-ordering test (a valid kek must be zeroed when the verifier
+# from derive is malformed).
+# 814 = 807 + 7 register follow-up tests: the login 503 sentence, the pre-derive username
+# pattern (two cases) and install-code shape, the view form with a live status line, the
+# autocomplete hints, Enter submission, and keeping the install code on a failure
+# (measured on the assembled whole set).
+# 921 = 920 + 1 test pinning the leap-year century rule (2000-02-29 accepted, 2100-02-29 refused)
+# (measured on the assembled whole set).
+# 940 = 921 + 19 signin-conversion.test.mjs tests that drive the injected conversion and the
+# page wiring (measured on the assembled whole set).
+# 941 = 940 + 1 whole-flow page e2e test in signin-e2e.test.mjs: the real page mounted with the
+# real facade, real crypto, fake network/history (measured on the assembled whole set).
+# 943 = 941 + 2 page-level stages in signin-e2e.test.mjs: the keyless bootstrap through the real
+# page (POST /v1/auth/keys) and the tampered-wrapped-DEK refusal through the real page
+# (measured on the assembled whole set).
+# 950 = 943 + 2 (signin-flow: a stored account at key_version 0 is refused, keyless 0 still
+# bootstraps) + 3 (register: the bootstrap dek and box private key are zeroed after a finished
+# run, a thrown upload and an early return) + 2 (bootstrap-crypto: the raw drawn buffers are zero
+# after a bootstrap and after a shape refusal).
+PASSED_COUNT = 950
 
 
 def _run(args, env=None):

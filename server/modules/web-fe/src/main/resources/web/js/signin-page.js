@@ -1,9 +1,18 @@
 // Sign-in page: the DOM work for the sign-in page. Only this file touches document and window. The flow comes
-// from signin.js, the four network calls from signin-net.js and the three key functions from signin-crypto.js.
-// Every message is written with textContent, and the password field is emptied after every run.
+// from signin.js, the four calls from signin-net.js, the first-login keys upload from bootstrap-net.js, the
+// pending-sealed conversion from pending-sealed.js, and the three key functions from signin-crypto.js. Every
+// message is written with textContent, and the password field is emptied after every run.
 import * as cryptoModule from './signin-crypto.js';
 import { createSignin } from './signin.js';
 import { createNet } from './signin-net.js';
+import { createBootstrapCrypto } from './bootstrap-crypto.js';
+import { createBootstrapNet } from './bootstrap-net.js';
+import { createCipher } from './aesgcm.js';
+import { unseal } from './unseal.js';
+import { createRecordEncrypt } from './conversion-encrypt.js';
+import { createRecordUpload } from './conversion-upload.js';
+import { createPendingSealed } from './pending-sealed.js';
+import { createPendingSealedNet } from './pending-sealed-net.js';
 
 export const PAGE_MESSAGES = Object.freeze({
   not_available: 'Signing in through the website is not available yet, so this page cannot hand your sign-in to the app.',
@@ -38,7 +47,7 @@ export function initSigninPage({ document, window, location, history, fetch, cry
     try {
       const result = await signin.run({ username: username.value, typedText: typed });
       ok = result.ok === true;
-      say(ok ? PAGE_MESSAGES.signed_in : result.message);
+      say(result.ok ? PAGE_MESSAGES.signed_in + (result.summary ? ' ' + result.summary : '') : result.message);
     } finally {
       typed = '';
       password.value = '';
@@ -55,6 +64,24 @@ export function initSigninPage({ document, window, location, history, fetch, cry
   }
 
   const net = createNet(fetch);
+  // The first-login keys upload is bootstrap-net.js's one net call, built with the page's own base URL (the same
+  // root the four calls use) and the page's fetch. Page code passes neither the random nor the wipe hook.
+  const bootstrapNet = createBootstrapNet({ baseUrl: '', fetchFn: fetch });
+  // The pending-sealed conversion runs between the tamper check and the seal. Its own render writes
+  // nothing to the page; the flow reads only the counts and the page shows one summary line.
+  const pendingNet = createPendingSealedNet({ baseUrl: '', fetchFn: fetch });
+  const silentRender = { showMessage() {}, showSignedOut() {} };
+  const convert = async (cur, keys) => {
+    const encrypt = createRecordEncrypt({ cipher: createCipher(keys.dek) });
+    const upload = createRecordUpload({ baseUrl: '', fetchFn: fetch, getToken: () => cur.token });
+    const conversion = createPendingSealed({
+      unseal,
+      encrypt,
+      upload,
+      fetch: pendingNet.fetchPendingSealed,
+    });
+    return conversion.run(cur.token, keys.boxKey, keys.keyVersion, silentRender);
+  };
   signin = createSignin({
     cleanUrl,
     history,
@@ -65,6 +92,9 @@ export function initSigninPage({ document, window, location, history, fetch, cry
     boxPublicKey: crypto.boxPublicKey,
     seal: crypto.seal,
     startHandoff: net.startHandoff,
+    bootstrap: createBootstrapCrypto().bootstrap,
+    postKeys: bootstrapNet.postKeys,
+    convert,
     logout: net.logout,
   });
   window.addEventListener('pagehide', () => {

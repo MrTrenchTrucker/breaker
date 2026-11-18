@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { MESSAGES } from '../../main/resources/web/js/signin.js';
 import { encodeBase64Padded } from '../../main/resources/web/js/signin-link.js';
 import {
-  BOX_PUB, CODE_TEXT, SEALED, VERIFIER, deferred, flipped, isZero, loginAnswer, makeInput, patterned,
-  readySignin, saltAnswer, sessionText, settle,
+  BOX_PUB, CODE_TEXT, SEALED, VERIFIER, bootstrapAnswer, bootstrapDeps, deferred, flipped, isZero,
+  loginAnswer, makeInput, patterned, readySignin, saltAnswer, sessionText, settle,
 } from './signin-fixtures.mjs';
 
 const secondSessionText = sessionText.toUpperCase();
@@ -76,8 +76,17 @@ test('login status 200 with an empty token never calls logout', () =>
 test('login status 200 with a number token never calls logout', () =>
   assertNoLogout({ login: async () => loginAnswer({ token: 4242 }) }, 'network'));
 
-test('keyless account calls logout once with the token', () =>
-  assertOneLogout({ login: async () => loginAnswer({ wrapped_dek: null, wrapped_box_privkey: null }) }, 'keyless'));
+test('a keyless account bootstraps, uploads and calls logout once with the token', async () => {
+  let uploaded = 0;
+  const { rec, signin } = readySignin({
+    ...bootstrapDeps(),
+    postKeys: async () => { uploaded += 1; return { ok: true, keyVersion: 1 }; },
+  });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
+  assert.deepEqual(rec.logout, [sessionText]);
+  assert.equal(rec.log.filter((name) => name === 'logout').length, 1);
+  assert.equal(uploaded, 1);
+});
 
 test('a bad wrapped key calls logout once with the token', () =>
   assertOneLogout({
@@ -158,7 +167,7 @@ test('a wipeAll during the start wait logs out once', async () => {
 
 test('success logs out once with the token between start and replace', async () => {
   const { signin, rec } = readySignin();
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.deepEqual(rec.logout, [sessionText]);
   assert.deepEqual(rec.log, ['salt', 'derive', 'login', 'box', 'seal', 'start', 'logout', 'replace']);
   assert.equal(rec.replaced.length, 1);
@@ -173,7 +182,7 @@ test('replace does not happen until a held logout settles', async () => {
   assert.deepEqual(rec.logout, [sessionText]);
   assert.equal(rec.replaced.length, 0);
   rec.logoutHold.resolve();
-  assert.deepEqual(await pending, { ok: true });
+  assert.deepEqual(await pending, { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.equal(rec.replaced.length, 1);
 });
 
@@ -194,7 +203,7 @@ test('a wipeAll while the success logout is held stops the run with network and 
 test('a rejecting logout does not change the success result', async () => {
   const { signin, rec } = readySignin();
   rec.logoutMode = 'reject';
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.equal(rec.replaced.length, 1);
   assert.equal(rec.logout.length, 1);
 });
@@ -202,48 +211,56 @@ test('a rejecting logout does not change the success result', async () => {
 test('a throwing logout does not change the success result', async () => {
   const { signin, rec } = readySignin();
   rec.logoutMode = 'throw';
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.equal(rec.replaced.length, 1);
   assert.equal(rec.logout.length, 1);
 });
 
-test('a rejecting logout does not change the keyless failure result', async () => {
-  const { signin, rec } = readySignin({ login: async () => loginAnswer({ wrapped_dek: null, wrapped_box_privkey: null }) });
+test('a rejecting logout does not change the keyless bootstrap result', async () => {
+  let uploaded = 0;
+  const { signin, rec } = readySignin({
+    ...bootstrapDeps(),
+    postKeys: async () => { uploaded += 1; return { ok: true, keyVersion: 1 }; },
+  });
   rec.logoutMode = 'reject';
-  assert.deepEqual(await signin.run(makeInput()), { ok: false, code: 'keyless', message: MESSAGES.keyless });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.equal(rec.logout.length, 1);
+  assert.equal(uploaded, 1);
 });
 
-test('a throwing logout does not change the keyless failure result', async () => {
-  const { signin, rec } = readySignin({ login: async () => loginAnswer({ wrapped_dek: null, wrapped_box_privkey: null }) });
+test('a throwing logout does not change the keyless bootstrap result', async () => {
+  let uploaded = 0;
+  const { signin, rec } = readySignin({
+    ...bootstrapDeps(),
+    postKeys: async () => { uploaded += 1; return { ok: true, keyVersion: 1 }; },
+  });
   rec.logoutMode = 'throw';
-  assert.deepEqual(await signin.run(makeInput()), { ok: false, code: 'keyless', message: MESSAGES.keyless });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.equal(rec.logout.length, 1);
+  assert.equal(uploaded, 1);
 });
 
 test('the success result carries no token', async () => {
   const { signin } = readySignin();
   const result = await signin.run(makeInput());
-  assert.deepEqual(Object.keys(result), ['ok']);
-  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(Object.keys(result), ['ok', 'summary']);
+  assert.deepEqual(result, { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
 });
 
 test('the failure result carries no token', async () => {
-  const { signin } = readySignin({ login: async () => loginAnswer({ wrapped_dek: null, wrapped_box_privkey: null }) });
+  const refused = { ok: false, code: 'conflict', message: MESSAGES.upload_refused };
+  const { signin } = readySignin(bootstrapDeps(bootstrapAnswer(), refused));
   const result = await signin.run(makeInput());
   assert.deepEqual(Object.keys(result), ['ok', 'code', 'message']);
 });
 
-test('the logout on a keyless failure sees the secret arrays already zero', async () => {
-  let liveAtLogin = false;
-  const made = readySignin({
-    login: async () => {
-      liveAtLogin = made.rec.verifierRefs.length === 1 && !isZero(made.rec.verifierRefs[0]);
-      return loginAnswer({ wrapped_dek: null, wrapped_box_privkey: null });
-    },
-  });
-  assert.equal((await made.signin.run(makeInput())).code, 'keyless');
-  assert.equal(liveAtLogin, true);
+test('the logout after a refused keyless upload sees the new secret arrays already zero', async () => {
+  const answer = bootstrapAnswer();
+  const refused = { ok: false, code: 'conflict', message: MESSAGES.upload_refused };
+  const made = readySignin(bootstrapDeps(answer, refused));
+  assert.equal((await made.signin.run(makeInput())).code, 'upload_refused');
+  assert.equal(isZero(answer.dek), true);
+  assert.equal(isZero(answer.boxPrivkey), true);
   assert.equal(made.rec.logoutZero[0].count > 0, true);
   assert.equal(made.rec.logoutZero[0].allZero, true);
 });
@@ -251,14 +268,17 @@ test('the logout on a keyless failure sees the secret arrays already zero', asyn
 test('two runs with two tokens each log out their own token', async () => {
   let nextToken = sessionText;
   const { signin, rec } = readySignin({ login: async () => loginAnswer({ token: nextToken }) });
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   nextToken = secondSessionText;
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.deepEqual(rec.logout, [sessionText, secondSessionText]);
 });
 
-test('a held logout on a failure path does not hold the result', async () => {
-  const { signin, rec } = readySignin({ login: async () => loginAnswer({ wrapped_dek: null, wrapped_box_privkey: null }) });
+test('a held logout on a keys upload failure does not hold the result', async () => {
+  const { signin, rec } = readySignin({
+    ...bootstrapDeps(),
+    postKeys: async () => ({ ok: false, code: 'conflict', message: 'This account already has keys, so nothing was stored.' }),
+  });
   rec.logoutMode = 'hold';
   let finished = false;
   const pending = signin.run(makeInput()).then((result) => { finished = true; return result; });
@@ -267,5 +287,5 @@ test('a held logout on a failure path does not hold the result', async () => {
   assert.deepEqual(rec.logout, [sessionText]);
   assert.equal(finished, true);
   rec.logoutHold.resolve();
-  assert.equal((await pending).code, 'keyless');
+  assert.equal((await pending).code, 'upload_refused');
 });

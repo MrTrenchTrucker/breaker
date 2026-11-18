@@ -62,7 +62,7 @@ for (const [label, aad] of [['the purpose text', 'breaker-box-privkey-v1'], ['nu
 
 test('the happy login with the box blob under its AAD reaches the seal step', async () => {
   const { signin, rec } = readySignin();
-  assert.deepEqual(await signin.run(makeInput()), { ok: true });
+  assert.deepEqual(await signin.run(makeInput()), { ok: true, summary: 'Pending transcriptions: 0 converted, 0 skipped, 0 failed.' });
   assert.deepEqual(rec.log, SEAL_ORDER);
 });
 

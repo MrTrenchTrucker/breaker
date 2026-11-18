@@ -196,7 +196,7 @@ def seal_facade(text):
     names = sorted(re.findall(r"^export\s+(?:async\s+)?(?:function\*?|const|let|var|class)\s+(\w+)", text, re.M))
     bare = re.search(r"^export\s*(?:\{|default\b)", text, re.M)
     ok = (names == sorted(FACADE_NAMES) and bare is None and _held(text, FACADE_SEAL) == 1
-          and _held(text, FACADE_IMPORT) == 1 and _held(text, "export const available = false;") == 1
+          and _held(text, FACADE_IMPORT) == 1 and _held(text, "export const available = true;") == 1
           and "getSharedSecret" not in text)
     return [] if ok else [CRYPTO + ": the facade is not the four exports with the seal line"]
 
@@ -259,10 +259,10 @@ CONTROLS = [
     ("seal_wiring_wrapped", seal_wiring, "page", "    seal: crypto.seal,",
      "    seal: (a, b, c) => crypto.seal(a, b, c),"),
     ("seal_registry_dropped", seal_registry, "registry", "js/signin-seal.js, ", ""),
-    ("seal_facade_holds_shared_secret", seal_facade, "crypto", "export const available = false;",
-     "export const available = false;\nconst unused = x25519.getSharedSecret;"),
-    ("seal_facade_extra_export", seal_facade, "crypto", "export const available = false;",
-     "export const available = false;\nexport const extra = 1;"),
+    ("seal_facade_holds_shared_secret", seal_facade, "crypto", "export const available = true;",
+     "export const available = true;\nconst unused = x25519.getSharedSecret;"),
+    ("seal_facade_extra_export", seal_facade, "crypto", "export const available = true;",
+     "export const available = true;\nexport const extra = 1;"),
 ]
 
 

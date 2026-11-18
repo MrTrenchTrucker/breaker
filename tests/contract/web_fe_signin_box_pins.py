@@ -31,7 +31,7 @@ THROW = re.compile(r"\bthrow\b")
 TOKENS = ["randomBytes", "getRandomValues", "Math" ".random", "console", "fetch", "localStorage", ".fill("]
 SEAL_LINE = ("export function seal(plaintext, recipientPublic, ephemeralPrivate) { "
              "return sealBox(plaintext, recipientPublic, ephemeralPrivate); }")
-AVAILABLE_LINE = "export const available = false;"
+AVAILABLE_LINE = "export const available = true;"
 GUARD_LINE = "    if (!(boxKey instanceof Uint8Array) || boxKey.length !== 32) return null;"
 CALL_LINE = "    return x25519.getPublicKey(boxKey);"
 CATCH_LINE = "  } catch { return null; }"
@@ -127,7 +127,7 @@ def box_seal_stub(text):
 def box_available(text):
     if text is None:
         return [CRYPTO + ": missing file"]
-    return [] if _held(text, AVAILABLE_LINE) == 1 else [CRYPTO + ": available is not exactly false"]
+    return [] if _held(text, AVAILABLE_LINE) == 1 else [CRYPTO + ": available is not exactly true"]
 
 
 BASE = [
@@ -176,7 +176,7 @@ MUTANTS = [
      "    console.log(boxKey.length);\n" + CALL_LINE),
     ("box_seal_returns_null", box_seal_stub, SEAL_LINE,
      "export function seal(plaintext, recipientPublic, ephemeralPrivate) { return null; }"),
-    ("box_available_true", box_available, AVAILABLE_LINE, "export const available = true;"),
+    ("box_available_false", box_available, AVAILABLE_LINE, "export const available = false;"),
 ]
 
 

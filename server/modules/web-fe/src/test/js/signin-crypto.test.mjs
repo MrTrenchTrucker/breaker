@@ -15,8 +15,8 @@ const floor = {
 };
 const salt16 = fromHex(MAIN.saltHex);
 
-test('the facade reports available as exactly false', () => {
-  assert.strictEqual(facade.available, false);
+test('the facade reports available as exactly true', () => {
+  assert.strictEqual(facade.available, true);
 });
 
 test('the facade exports exactly available, derive, boxPublicKey and seal', () => {

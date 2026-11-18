@@ -2,16 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MESSAGES } from '../../main/resources/web/js/signin.js';
 import { PAGE_MESSAGES } from '../../main/resources/web/js/signin-page.js';
+import { x25519 } from '../../main/resources/web/js/vendor/noble-curves/ed25519.js';
 import {
   CLEAN_URL, fakeCrypto, fillForm, happyRoutes, mountPage, pagehideHandler, response, submitEvent,
   submitHandler, unavailableCrypto, until,
 } from './signin-page-fixtures.mjs';
-import { KEK, VERIFIER, deferred, isZero, saltAnswer, typedText } from './signin-fixtures.mjs';
+import { KEK, VERIFIER, deferred, isZero, loginAnswer, saltAnswer, typedText } from './signin-fixtures.mjs';
 
 const NOT_AVAILABLE = 'Signing in through the website is not available yet, so this page cannot hand your sign-in to the app.';
 const BAD_SETUP = 'This page could not be set up safely, so nothing was sent.';
 const SIGNED_IN = 'Signed in. Returning to the app.';
-
+const SIGNED_IN_LINE = SIGNED_IN + ' Pending transcriptions: 0 converted, 0 skipped, 0 failed.';
 test('crypto unavailable disables the inputs and the submit', () => {
   const m = mountPage({ crypto: unavailableCrypto([]) });
   assert.equal(m.els['signin-username'].disabled, true);
@@ -150,7 +151,7 @@ test('the password field is emptied after a successful run', async () => {
 test('the password field is emptied after a thrown run', async () => {
   const m = mountPage();
   fillForm(m);
-  m.els['signin-status'].throwOn = SIGNED_IN;
+  m.els['signin-status'].throwOn = SIGNED_IN_LINE;
   await assert.rejects(submitHandler(m)(submitEvent()), /status write refused/);
   assert.equal(m.els['signin-password'].value, '');
 });
@@ -167,8 +168,28 @@ test('the status shows the signed in text on success', async () => {
   const m = mountPage();
   fillForm(m);
   await submitHandler(m)(submitEvent());
-  assert.equal(m.els['signin-status'].textContent, SIGNED_IN);
+  assert.equal(m.els['signin-status'].textContent, SIGNED_IN_LINE);
   assert.equal(m.loc.replaced.length, 1);
+});
+
+test('a keyless account bootstraps through the page wiring and uploads the new keys', async () => {
+  // The page builds the real bootstrap, so the stand-in derives the real public key from the generated key.
+  const crypto = fakeCrypto([], { boxPublicKey: (boxKey) => x25519.getPublicKey(boxKey) });
+  const m = mountPage({
+    crypto,
+    answers: happyRoutes({
+      '/v1/auth/login': async () => response(200, loginAnswer({ wrapped_dek: null, wrapped_box_privkey: null }).body),
+      '/v1/auth/keys': async () => response(200, { key_version: 1 }),
+    }),
+  });
+  fillForm(m);
+  await submitHandler(m)(submitEvent());
+  assert.equal(m.els['signin-status'].textContent, SIGNED_IN_LINE);
+  const upload = m.calls.filter((call) => call.url === '/v1/auth/keys');
+  assert.equal(upload.length, 1);
+  // the source pin caps a quoted literal, so the longest member name is two parts
+  const names = ['box_pubkey', 'wrapped_' + 'box_privkey', 'wrapped_dek'];
+  assert.deepEqual(Object.keys(upload[0].body).sort(), names);
 });
 
 test('the submit is disabled while a run is held', async () => {

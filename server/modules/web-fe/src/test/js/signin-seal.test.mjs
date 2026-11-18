@@ -140,7 +140,7 @@ test('the facade seal gives the shared 65 byte box for the vector keys', () => {
   assert.equal(hex(out), PACKAGE.boxHex);
 });
 
-test('the facade still exports exactly four names and available is exactly false', () => {
+test('the facade still exports exactly four names and available is exactly true', () => {
   assert.deepEqual(Object.keys(facade).sort(), ['available', 'boxPublicKey', 'derive', 'seal']);
-  assert.strictEqual(facade.available, false);
+  assert.strictEqual(facade.available, true);
 });

@@ -216,8 +216,8 @@ def crypto_import(key, text):
 
 
 def crypto_available(key, text):
-    ok = "available = false" in text and not re.search(r"\bavailable\s*=\s*true", text)
-    return [] if ok else [key + ": available is not false"]
+    ok = "available = true" in text and not re.search(r"\bavailable\s*=\s*false", text)
+    return [] if ok else [key + ": available is not true"]
 
 
 def crypto_exports(key, text):
@@ -239,7 +239,14 @@ def forbidden(key, text):
 def page_imports(key, text):
     paths = sorted(re.findall(r"^\s*import\b[^'\"]*['\"]([^'\"]+)['\"]", text, re.M))
     statements = len(re.findall(r"^\s*import\b", text, re.M))
-    ok = statements == 3 and paths == sorted(["./signin.js", "./signin-crypto.js", "./signin-net.js"])
+    # The page wires the first-login keys upload and the pending-sealed conversion, so it also builds the
+    # bootstrap crypto/net modules, the cipher, the unseal, the encrypt/upload adapters and the conversion.
+    ok = statements == 11 and paths == sorted([
+        "./signin.js", "./signin-crypto.js", "./signin-net.js",
+        "./bootstrap-crypto.js", "./bootstrap-net.js",
+        "./aesgcm.js", "./unseal.js", "./conversion-encrypt.js", "./conversion-upload.js",
+        "./pending-sealed.js", "./pending-sealed-net.js",
+    ])
     return [] if ok else [key + ": imports " + ", ".join(paths)]
 
 
@@ -323,21 +330,31 @@ RULES = [
     ("css_vars", css_vars, CSS, "color: var(--color-text);", "color: var(--color-missing);"),
     ("css_hidden", _file(CSS, css_hidden), CSS, "[hidden] { display: none; }", "[hidden] { display: block; }"),
     ("css_focus_and_touch", _file(CSS, css_focus_and_touch), CSS, ":focus-visible", ":focus-within"),
-    ("crypto_lines", _file(CRYPTO, crypto_lines), CRYPTO, "export const available = false;",
-     "export const available = false;" + "\n//" * 30),
-    ("crypto_no_import", _file(CRYPTO, crypto_import), CRYPTO, "export const available = false;",
-     "import { x } from './x.js';\nexport const available = false;"),
-    ("crypto_available", _file(CRYPTO, crypto_available), CRYPTO, "export const available = false;",
-     "export const available = true;"),
-    ("crypto_exports", _file(CRYPTO, crypto_exports), CRYPTO, "export const available = false;",
-     "export const available = false;\nexport const extra = 1;"),
+    ("crypto_lines", _file(CRYPTO, crypto_lines), CRYPTO, "export const available = true;",
+     "export const available = true;" + "\n//" * 30),
+    ("crypto_no_import", _file(CRYPTO, crypto_import), CRYPTO, "export const available = true;",
+     "import { x } from './x.js';\nexport const available = true;"),
+    ("crypto_available", _file(CRYPTO, crypto_available), CRYPTO, "export const available = true;",
+     "export const available = false;"),
+    ("crypto_exports", _file(CRYPTO, crypto_exports), CRYPTO, "export const available = true;",
+     "export const available = true;\nexport const extra = 1;"),
     ("crypto_throws", _file(CRYPTO, crypto_throws), CRYPTO,
      "export function seal(plaintext, recipientPublic, ephemeralPrivate) { return sealBox(plaintext, recipientPublic, ephemeralPrivate); }",
      "export function seal() { throw new Error('not available'); }"),
     ("page_forbidden", _file(PAGE, forbidden), PAGE, "export const PAGE_MESSAGES",
      "x.innerHTML = 1;\nexport const PAGE_MESSAGES"),
-    ("page_imports", _file(PAGE, page_imports), PAGE, "import { createSignin } from './signin.js';",
-     "import { createSignin } from './signin.js';\nimport './extra.js';"),
+    ("page_imports", _file(PAGE, page_imports), PAGE,
+     "import * as cryptoModule from './signin-crypto.js';\n"
+     "import { createSignin } from './signin.js';\n"
+     "import { createNet } from './signin-net.js';\n"
+     "import { createBootstrapCrypto } from './bootstrap-crypto.js';\n"
+     "import { createBootstrapNet } from './bootstrap-net.js';",
+     "import * as cryptoModule from './signin-crypto.js';\n"
+     "import { createSignin } from './signin.js';\n"
+     "import { createNet } from './signin-net.js';\n"
+     "import { createBootstrapCrypto } from './bootstrap-crypto.js';\n"
+     "import { createBootstrapNet } from './bootstrap-net.js';\n"
+     "import './extra.js';"),
     ("net_forbidden", _file(NET, forbidden), NET, "return { urls: URLS, fetchFn };",
      "return { urls: URLS, fetchFn, html: x.innerHTML };"),
     ("net_no_document_or_window", _file(NET, net_no_document_or_window), NET,
@@ -400,7 +417,7 @@ GOOD_CRYPTO = "\n".join([
     "import { stretch } from './signin-kdf.js';",
     "import { x25519 } from './vendor/noble-curves/ed25519.js';",
     "import { seal as sealBox } from './signin-seal.js';",
-    "export const available = false;",
+    "export const available = true;",
     "export async function derive(password, salt, kdf) { try { return await stretch(password, salt, kdf); } catch { return null; } }",
     "export function boxPublicKey(boxKey) {",
     "  try {",
@@ -412,8 +429,16 @@ GOOD_CRYPTO = "\n".join([
 ]) + "\n"
 GOOD_PAGE = "\n".join([
     "import * as cryptoModule from './signin-crypto.js';",
-    "import { createNet } from './signin-net.js';",
     "import { createSignin } from './signin.js';",
+    "import { createNet } from './signin-net.js';",
+    "import { createBootstrapCrypto } from './bootstrap-crypto.js';",
+    "import { createBootstrapNet } from './bootstrap-net.js';",
+    "import { createCipher } from './aesgcm.js';",
+    "import { unseal } from './unseal.js';",
+    "import { createRecordEncrypt } from './conversion-encrypt.js';",
+    "import { createRecordUpload } from './conversion-upload.js';",
+    "import { createPendingSealed } from './pending-sealed.js';",
+    "import { createPendingSealedNet } from './pending-sealed-net.js';",
     "export const PAGE_MESSAGES = Object.freeze({",
     "  not_available: '" + NOT_AVAILABLE + "',",
     "});",
