@@ -9,7 +9,8 @@ import org.junit.Test
 /**
  * The two approved constraints of the Home mic's halo, and the readability of the words drawn over it.
  *
- * The gate pins [GlowSpec.SCREEN] at the Home slot sizes 100 dp and 150 dp: the upward reach the halo
+ * The gate pins [GlowSpec.SCREEN] at the Home slot sizes 100 dp and 150 dp, which bracket the real
+ * Home slot range 75 dp to 112.5 dp after the owner-ordered 25% shrink: the upward reach the halo
  * draws ([ArtGeometry.halo]'s upwardPx, which is [GlowSpec.upwardReachDp]) stays at or under the card
  * bottom above the mic centre ([ArtGeometry.cardBottomDp]), and the halo's sideways reach never exceeds
  * half the page column, so the halo cannot leave the window. The readability test blends the halo's

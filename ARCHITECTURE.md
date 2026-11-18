@@ -208,7 +208,7 @@ admins.
       menu, not from Settings.
 - F45. **Home mic works like the tile:** the mic on Home is the floating tile's
       mic, drawn and driven by the same code, sized so the whole Home screen
-      fits without scrolling (from 610 dp usable height), and shown as a button. One tap records; while it
+      fits without scrolling (from 585 dp usable height; not yet checked on the owner's phone), and shown as a button. One tap records; while it
       records the grille follows the voice level and an X (left) and a check
       (right) sit beside it, as on the tile. The check, or a second tap on the
       mic, ends the recording; the text is saved to history and copied to the

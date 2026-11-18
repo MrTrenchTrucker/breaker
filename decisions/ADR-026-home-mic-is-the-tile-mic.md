@@ -73,10 +73,12 @@ holds, and what the APK 8 phone test showed is still missing:
   (`HomeTakeWiring`) derives and pushes the busy and sending faces to the Home
   mic too (`homeMicFace` returns `TileState.MIC_BUSY` and `TileState.SENDING`).
 - **Slot size (built).** The ui module gives the mic a slot of
-  `HomeGeometry.slotHeightDp(usable)`, held between 100 and 150 dp
-  (`MIC_SLOT_MIN_DP`, `MIC_SLOT_MAX_DP`), and centres the mic in it
-  (`HomeHostView.attachMicSlot`); below a 610 dp usable height the slot keeps
-  its floor and the page may scroll (`HomeFitTest`).
+  `HomeGeometry.slotHeightDp(usable)`, held between 75 and 112.5 dp
+  (`MIC_SLOT_MIN_DP`, `MIC_SLOT_MAX_DP`; 25% smaller by the owner's order,
+  2026-11-18, so the art phone's 130 dp slot becomes 112.5 dp), and centres the
+  mic in it (`HomeHostView.attachMicSlot`); below a 585 dp usable height the
+  slot keeps its floor and the page may scroll (`HomeFitTest`). The fit on the
+  owner's phone is not checked yet.
 - **Labels and accessibility (built).** The labels (Tap to talk, Cancel, Done)
   exist once, in the ui module's `HomeControl` companion read from
   `HomeTexts`; the app passes them to the overlay, which holds no literal. The

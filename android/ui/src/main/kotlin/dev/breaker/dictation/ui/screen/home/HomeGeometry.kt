@@ -159,12 +159,12 @@ internal object HomeGeometry {
     const val STRIPE_SLANT_DEG: Float = 12f
 
     // The mic slot, in dp: the slot takes what a usable height leaves after the non-mic parts of the
-    // page, held between a floor and a cap. The floor is where the mic button and the two marks that
-    // sit beside it while it records stop reading as a button; the cap is where a taller phone stops
-    // growing it. On the art's 360x640 dp phone the slot is 130 dp: the floor is reached at 610 dp of
-    // usable height, and the cap at 660 dp.
-    const val MIC_SLOT_MIN_DP: Float = 100f
-    const val MIC_SLOT_MAX_DP: Float = 150f
+    // page (about 510 dp), held between a floor and a cap. The floor is where the mic button and the
+    // two marks that sit beside it while it records stop reading as a button; the cap is where a
+    // taller phone stops growing it. The floor is reached at 585 dp of usable height (510 + 75), the
+    // cap at 622.5 dp (510 + 112.5); on the art's 360x640 dp phone the slot is 112.5 dp, the cap.
+    const val MIC_SLOT_MIN_DP: Float = 75f
+    const val MIC_SLOT_MAX_DP: Float = 112.5f
 
     // The drawer, in px: the panel 400 wide; the mic scale 0.07; the wordmark 84/68, cap 40; the rule 132..134;
     // the four items at y 170 + i*72 with a divider 70 below each label's top, x 30..370, 1 tall; the three stripes at y0 1100 + i*18, 10 tall, at 0..260, 30..330, 0..190.
@@ -304,7 +304,7 @@ internal object HomeGeometry {
      * non-mic parts, held between the slot's floor and its cap. The overlay module builds the mic
      * view and this is the height the slot gives it (ADR-026); the page fits the usable height while
      * the subtraction is at or above the floor, and below that the slot keeps the floor and the page
-     * may scroll, so the fit rule does not apply under 610 dp.
+     * may scroll, so the fit rule does not apply under 585 dp.
      */
     fun slotHeightDp(usableDp: Float): Float =
         (usableDp - nonMicHeightDp()).coerceIn(MIC_SLOT_MIN_DP, MIC_SLOT_MAX_DP)
