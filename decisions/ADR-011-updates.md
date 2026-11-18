@@ -13,7 +13,7 @@ Rebuild the updater properly: the app polls `GET /v1/updates/latest.json`
 **once a day** (plus an admin force-check button); the endpoint reads the
 latest tagged release from the user's local GIT server. **(replaced 2026-11-10: see the amendment below.)** Updates are **signed
 APKs** verified by signature + SHA-256 before install; install-over preserves
-data. The previous APK is kept for one-tap rollback. The signing key lives in a
+data. The previous APK is kept for one-tap rollback. **(replaced 2026-11-18: see the amendment below.)** The signing key lives in a
 secrets store, never in git [1].
 
 ## Reasons
@@ -21,7 +21,7 @@ secrets store, never in git [1].
   convenience of pushed updates.
 
 ## Consequences
-Rules in: `/v1/updates/latest.json`, APK signing pipeline, rollback button.
+Rules in: `/v1/updates/latest.json`, APK signing pipeline, rollback button **(replaced 2026-11-18: see the amendment below.)**.
 Rules out: the base repo's updater, unsigned updates, plaintext keys.
 
 ## Amendment 2026-11-05: the version order and the release bump
@@ -40,7 +40,7 @@ Rules out: the base repo's updater, unsigned updates, plaintext keys.
 
 **Evidence from today's builds.** android/app/build.gradle.kts has versionCode = 1 at line 27 and versionName = "0.1.0-debug" at line 28. ADR-028 shows APKs 6, 7 and 8 share one signing certificate, certificate a8225bc3 (Context, lines 14-18), and an in-place update from APK 6 to APK 8 kept history and model on an emulator (Context, lines 11-13). ADR-028 also states android/app/build.gradle.kts sets versionCode = 1 for every build (line 39). A same-code install over the old app with install -r via adb has been done by hand; that is the adb path, not the app's own installer, to verify on a device.
 
-**Still open.** The app-installer equal-code case: what Android does when the app itself installs an APK whose versionCode equals the installed one, to verify on a device. Rollback versus Android's refusal to install a lower version code over a higher one, to verify on a device. The rest of the manifest and endpoint details. Nothing about these three is decided by this amendment.
+**Still open.** The app-installer equal-code case: what Android does when the app itself installs an APK whose versionCode equals the installed one, to verify on a device. Rollback versus Android's refusal to install a lower version code over a higher one (moot since the 2026-11-18 amendment: a re-offer always carries a higher version code). The rest of the manifest and endpoint details. Nothing about these three is decided by this amendment.
 
 ## Amendment 2026-11-09: where the updater reads the manifest
 
@@ -63,3 +63,13 @@ The signature scheme is Ed25519. The manifest `signature` is the canonical base6
 The release tool that writes the file is built in the deploy module: `write-manifest.sh` writes the six-field manifest and calls `sign-manifest.sh`, which signs with a key file the owner supplies by path and checks the signature before printing it; `serve-release.sh` puts the APK and the manifest on the `breaker_releases` volume, which sync-api reads through `BREAKER_SYNC_API_MANIFEST_FILE`. It has not run on a real release build.
 
 **Still open.** The real keys and their custody are the project owner's call. The app wiring that pins the key is built in android/app: a release build reads the owner's key list from the Gradle property `breakerUpdateKeysFile` (or the environment variable `BREAKER_UPDATE_KEYS_FILE`), fails when it names a bad file, and without one pins no key, so that app refuses every update. Not tried on a phone. A key-id field in the manifest for rotation is not built.
+
+## Amendment 2026-11-18: no rollback on the phone
+
+**Decided 2026-11-18** by the project owner, who typed: "Drop roll back button yes ... We don't need roll back especially on the app." This replaces the rollback sentences of the Decision and the Consequences above; they are marked where they stand.
+
+**What changes.** The phone has no Roll back button and no rollback action. The About screen's admin rows will be only "Check for updates" and "Install update", and "Install update" shows only while an update is offered (the About screen is not built yet). The phone does not hold a re-offered older build. A server re-offer of an older build under a higher version_code (written with `write-manifest.sh --rollback-offer`) is an ordinary update: the check offers it and "Install update" installs it, like any other. The server re-offer is the way to undo a bad release. The phone keeps no APK.
+
+Server-side deploy rollback (`rollback.sh`, `git-pull.sh --previous`, the recovery in `update.sh`) is a different thing and stays as it is.
+
+**Built vs planned.** Built today: the held-rollback code in `android/modules/updater` (`RollbackOffer`, `HeldRollback`, `RollbackAwareCheck`, `RollbackReasons`, and the rollback path of `UpdateCheckerImpl`). It holds a re-offered older build, and it refuses a non-admin rollback. Planned, not built: removing that code and the core port's `rollback()`. That is a later slice. Until it lands, the built updater still holds a rollback-shaped offer, and the code does not match this decision.

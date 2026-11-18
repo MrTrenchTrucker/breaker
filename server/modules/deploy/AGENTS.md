@@ -90,7 +90,7 @@ The release tool that writes and signs the manifest is built (`write-manifest.sh
 
 - The rollback marker is NOT a member: the route rebuilds its answer from the six fields, so an extra member would never reach a phone. `--rollback-offer` is a writer flag and changes nothing in the file.
 - The four-part name rule is tighter than the app decoder on purpose: the app accepts any non-blank version string without a control character; the tool writes only `A.B.C.D`.
-- A rollback offer = a higher `version_code` AND a strictly lower four-part name than the manifest being replaced. It is made from a bump commit on the older source (both version literals raised, a new tag) by the project owner; the tool never edits `android/app`. Without `--rollback-offer` a lower name is refused; with it the tool requires `--current-manifest` and refuses an equal or higher name.
+- A rollback offer = a higher `version_code` AND a strictly lower four-part name than the manifest being replaced. It is made from a bump commit on the older source (both version literals raised, a new tag) by the project owner; the tool never edits `android/app`. Without `--rollback-offer` a lower name is refused; with it the tool requires `--current-manifest` and refuses an equal or higher name. On the phone a re-offer is an ordinary update (decided 2026-11-18: no rollback on the phone); until the updater change lands, the built phone holds it instead.
 
 ## Release runbook
 
@@ -99,7 +99,7 @@ Built as scripts; the Gradle build step has not run on a real build (see Status 
 1. The operator makes a checkout of an app tag with plain git (a clone and a checkout of the tag `app-vA.B.C.D`). `git-pull.sh` accepts only plain release tags and so does not make one.
 2. `scripts/build-apk.sh --src DIR --out-dir OUT --update-keys FILE` (FILE is the owner's public update key list) - a heavy job: it needs the gate owner's BOX GO and is never run from 09:55 to 10:20Z.
 3. `scripts/sign-apk.sh --in OUT/breaker-A.B.C.D-unsigned.apk --keystore P12 --alias NAME --pass-file F --out-dir OUT`.
-4. `scripts/write-manifest.sh --apk OUT/breaker-A.B.C.D.apk --version-name A.B.C.D --version-code N --apk-url URL --notes-file F --key-file KEY --out FILE`, passing `--current-manifest` with the manifest now served (without it no check against the served release happens); add `--rollback-offer` for a re-offer of an older name.
+4. `scripts/write-manifest.sh --apk OUT/breaker-A.B.C.D.apk --version-name A.B.C.D --version-code N --apk-url URL --notes-file F --key-file KEY --out FILE`, passing `--current-manifest` with the manifest now served (without it no check against the served release happens); add `--rollback-offer` for a re-offer of an older name (the phone takes it as an ordinary update once the updater change lands; until then the built phone holds it).
 5. `scripts/serve-release.sh --apk OUT/breaker-A.B.C.D.apk --manifest FILE (--root DIR | --volume NAME)`.
 
 ## Deploy facts (built and run)

@@ -79,7 +79,7 @@ The app polls `/v1/updates/latest.json` once a day (and on admin force-check),
 verifies APK signature + SHA-256, and installs over the existing app (data
 preserved). This is a proper rebuild of the deleted in-app updater [1] — pointed
 at OUR server, signing key secured (never git) [1].
-Status: built with tests, not tried on a phone - the check, the download, the signature check, the verify step, the daily rule, the rollback offer, the install through the system installer, the daily timer, the key list and the app wiring are built; the Home buttons (the force check, the install and the rollback) are not built yet (another module); see the updater card.
+Status: built with tests, not tried on a phone - the check, the download, the signature check, the verify step, the daily rule, the rollback offer (still in the code; its removal is planned, decided 2026-11-18), the install through the system installer, the daily timer, the key list and the app wiring are built; the Home buttons (the force check and the install) are not built yet (another module); see the updater card.
 
 **D17 — Roles = first-account-is-admin.**
 The first account to register on the web FE is admin by default and can assign
@@ -180,9 +180,7 @@ local inference engine and uses Local Inference (FIFO multi-agent, Fast Lane pri
 **D27 — Log policy.**
 Logs record events per-user only — never plaintext transcriptions (F32, T22).
 
-**D28 — Update rollback.**
-The updater keeps the previous APK; a rollback button restores it if a release
-misbehaves.
+**D28 — Update rollback.** Superseded 2026-11-18: the phone has no rollback. A bad release is undone by a server re-offer (ADR-011, amendment 2026-11-18).
 
 **D29 — Agent token scopes.**
 `transcribe` (default) | `admin`. Admin-scoped tokens can trigger an account reset

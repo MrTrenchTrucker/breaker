@@ -173,7 +173,7 @@ card = "android/modules/training-client/AGENTS.md"
 
 [module.android_updater]
 path = "android/modules/updater"
-owns = "Daily update check + admin force-check, signed APK verify, rollback."
+owns = "Daily update check + admin force-check, signed APK verify."
 does_not_own = "Update endpoint (server/sync-api); APK signing (server/deploy)."
 depends_on = ["android", "android_core", "shared_api_contracts", "android_http"]
 public = "UpdateChecker, Updater, buildUpdater, UpdaterConfig, ApkInstaller, InstallResult, InstallReasons, TimerScheduler, UpdateTimes"
