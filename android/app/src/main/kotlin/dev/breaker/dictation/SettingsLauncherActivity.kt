@@ -100,7 +100,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             { app.compositionRoot.dictation.runner.sessionState == DictationState.RECORDING },
         )
         switchListener = takeWiring.switchListener
-        infoScreens = InfoScreensWiring(this, app.settingsStore, { homeView }) { setContentView(homeView); applyInsets(homeView!!) }
+        infoScreens = dev.breaker.dictation.wiring.infoScreensFor(this, app, { homeView }) { setContentView(homeView); applyInsets(homeView!!) }
         takeWiring.attach(home as dev.breaker.dictation.ui.HomeControl)
         setContentView(home)
         applyInsets(home)

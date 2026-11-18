@@ -3,7 +3,12 @@ package dev.breaker.dictation.wiring
 import android.app.Activity
 import android.os.Build
 import android.view.View
+import dev.breaker.dictation.BreakerApp
 import dev.breaker.dictation.core.port.SettingsStore
+import dev.breaker.dictation.core.port.UpdateChecker
+import dev.breaker.dictation.host.MainLooperPost
+import dev.breaker.dictation.host.OneShotBackground
+import dev.breaker.dictation.ui.AboutControl
 import dev.breaker.dictation.ui.createAboutView
 import dev.breaker.dictation.ui.createHowItWorksView
 
@@ -23,7 +28,12 @@ internal class InfoScreensWiring(
     private val settings: SettingsStore,
     private val homeView: () -> View?,
     private val onReturnHome: () -> Unit,
+    private val aboutBackground: Background,
+    private val aboutMain: MainPost,
+    private val aboutChecker: () -> UpdateChecker,
+    private val aboutIsAdmin: () -> Boolean,
 ) {
+    private var aboutRows: AboutControlWiring? = null
     private var howItWorksShown: Boolean = false
     private var aboutShown: Boolean = false
     private var backCallback: android.window.OnBackInvokedCallback? = null
@@ -43,6 +53,10 @@ internal class InfoScreensWiring(
         if (aboutShown) return
         aboutShown = true
         val view = createAboutView(activity, settings)
+        (view as? AboutControl)?.let { control ->
+            aboutRows = AboutControlWiring(control, aboutBackground, aboutMain, aboutChecker, aboutIsAdmin)
+                .also { it.bind() }
+        }
         activity.setContentView(view)
         applyInsets(view)
         registerBack()
@@ -52,6 +66,7 @@ internal class InfoScreensWiring(
     fun closeInfo() {
         howItWorksShown = false
         aboutShown = false
+        aboutRows = null
         unregisterBack()
         onReturnHome()
     }
@@ -84,3 +99,15 @@ internal class InfoScreensWiring(
         dev.breaker.dictation.wiring.applyInsets(view)
     }
 }
+
+internal fun infoScreensFor(
+    activity: Activity,
+    app: BreakerApp,
+    homeView: () -> View?,
+    onReturnHome: () -> Unit,
+): InfoScreensWiring = InfoScreensWiring(
+    activity, app.settingsStore, homeView, onReturnHome,
+    OneShotBackground("breaker-about-check"), MainLooperPost(),
+    { AppUpdater.updater(app).checker },
+    { appIsAdmin(app.compositionRoot.addressedSession) },
+)
