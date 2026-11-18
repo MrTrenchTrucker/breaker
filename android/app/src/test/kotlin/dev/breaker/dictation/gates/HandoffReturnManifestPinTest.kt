@@ -22,6 +22,9 @@ internal class HandoffReturnManifestPinTest {
         "android.permission.REQUEST_INSTALL_PACKAGES",
     )
 
+    // The one queries element of the app manifest (one intent, one action), a copy of the one in ManifestGateTest.kt.
+    private val queries: XmlExpect = XmlExpect("queries", emptyMap(), listOf(XmlExpect("intent", emptyMap(), listOf(XmlExpect("action", mapOf("android:name" to "android.content.pm.action.CONFIRM_INSTALL"), key = "android:name")))))
+
     // A copy of the allow-list in ManifestGateTest.kt; the two must be changed together.
     private fun allowed(): XmlExpect {
         val application = XmlExpect(
@@ -92,7 +95,7 @@ internal class HandoffReturnManifestPinTest {
         return XmlExpect(
             name = "manifest",
             attributes = mapOf("xmlns:android" to XmlTree.ANDROID_NAMESPACE),
-            children = permissions.map { XmlExpect("uses-permission", mapOf("android:name" to it), key = "android:name") } + application,
+            children = permissions.map { XmlExpect("uses-permission", mapOf("android:name" to it), key = "android:name") } + queries + application,
         )
     }
 

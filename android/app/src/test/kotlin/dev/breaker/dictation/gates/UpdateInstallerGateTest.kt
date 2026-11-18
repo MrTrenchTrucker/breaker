@@ -114,10 +114,10 @@ internal class UpdateInstallerGateTest {
     fun `the session id is checked against the own sessions and that answer is the decision input`() {
         pin(
             "the own session check",
-            """val\s+(\w+)\s*:\s*Boolean\s*=\s*ownSessions\s*\.\s*contains\s*\(\s*sessionId\s*\)[\s\S]*?InstallStatusRule\s*\.\s*decide\s*\(\s*status\s*,\s*confirm\s*!=\s*null\s*,\s*\1\s*\)""",
+            """val\s+(\w+)\s*:\s*Boolean\s*=\s*isOwnSession\s*\(\s*sessionId\s*,\s*received\s*\.\s*getStringExtra\s*\(\s*nonceExtra\s*\)\s*\)[\s\S]*?InstallStatusRule\s*\.\s*decide\s*\(\s*status\s*,\s*confirm\s*!=\s*null\s*,\s*\1\s*\)""",
             1,
             listOf(
-                listOf("ownSessions.contains(sessionId)" to "ownSessions.contains(NO_SESSION_ID)"),
+                listOf("isOwnSession(sessionId, received" to "isOwnSession(NO_SESSION_ID, received"),
                 listOf("confirm != null, ours)" to "confirm != null, !ours)"),
             ),
         )

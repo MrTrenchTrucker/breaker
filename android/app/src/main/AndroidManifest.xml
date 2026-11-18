@@ -4,7 +4,7 @@
 
   The app identity (namespace, applicationId, minSdk, targetSdk) is set in
   build.gradle.kts. This file names the application class, the launcher
-  activity, the return activity of the sign-in and the microphone service, and nothing else: no receivers
+  activity, the return activity of the sign-in and the microphone service, plus one queries block (see below), and nothing else: no receivers
   or providers are declared; the application names its launcher icon and round icon;
   the launcher activity carries the framework no-title-bar theme
   (@android:style/Theme.Material.Light.NoActionBar), so the app's window draws no
@@ -18,6 +18,13 @@
     POST_NOTIFICATIONS                show the service's ongoing notification
     SYSTEM_ALERT_WINDOW               draw the floating dictation tile over other apps
     REQUEST_INSTALL_PACKAGES          open the system installer for a verified update
+
+  The queries block below lets the app see one other app: the system package installer's confirm
+  screen. The install check looks that screen up before it hands over the verified APK, and on API 30
+  and later it cannot find the screen without this declaration, so every install would be abandoned.
+  It holds one intent with one action, android.content.pm.action.CONFIRM_INSTALL, and nothing else:
+  no package element is declared and no all-packages permission is held, so the app sees no other app.
+  Whether the install works on a device has not been verified.
 
   Cleartext is permitted here and in res/xml/network_security_config.xml, which
   trusts only the system's certificate authorities. The app's own code refuses
@@ -47,6 +54,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <queries>
+        <intent>
+            <action android:name="android.content.pm.action.CONFIRM_INSTALL" />
+        </intent>
+    </queries>
 
     <application
         android:name=".BreakerApp"

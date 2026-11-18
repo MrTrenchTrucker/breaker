@@ -8,8 +8,8 @@ import org.junit.Test
  * The service, wiring and host code logs nothing, starts no thread, timer or lock, reads no
  * clock and draws no random number; no main string says an http:// address; no main text
  * uses the one word the project bans for putting text into a field. Three named exceptions,
- * listed in AppThreadExceptions, may name the thread, handler and clock types they list; every
- * other rule still holds in all three files.
+ * listed in AppThreadExceptions, may name the thread, handler and clock types they list. One more
+ * exception (AppRandomException) lets only wiring/InstallNonce.kt name SecureRandom. Every rule still holds in all three files.
  *
  * Dictated text, audio and transcripts must never reach a log, a print or a toast, and
  * the new code does its waiting through signals, not through clocks and threads. The scan
@@ -132,6 +132,7 @@ internal class AppPrivacyScanTest {
         AppSourceFiles.offences(scanned(sources), ruleMap)
             .filterNot { it.startsWith("$logException: Log x") }
             .filterNot { AppThreadExceptions.lifts(it) }
+            .filterNot { AppRandomException.lifts(it, sources) }
 
     private fun httpOffences(sources: Map<String, String>): List<String> {
         val found: MutableList<String> = ArrayList()

@@ -32,6 +32,7 @@ internal class InfoScreensWiring(
     private val aboutMain: MainPost,
     private val aboutChecker: () -> UpdateChecker,
     private val aboutIsAdmin: () -> Boolean,
+    private val aboutInstallAnswers: InstallAnswerRelay,
 ) {
     private var aboutRows: AboutControlWiring? = null
     private var howItWorksShown: Boolean = false
@@ -54,7 +55,7 @@ internal class InfoScreensWiring(
         aboutShown = true
         val view = createAboutView(activity, settings)
         (view as? AboutControl)?.let { control ->
-            aboutRows = AboutControlWiring(control, aboutBackground, aboutMain, aboutChecker, aboutIsAdmin)
+            aboutRows = AboutControlWiring(control, aboutBackground, aboutMain, aboutChecker, aboutIsAdmin, aboutInstallAnswers)
                 .also { it.bind() }
         }
         activity.setContentView(view)
@@ -66,6 +67,7 @@ internal class InfoScreensWiring(
     fun closeInfo() {
         howItWorksShown = false
         aboutShown = false
+        aboutRows?.release()
         aboutRows = null
         unregisterBack()
         onReturnHome()
@@ -110,4 +112,5 @@ internal fun infoScreensFor(
     OneShotBackground("breaker-about-check"), MainLooperPost(),
     { AppUpdater.updater(app).checker },
     { appIsAdmin(app.compositionRoot.addressedSession) },
+    AppUpdater.installAnswers,
 )

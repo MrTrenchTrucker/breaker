@@ -8,7 +8,7 @@ import org.junit.Test
 
 /**
  * The app manifest declares seven permissions, the two icons, the launcher activity with its no-title-bar theme, the one return activity of the
- * sign-in and the one microphone service, and nothing else. The seventh permission, REQUEST_INSTALL_PACKAGES, is there because the updater hands a
+ * sign-in and the one microphone service, one queries element that names the install confirm action, and nothing else. The seventh permission, REQUEST_INSTALL_PACKAGES, is there because the updater hands a
  * verified APK to the system installer.
  * Adding a permission, a receiver, a provider, a second service, an export, an intent filter on the service, a clear-text setting that differs from
  * the allow-list value (true, because the app accepts a plain http address for the configured server) or any attribute or element beyond the
@@ -23,9 +23,9 @@ internal class ManifestGateTest {
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.SYSTEM_ALERT_WINDOW",
-        "android.permission.REQUEST_INSTALL_PACKAGES",
+        "android.permission.SYSTEM_ALERT_WINDOW", "android.permission.REQUEST_INSTALL_PACKAGES",
     )
+    private val queries: XmlExpect = XmlExpect("queries", emptyMap(), listOf(XmlExpect("intent", emptyMap(), listOf(XmlExpect("action", mapOf("android:name" to "android.content.pm.action.CONFIRM_INSTALL"), key = "android:name")))))
 
     private val good: String = """<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -36,6 +36,7 @@ internal class ManifestGateTest {
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <queries><intent><action android:name="android.content.pm.action.CONFIRM_INSTALL" /></intent></queries>
     <application
         android:name=".BreakerApp"
         android:label="@string/app_name"
@@ -84,8 +85,7 @@ internal class ManifestGateTest {
                 "android:name" to ".BreakerApp",
                 "android:label" to "@string/app_name",
                 "android:networkSecurityConfig" to "@xml/network_security_config",
-                // The app accepts a plain http address for the one configured server and refuses plain http to
-                // every other host in its own code, so the platform must permit cleartext: the value is now true.
+                // The app accepts a plain http address for the one configured server and refuses plain http to every other host in its own code, so the platform must permit cleartext: the value is now true.
                 "android:usesCleartextTraffic" to "true",
                 "android:allowBackup" to "false",
                 "android:dataExtractionRules" to "@xml/data_extraction_rules",
@@ -137,7 +137,7 @@ internal class ManifestGateTest {
         return XmlExpect(
             name = "manifest",
             attributes = mapOf("xmlns:android" to XmlTree.ANDROID_NAMESPACE),
-            children = permissions.map { XmlExpect("uses-permission", mapOf("android:name" to it), key = "android:name") } + application,
+            children = permissions.map { XmlExpect("uses-permission", mapOf("android:name" to it), key = "android:name") } + queries + application,
         )
     }
 
@@ -163,7 +163,7 @@ internal class ManifestGateTest {
         XmlSample("a second internet permission", "<application", "<uses-permission android:name=\"android.permission.INTERNET\" />\n    <application", "holds the element <uses-permission>"),
         XmlSample("a max sdk attribute on a permission", "<uses-permission android:name=\"android.permission.INTERNET\" />", "<uses-permission android:name=\"android.permission.INTERNET\" android:maxSdkVersion=\"30\" />", "has the attribute android:maxSdkVersion"),
         XmlSample("a uses-feature element", "<application", "<uses-feature android:name=\"android.hardware.microphone\" />\n    <application", "holds the element <uses-feature>"),
-        XmlSample("a queries element", "<application", "<queries />\n    <application", "holds the element <queries>"),
+        XmlSample("a second queries element", "<application", "<queries />\n    <application", "holds the element <queries>"),
         XmlSample("a receiver", "</application>", "<receiver android:name=\".R\" android:exported=\"true\" />\n    </application>", "holds the element <receiver>"),
         XmlSample("a provider", "</application>", "<provider android:name=\".P\" android:authorities=\"x\" />\n    </application>", "holds the element <provider>"),
         XmlSample("a second service", "</application>", "<service android:name=\".Other\" />\n    </application>", "holds the element <service>"),
