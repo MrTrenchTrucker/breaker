@@ -116,6 +116,7 @@ internal class HistoryIntentHandler(
         is ScreenIntent.SetThemeMode,
         is ScreenIntent.Setup,
         is ScreenIntent.Home,
+        is ScreenIntent.About,
         is ScreenIntent.AddServerAddress,
         is ScreenIntent.RemoveServerAddress,
         is ScreenIntent.MoveServerAddressUp,

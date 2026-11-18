@@ -48,7 +48,7 @@ draws its READY badge as a plain node). The geometry and the colours are plain K
 
 ## Public declarations
 
-The module offers exactly fourteen, all in seven files:
+The module offers exactly sixteen, all in nine files:
 
 - `createHomeView(context, switch, modelReady, lastDictationAt, lastTranscript, transcriptTime, onCopy, onHistory, onHowItWorks, onAbout, onSettings, onTap, settings, micView, usableHeightDp, onShownMode, sessionLive, onSignIn, onSignOut)` builds the home view. It reads the stored theme through `settings` when the view is built. It hands the mode it resolved back through `onShownMode` as the view is built, so the app paints the mic it placed here with the same mode the page drew with instead of reading the phone's own mode again. The app passes the switch, the answers for the model, the last dictation and the last transcript, the phone's time for the transcript, the copy request, the four screen requests (history, how it works, about and settings), the request for a take from the big mic, the hand-back of the mode the page drew with, the reader that says whether a session is live, and the answers to the Sign in and Sign out taps; every fact is read again on each drawing.
 - `createSettingsView(context, settings, modelReady, downloadLine, onDownloadModel, onThemeChanged, sessionLive, onSignIn)` builds the settings view. The last three are optional (null by default): `onThemeChanged` is called after each saved theme change, `sessionLive` says whether the session is live, and `onSignIn` is called when the signed-out block's Sign in is tapped. It draws live through the theme controller, not the stored-theme reader.
@@ -65,6 +65,8 @@ The module offers exactly fourteen, all in seven files:
 - `AuthControl` is the interface the auth view answers: `refresh()` re-reads the screen's current state and draws it again, `submitted(register)` returns to idle on the same face after the app's submit attempt finished, and `refused(register, text)` shows a refused line the app gives (the default returns to idle). The refusal shows the carried text when it is set and the fixed refusal when it is blank.
 - `createSignInStartView(context, settings, serverUrl, onStart)` builds the sign-in start view: a server line, the one control that opens the website, its hint and a state line. The app passes the shared store, a reader of the server address (read again at each drawing) and the start callback, which runs once per tap that starts a sign-in. The view answers `SignInStartControl`.
 - `SignInStartControl` is the interface the sign-in start view answers: `idle()`, `opening()`, `waiting()`, `refused(noServer)` and `returned(finished)`, each of which draws its state again.
+- `AboutControl` is the interface the About view answers: `bind(onCheck, onInstall)` holds the two row callbacks, `show(admin, updateAvailable, installReady, checking, installing, failed, upToDate)` draws the screen for the app's seven plain facts, and `refresh()` redraws from the last facts. A tap before `bind` does nothing, and before the first `show` the screen is the two lines. Known gap, install not wired: an admin sees that an update is available but cannot install it from the phone yet.
+- `ServerAddressStatus` is what the stored server addresses were last seen to be doing: `Checking`, `InUse(address)` or `NoneAnswered`. The app computes it and hands it in through `createSettingsView`; the line is left out when no address is set.
 
 Everything else is internal or private.
 

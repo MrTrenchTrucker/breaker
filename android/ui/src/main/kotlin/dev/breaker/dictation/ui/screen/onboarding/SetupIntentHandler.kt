@@ -135,6 +135,7 @@ internal class SetupIntentHandler(
             is ScreenIntent.SetThemeMode,
             is ScreenIntent.History,
             is ScreenIntent.Home,
+            is ScreenIntent.About,
             is ScreenIntent.AddServerAddress,
             is ScreenIntent.RemoveServerAddress,
             is ScreenIntent.MoveServerAddressUp,

@@ -196,6 +196,9 @@ internal sealed class ScreenIntent {
     /** Do the step of the home screen named by [action] (see home's HomeActions). */
     data class Home(val action: String) : ScreenIntent()
 
+    /** Do the step of the About screen named by [action] (see [AboutActions]). */
+    data class About(val action: String) : ScreenIntent()
+
     /** Go back to the screen before this one, where a screen has one. */
     data object Back : ScreenIntent()
 }
