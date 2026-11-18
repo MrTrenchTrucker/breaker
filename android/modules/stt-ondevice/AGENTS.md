@@ -283,7 +283,7 @@ it.
 - The word stream never opens or holds the microphone; it only hears the audio
   the capture gives it. When the microphone yields to another app it gets no
   more audio, and the app stops it as at any capture end (at most one final
-  update, then none) (F37, ADR-022) (not built yet).
+  update, then none) (F37, ADR-022) (built; tested by OnDeviceWordStreamStopTest and the app's taken tests).
 
 ## Depends On
 - android (registered in modules.toml)

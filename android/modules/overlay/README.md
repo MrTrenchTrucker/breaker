@@ -113,7 +113,7 @@ the app's, not this module's.
 ## Not built yet
 
 - Sound or haptics, a time limit on the notice, and the window-ownership check.
-- OPEN on the Home mic (phone test): the X and the check do not answer a tap while recording (cause not found); the app pushes `MIC_BUSY` and `SENDING` to it and hands it the stored theme (built in code, not confirmed on a phone).
+- The Home mic's X and check (phone test blocker A) have a cause found and are fixed in code by PR #608 and PR #610 (2026-11-13): the page scroll took a long press on a Home that did not fit one screen. Not yet tried on a phone build that includes them. The app pushes `MIC_BUSY` and `SENDING` to it and hands it the stored theme (built in code, not confirmed on a phone).
 - Nothing here decides the keyboard tile. This module keeps the tile window; the app decides when it shows and hides, from the keyboard readings.
 
 Nothing has been run on a device yet; the module card lists what the tests check

@@ -172,9 +172,9 @@
      "evidence": "overlay card: built with tests"
     },
     {
-     "item": "Home ScreenMic X and check do not answer a tap while recording (open blocker); window-ownership check (T4)",
+     "item": "Home ScreenMic X and check blocker while recording: cause found (the page scroll took a long press on a Home that did not fit one screen), fixed in code by PR #608 and PR #610 (2026-11-13), not yet tried on a phone build that includes them; window-ownership check (T4)",
      "status": "NOT_STARTED",
-     "evidence": "overlay card 137 (blocker, cause not found) and 86-87 (T4 not built)"
+     "evidence": "overlay card (blocker A: cause found, fixed by PR #608 and PR #610) and 86-87 (T4 not built)"
     }
    ]
   },
