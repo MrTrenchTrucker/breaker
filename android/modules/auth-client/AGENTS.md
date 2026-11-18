@@ -16,7 +16,8 @@ Login/register, token storage (the vault port is here, the Android Keystore seal
 
 **Flow (ADR-006):**
 - **Register** (`POST /v1/auth/register`): sends `{username, salt, kdf_params,
-  kdf_version, auth_verifier}` — key derivation (Argon2id + HKDF) runs behind
+  kdf_version, auth_verifier}`, plus `install_code` last when an install
+  code was supplied — key derivation (Argon2id + HKDF) runs behind
   `core.KeyDerivation`, never here; the password travels as a CharArray that
   the service wipes after use, and this module never sees the password itself,
   only what crypto hands it to upload. A username is checked with

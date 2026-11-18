@@ -53,6 +53,18 @@ class ServerAuthService(
             password.fill('\u0000')
         }
 
+    /**
+     * Register with a one-time install code. The code is a credential and travels as a parameter
+     * only: it is never stored, never printed and never placed in a failure text. The lock and the
+     * password wipe are the same as the two-argument [register].
+     */
+    override fun register(username: String, password: CharArray, installCode: String?): AuthSession =
+        try {
+            lock.withLock { ops.doRegister(username, password, installCode) }
+        } finally {
+            password.fill('\u0000')
+        }
+
     override fun login(username: String, password: CharArray): AuthSession =
         try {
             lock.withLock { ops.doLogin(username, password) }
