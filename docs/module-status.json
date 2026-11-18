@@ -286,9 +286,9 @@
    "path": "android/modules/updater",
    "items": [
     {
-     "item": "update check (manifest fetch, decode, update decision, pure due check)",
+     "item": "update check (manifest fetch, decode, update decision, pure due check, rollback offer recognised by shape)",
      "status": "DONE",
-     "evidence": "UpdateCheck, ManifestFetch, ManifestJson, UpdateDecision, UpdateSchedule.isDue with tests in android/modules/updater"
+     "evidence": "UpdateCheck, ManifestFetch, ManifestJson, UpdateDecision, UpdateSchedule.isDue, RollbackOffer, VersionName, RollbackAwareCheck and HeldRollback, with tests in android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater (UpdateCheckTest, RollbackOfferTest, VersionNameTest, RollbackAwareCheckTest)"
     },
     {
      "item": "APK download (same-origin, streamed, SHA-256 verified)",
@@ -301,9 +301,9 @@
      "evidence": "SignatureCheck.kt and SignatureCheckTest.kt (PR 534)"
     },
     {
-     "item": "install, rollback, daily scheduler and app wiring",
-     "status": "NOT_STARTED",
-     "evidence": "the updater card says they are not built; nothing in android/app calls the updater"
+     "item": "install through the system installer port, the daily timer, the admin answer and the module builder",
+     "status": "DONE",
+     "evidence": "UpdateInstaller, ApkInstaller, InstallResult, UpdateTimer, TimerScheduler, UpdateTimes, UpdateCheckerImpl, UpdaterConfig and Updater.kt (buildUpdater), with tests in android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater (UpdateInstallerTest, UpdateTimerTest, UpdateCheckerImplTest, UpdaterBuildTest); the app wiring is not counted here and is built, not tried on a phone"
     }
    ]
   },
@@ -516,8 +516,8 @@
  ],
  "summary": {
   "live": 36,
-  "done": 26,
-  "partial": 7,
+  "done": 27,
+  "partial": 6,
   "not_started": 3,
   "containers": 4,
   "retired": 1

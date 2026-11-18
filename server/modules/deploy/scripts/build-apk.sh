@@ -23,7 +23,7 @@
 #
 # The update-key list. --update-keys FILE is REQUIRED: it is the owner's list
 # of public keys (one base64 raw 32-byte public key per line) that the app
-# build fails closed without. FILE must be a regular file (not a symlink) and
+# build, which fails on a missing or bad list; this script always passes one. FILE must be a regular file (not a symlink) and
 # not empty; it is made absolute, and a path with a colon, a comma or a
 # newline is refused. The list is mounted READ-ONLY in the container at
 # /keys/update-keys and passed to Gradle as

@@ -13,8 +13,8 @@ import org.junit.Test
  * read the real files with comments and literal text removed by the shared scanner. Each rule holds on
  * the real file, is broken by at least two edited samples, and stays quiet on harmless edits; an edit
  * whose target text is missing fails by name, so a sample cannot go quiet by a typo. One rule reads
- * the whole app: `host/AppThreads.kt` is the only file that names a handler, a looper, an executor or
- * a thread.
+ * the whole app: only the three files listed in AppThreadExceptions may name a handler, a looper,
+ * an executor or a thread.
  */
 
 internal class HostGateTest {
@@ -219,9 +219,9 @@ internal class HostGateTest {
         AppSourceFiles.strip(if (old == null) raw(key) else edit(raw(key), old, new)).code
     private val threadNames: Regex = Regex("""\b(Handler|HandlerThread|Looper|Executors?|ExecutorService|Thread|runOnUiThread)\b""")
 
-    /** The files other than `host/AppThreads.kt` that name a handler, looper, executor or thread. */
+    /** The files other than the three in AppThreadExceptions that name a handler, looper, executor or thread. */
     private fun threadOffences(sources: Map<String, String>): List<String> =
-        sources.toSortedMap().filter { (name, text) -> name != "host/AppThreads.kt" && threadNames.containsMatchIn(AppSourceFiles.strip(text).code) }.keys.toList()
+        sources.toSortedMap().filter { (name, text) -> name !in AppThreadExceptions.lifted.keys && threadNames.containsMatchIn(AppSourceFiles.strip(text).code) }.keys.toList()
     private fun backgroundNames(text: String): List<String> = AppSourceFiles.strip(text).literals.filter { it.startsWith("breaker-") }
 
     @Test
@@ -269,10 +269,13 @@ internal class HostGateTest {
             "service/ModelNotifications.kt" to "class A { val e = Executors.newSingleThreadExecutor() }",
             "wiring/TileCoordinator.kt" to "class A { val t = Thread { } }",
             "BreakerApp.kt" to "class A { fun f() { runOnUiThread { } } }",
+            "wiring/UpdateKeyList.kt" to "class A { val h = Handler(Looper.getMainLooper()) }",
+            "service/AppUpdater.kt" to "class A { val t = Thread { } }",
         )
         for ((name, text) in firingSources) assertEquals("app: $name was not reported", listOf(name), threadOffences(mapOf(name to text)))
         val quietSources = mapOf(
             "host/AppThreads.kt" to "class A { val h = Handler(Looper.getMainLooper()) }",
+            "wiring/UpdateTimerAndroid.kt" to "class A { val h = Handler(l) }",
             "wiring/A.kt" to "// Handler Looper Executors Thread\nclass A { val s = \"Handler Thread\"; val threads = 1; val threadName = 2; val Handlers = 3 }",
         )
         for ((name, text) in quietSources) assertEquals("app: $name was reported", emptyList<String>(), threadOffences(mapOf(name to text)))

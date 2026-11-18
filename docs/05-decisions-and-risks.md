@@ -79,7 +79,7 @@ The app polls `/v1/updates/latest.json` once a day (and on admin force-check),
 verifies APK signature + SHA-256, and installs over the existing app (data
 preserved). This is a proper rebuild of the deleted in-app updater [1] — pointed
 at OUR server, signing key secured (never git) [1].
-Status: partly built - the check is built (the card's Status on main names eleven pieces, from `UpdateSchedule.isDue` to `ScheduledUpdateCheck`); install, rollback, the timer and the app wiring are not built; see the updater card.
+Status: built with tests, not tried on a phone - the check, the download, the signature check, the verify step, the daily rule, the rollback offer, the install through the system installer, the daily timer, the key list and the app wiring are built; the Home buttons (the force check, the install and the rollback) are not built yet (another module); see the updater card.
 
 **D17 — Roles = first-account-is-admin.**
 The first account to register on the web FE is admin by default and can assign

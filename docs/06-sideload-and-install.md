@@ -99,7 +99,7 @@
 
 ## Updates
 
-> Planned, not built: this whole section (ADR-011). Nothing here is wired into the app, so no user gets a daily check, a notification, a force-check button or an install today; built and tested but not wired are the updater module's internal pieces (due decision, version order, digest check, update decision, check, APK download, signature check, verify step, daily-check gate).
+> Built, not tried on a phone: the daily check, the APK download and signature check, the install through the system installer and the daily timer are wired into the app, but nothing has run on a phone yet. The Home buttons (the admin force-check and the rollback button) are not there yet (another module), so no user sees an update notice, a force-check button or a rollback button today.
 
 - Breaker checks for updates **once a day** automatically. When a new tagged
   release is available you'll get a notification: **"Breaker X.Y.Z is available —

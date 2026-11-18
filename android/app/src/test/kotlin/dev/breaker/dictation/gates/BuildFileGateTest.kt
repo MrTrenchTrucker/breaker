@@ -46,6 +46,8 @@ internal class BuildFileGateTest {
         "implementation :android:modules:http",
         "implementation :android:modules:sync",
         "implementation :android:modules:phrases",
+        // The updater module is in the app for the approved updater install path.
+        "implementation :android:modules:updater",
         "implementation :shared:modules:api-contracts",
         "runtimeOnly :android:modules:commit:accessibility",
         "implementation :shared:modules:ui-tokens",

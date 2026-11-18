@@ -7,16 +7,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The app manifest declares six permissions, the two icons, the launcher activity with its
- * no-title-bar theme, the one return activity of the sign-in and the one microphone service, and nothing else.
- *
- * Adding a permission, a receiver, a provider, a second service, an export, an
- * intent filter on the service, a clear-text setting that differs from the allow-list
- * value (true, because the app accepts a plain http address for the configured server)
- * or any attribute or element beyond the allow-list alters what the app may do on the
- * phone, so it fails here until it is argued for and the list is changed on purpose.
- * The file is parsed as XML, not searched as text: comments are not content,
- * attribute order does not matter, and nothing outside the allow-list passes.
+ * The app manifest declares seven permissions, the two icons, the launcher activity with its no-title-bar theme, the one return activity of the
+ * sign-in and the one microphone service, and nothing else. The seventh permission, REQUEST_INSTALL_PACKAGES, is there because the updater hands a
+ * verified APK to the system installer.
+ * Adding a permission, a receiver, a provider, a second service, an export, an intent filter on the service, a clear-text setting that differs from
+ * the allow-list value (true, because the app accepts a plain http address for the configured server) or any attribute or element beyond the
+ * allow-list alters what the app may do on the phone, so it fails here until it is argued for and the list is changed on purpose. The file is parsed
+ * as XML, not searched as text: comments are not content, attribute order does not matter, and nothing outside the allow-list passes.
  */
 internal class ManifestGateTest {
 
@@ -27,6 +24,7 @@ internal class ManifestGateTest {
         "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.REQUEST_INSTALL_PACKAGES",
     )
 
     private val good: String = """<?xml version="1.0" encoding="utf-8"?>
@@ -37,6 +35,7 @@ internal class ManifestGateTest {
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <application
         android:name=".BreakerApp"
         android:label="@string/app_name"
@@ -157,6 +156,7 @@ internal class ManifestGateTest {
     }
     private val more: List<XmlSample> = listOf(
         XmlSample("a second system alert window permission", "<application", "<uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n    <application", "holds the element <uses-permission>"),
+        XmlSample("a second copy of the install permission", "<application", "<uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />\n    <application", "holds the element <uses-permission>"),
         XmlSample("a camera permission", "<application", "<uses-permission android:name=\"android.permission.CAMERA\" />\n    <application", "holds the element <uses-permission>", "android.permission.CAMERA"),
         XmlSample("a network state permission", "<application", "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n    <application", "holds the element <uses-permission>", "android.permission.ACCESS_NETWORK_STATE"),
         XmlSample("a contacts permission", "<application", "<uses-permission android:name=\"android.permission.READ_CONTACTS\" />\n    <application", "holds the element <uses-permission>", "android.permission.READ_CONTACTS"),
@@ -232,14 +232,14 @@ internal class ManifestGateTest {
     )
 
     @Test
-    fun `the real manifest declares exactly the six permissions and the launcher activity and the return activity and the one service`() {
+    fun `the real manifest declares exactly the seven permissions and the launcher activity and the return activity and the one service`() {
         val text: String = AppSourceFiles.mainFile("AndroidManifest.xml")
         assertTrue("app: src/main/AndroidManifest.xml is empty", text.isNotBlank())
         val declared: List<String> = XmlTree.parse(text).children
             .filter { it.name == "uses-permission" }
             .map { it.attributes["android:name"] ?: "" }
             .sorted()
-        assertEquals("app: the manifest permissions are not the six allowed ones", permissions.sorted(), declared)
+        assertEquals("app: the manifest permissions are not the seven allowed ones", permissions.sorted(), declared)
         val problems: List<String> = manifestProblems(text)
         assertEquals("app: the manifest differs from its allow-list: $problems", emptyList<String>(), problems)
     }

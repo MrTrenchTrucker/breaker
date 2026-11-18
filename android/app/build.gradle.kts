@@ -10,6 +10,19 @@
 //
 // Toolchain versions come from gradle/libs.versions.toml.
 
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.util.Base64
+import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
+
 plugins {
     alias(libs.plugins.android.application)
 }
@@ -83,6 +96,7 @@ dependencies {
     implementation(project(":android:modules:http"))
     implementation(project(":android:modules:sync"))
     implementation(project(":android:modules:phrases"))
+    implementation(project(":android:modules:updater"))
     implementation(project(":shared:modules:api-contracts"))
     runtimeOnly(project(":android:modules:commit:accessibility"))
     implementation(libs.kotlinx.coroutines.core)
@@ -108,3 +122,79 @@ extra["repoFileInputs"] = listOf(
 extra["repoFolderInputs"] = listOf(
     "android/modules",
 )
+
+// The owner's update key file is never committed. Its path comes from a Gradle property, or from an
+// environment variable when the property is not set; a blank value counts as not set. With no file named,
+// a release build passes, copies no key and logs one warning. A named file that is missing, is a symbolic
+// link or is not a regular file, is empty, or has a line that is not a canonical base64 key of 32 bytes
+// fails the build with the sentence below.
+val updateKeysProperty = "breakerUpdateKeysFile"
+val updateKeysVariable = "BREAKER_UPDATE_KEYS_FILE"
+val updateKeysSentence = "the release build needs the owner's update key file: set the Gradle property $updateKeysProperty or the environment variable $updateKeysVariable to a file with one base64 public key on a line"
+val updateKeysUnsetWarning = "no update key file is set, so this release build pins no update key and the app will refuse every update"
+val updatePropertyValue: String? = providers.gradleProperty(updateKeysProperty).orNull?.trim()?.takeIf { it.isNotEmpty() }
+val updateVariableValue: String? = providers.environmentVariable(updateKeysVariable).orNull?.trim()?.takeIf { it.isNotEmpty() }
+val updateKeysSource: File? = (updatePropertyValue ?: updateVariableValue)?.let { File(it) }
+
+val checkUpdateKeys by tasks.registering {
+    doLast {
+        val source: File? = updateKeysSource
+        if (source == null) {
+            logger.warn(updateKeysUnsetWarning)
+        } else {
+            val text: String? = if (Files.isSymbolicLink(source.toPath()) || !source.isFile) null else source.readText(Charsets.UTF_8)
+            val lines: List<String> = (text?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() && !it.startsWith("#") }) ?: emptyList()
+            val good: Boolean = lines.isNotEmpty() && lines.all { line ->
+                val bytes: ByteArray? = runCatching { Base64.getDecoder().decode(line) }.getOrNull()
+                bytes != null && bytes.size == 32 && Base64.getEncoder().encodeToString(bytes) == line
+            }
+            if (text == null || !good) throw GradleException(updateKeysSentence)
+        }
+    }
+}
+
+// The copy task owns the release asset folder. It empties that folder on every run, then copies the named key file
+// only when that file is a regular file and not a symbolic link. Its output folder is declared, so the variant API
+// hands it to every release consumer of the assets, and each consumer runs the copy after the check above.
+abstract class CopyUpdateKeysTask : DefaultTask() {
+    @get:Input
+    @get:Optional
+    abstract val keyFilePath: Property<String>
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    init {
+        // The key content is not an input the build can compare, so the task always runs.
+        outputs.upToDateWhen { false }
+    }
+
+    @TaskAction
+    fun copyKey() {
+        val folder: File = outputDir.get().asFile
+        folder.mkdirs()
+        folder.listFiles()?.forEach { child -> child.deleteRecursively() }
+        val path: String? = keyFilePath.orNull
+        if (path != null) {
+            val source: File = File(path)
+            if (Files.isRegularFile(source.toPath(), LinkOption.NOFOLLOW_LINKS)) {
+                source.copyTo(File(folder, "update_keys.txt"), overwrite = true)
+            }
+        }
+    }
+}
+
+// The key path is set only when a file is named, so an unset build has no path to copy.
+val copyUpdateKeys by tasks.registering(CopyUpdateKeysTask::class) {
+    updateKeysSource?.let { file -> keyFilePath.set(file.absolutePath) }
+    dependsOn(checkUpdateKeys)
+}
+
+// The release variant gets the copy folder through the variant API, so the folder carries the copy task as its producer.
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyUpdateKeys, CopyUpdateKeysTask::outputDir)
+    }
+}
+
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach { dependsOn(checkUpdateKeys) }

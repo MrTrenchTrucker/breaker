@@ -104,7 +104,7 @@ The four words, once: **Built** means the module's code and tests are on `main` 
 | `android/modules/training-client` | 13 | Not built | Not started: only a card. |
 | `server/modules/training` | 13 | Not built | Not started: only a card. |
 | `server/modules/deploy` | 14 | Partly built | Thirteen scripts are built (pull, health check, backup, release tags, address check, install, update, rollback, and the release pipeline: build APK, sign APK, sign manifest, write manifest, serve release) with the shared `deploy-common.sh` helpers and the schema-record helper, and tests; rollback deploys the previous of the remote latest release tag (`--previous`), and the health retry in `deploy_check_health` is env-injectable through `HEALTH_STEP` (default 2) and `HEALTH_WAIT` (default 60), with no CLI flag; the three image recipes, the one compose file, the env example and the secrets gate are built; the release pipeline scripts are tested with a docker stub and have not been run on a real build; any key-generating script, the key rotation and the app wiring that pins the manifest key are not. |
-| `android/modules/updater` | 16 | Partly built | The module and its tests exist; the app does not use it yet. |
+| `android/modules/updater` | 16 | Partly built | The module and the app wiring (the system installer, the owner's key list, the daily timer) are built with tests and not tried on a phone; the Home About buttons are another module. |
 
 ## Contributing
 

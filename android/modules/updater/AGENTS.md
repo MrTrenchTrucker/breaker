@@ -8,17 +8,7 @@ at OUR server, signing key secured (never git) [1].
 
 **Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads a release manifest file that the release process writes (ADR-011, amendment of 2026-11-10).
 
-**Status on main:** eleven pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
-due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)`, the version order `UpdateOrder.isNewer`, the
-APK digest check `ApkDigest.matches` (and `matchesDigest`, over a digest that was computed while the
-bytes streamed), the update decision `UpdateDecision.of` plus its manifest mapper `ReleaseMapper.toRelease`,
-the check itself (`ManifestFetch`, `ManifestJson`, `UpdateCheck`, through the app's one HTTP client,
-`android/modules/http`), the download of the APK (`ApkDownload`, below), the signature check (`SignatureCheck`, below), the verify step that joins them (`UpdateVerification`, below) and the daily-check gate (`ScheduledUpdateCheck`, below). A manifest that offers a newer
-code but has a blank field is reported as unusable, not hidden. Nothing else in this module is built: no
-install, no rollback, no timer, nothing wired, and no class implements the `core.UpdateChecker` port
-yet (its install and rollback are not built); the wiring in `android/app` is owed. Everything below except
-those pieces is the target design, planned, not built. The server route `GET /v1/updates/latest.json` is
-built on the server and reads a manifest file (see the sync-api card).
+**Status (built, with tests):** the module holds the due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)`, the version order `UpdateOrder.isNewer`, the APK digest check `ApkDigest.matches` (and `matchesDigest`, over a digest that was computed while the bytes streamed), the update decision `UpdateDecision.of` plus its manifest mapper `ReleaseMapper.toRelease`, the check itself (`ManifestFetch`, `ManifestJson`, `UpdateCheck`, through the app's one HTTP client, `android/modules/http`), the download of the APK (`ApkDownload`, below), the signature check (`SignatureCheck`, below), the verify step that joins them (`UpdateVerification`, below), the daily rule (`ScheduledUpdateCheck`, below), the rollback offer and the rollback-aware check (`VersionName`, `RollbackOffer`, `HeldRollback`, `RollbackAwareCheck`, below), the install step through the `ApkInstaller` port (`UpdateInstaller`, below), the daily timer (`UpdateTimer`, below) and the `UpdateChecker` implementation with its one builder (`UpdateCheckerImpl`, `UpdaterConfig`, `buildUpdater`, below). A manifest that offers a newer code but has a blank field is reported as unusable, not hidden. The app wires the module in `android/app` (the installer adapter, the key list, the timer start): built, not tried on a phone. The server route `GET /v1/updates/latest.json` is built on the server and reads a manifest file (see the sync-api card).
 
 **The check (built):** `UpdateCheck.check()` blocks, so the caller runs it off the UI thread, and it never
 throws. `ManifestFetch` sends one GET to the configured server address plus `/v1/updates/latest.json`
@@ -54,9 +44,10 @@ Daily update check + admin force-check, signed APK verify, rollback.
 
 ## Public Interface `core.UpdateChecker` port.
 
+Public types: `UpdateChecker` (the core port, implemented by `UpdateCheckerImpl`), `Updater` and `buildUpdater` (the one builder; `UpdaterConfig` is its only input), `ApkInstaller` and `InstallResult` (the install port and its answer), `InstallReasons` (the fixed install sentences), and `TimerScheduler` and `UpdateTimes` (the two ports the app implements).
+
 **Check schedule (F20):**
-- Automatic: once per day (on app start if > 24 h since last check, plus a
-  background timer). Checks `GET /v1/updates/latest.json`.
+- Automatic: once a day. At app start one check runs when it is due; the next one is due 24 h later (`86_400_000` ms). A failed check, a check that is not due, or an exception makes the next try one hour later (`3_600_000` ms). The timer lives in the app process, with no WorkManager. Each check is `GET /v1/updates/latest.json`.
 - Force check (F21): admin-only button (Home menu → About → Check for updates)
   triggers an immediate check.
 - Due decision (built): `UpdateSchedule.isDue(lastCheckAtMs: Long?, nowMs: Long)` is true when the last
@@ -69,19 +60,16 @@ Daily update check + admin force-check, signed APK verify, rollback.
 3. On confirm, download the APK from the configured server (a plain http
    address is allowed, ADR-034), then verify **SHA-256** and **signature**
    (public key pinned in-app) and refuse on mismatch (T11).
-4. Launch Android installer → same package ID + signature → install-over
-   **preserves data/settings**.
+4. Install: the verification happens before the session is opened. The verified file is written into a `PackageInstaller` session and the session is committed to the system installer; a failed write or a failed commit abandons the session. The status receiver is registered at run time and is not exported. Its explicit PendingIntent carries the session id and is MUTABLE, because the system fills the status and the confirm intent into it; it names our own package and a private action name, so no other app can claim it. On API 33 and later the receiver gets the not-exported flag; below API 33 the platform has no such flag, so the receiver accepts only a session id the adapter opened. Install-over keeps the same package id and signature, so it **preserves data/settings**.
 5. Record last-check + last-update timestamps in settings.
 
-**Admin gating:** force-check requires the user's role == `admin` (from
-`auth-client`); non-admins see the daily check only.
+**Admin gating:** the force check and the rollback run only when `isAdmin` answers true. A non-admin force check runs the daily rule only, and a non-admin rollback is refused. The app passes the answer in as a function; this module never imports auth-client.
 
-**Rollback (D28):** keep the previous APK after an update; a **rollback button**
-(Home menu → About → Roll back) restores it if a release misbehaves.
+**Rollback:** there is no kept APK. The server re-offers an older build under a higher version code, and the check recognises that by shape: a higher version code AND a version name that sorts before the installed name. A version name is comparable only when it is exactly four numeric parts A.B.C.D, each 1 to 9 digits, compared left to right as numbers, so 1.2.10.0 is higher than 1.2.9.0. Any other name is an ordinary newer offer. A recognised offer is held and the update button does not offer it. An admin restores the held build with a **rollback button** (Home menu, About, Roll back).
 
 ## Invariants
 - Daily check fires once per day; no network if server unreachable (silent retry).
-- Rollback restores the previous version and preserves data.
+- A rollback installs the held build over the current one, as an install-over, and preserves data.
 - Force-check button visible only to admins.
 - Tampered APK (bad SHA/signature) refused with a clear error (T11).
 - Update install-over preserves history + settings.
@@ -96,9 +84,10 @@ Daily update check + admin force-check, signed APK verify, rollback.
 ## Does Not Own
 - Update endpoint (server/sync-api)
 - APK signing (server/deploy)
+- The Android installer adapter, the key file and the timer start (the `android/app` wiring)
 
 ## Test Locations
-- Unit (Kotlin): `android/modules/updater/src/test/kotlin/` (`UpdateScheduleTest`, `UpdateOrderTest`, `ApkDigestTest`, `UpdateDecisionTest`, `ReleaseMapperTest`, `ManifestJsonTest`, `ManifestFetchTest`, `UpdateCheckTest`, `ApkDownloadTest`). Run: `./gradlew :android:modules:updater:test`
+- Unit (Kotlin): `android/modules/updater/src/test/kotlin/` (`UpdateScheduleTest`, `UpdateOrderTest`, `ApkDigestTest`, `UpdateDecisionTest`, `ReleaseMapperTest`, `ManifestJsonTest`, `ManifestFetchTest`, `UpdateCheckTest`, `ApkDownloadTest`, `SignatureCheckTest`, `UpdateVerificationTest`, `ScheduledUpdateCheckTest`, `UpdateInstallerTest`, `VersionNameTest`, `RollbackOfferTest`, `RollbackAwareCheckTest`, `UpdateTimerTest`, `UpdateCheckerImplTest`, `UpdaterBuildTest`). Run: `./gradlew :android:modules:updater:test`
 - Contract: `tests/contract/test_updater_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_updater_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -128,8 +117,8 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Verify signature + SHA-256 before install; keep previous APK for rollback.
-- The update check calls a public route and sends no token. The admin force-check (not built) would need the role through `core.AuthService`, wired by `android/app` (ADR-001); this module never imports `auth-client`.
+- Verify signature and SHA-256 before the install session is opened. There is no kept APK; rollback re-offers an older build (see Public Interface).
+- The update check calls a public route and sends no token. The admin answer reaches the module as the `isAdmin` function the app passes in (built); this module never imports `auth-client` (ADR-001).
 - **The signature check (built, `SignatureCheck`, test `SignatureCheckTest`):** the manifest `signature` field is an Ed25519
   signature, as base64, over the ASCII message `breaker-update-v1`, a line feed, the version, a line feed, the
   SHA-256 as lowercase hex, a line feed (nothing else is signed: not the notes and not the URL). Binding the digest
@@ -142,7 +131,7 @@ agents, not required: an outside contributor may write the code themselves
   the canonical base64 of exactly 64 bytes, an empty list of keys, and a signature no listed key accepts; a key that is
   not 32 bytes never matches. It uses the Bouncy Castle light API (`bcprov`, as the crypto module does), no provider.
   The private key is never in git and never on the server; signing is an offline release step. The tests make their
-  own keys. Not built: the app wiring that holds the pinned key, and the install.
+  own keys. The app wiring that holds the pinned key is in `android/app` (built, not tried on a phone).
 - **The verify step (built):** `UpdateVerification` joins the download and the signature check in the ruled order.
   It takes the two steps as functions (so a test can fake them), runs the download first, and answers
   `UpdateVerificationResult.Ready(file)` or `Refused(reason)`. A refused download answers its own reason and the
@@ -150,5 +139,8 @@ agents, not required: an outside contributor may write the code themselves
   given; if it refuses, the downloaded file is deleted (best effort: a file that cannot be deleted changes no answer)
   and its reason is returned. `Ready` is returned only when both steps passed. Any exception from either step, an
   interrupt included, becomes the one fixed sentence `UpdateVerificationReasons.UNEXPECTED`, and the file is deleted
-  if the signature step threw. No install, no Android classes, no app wiring: nothing calls it yet.
-- **The daily-check gate (built):** `ScheduledUpdateCheck(runCheck, lastCheckAtMs, recordCheckAtMs, nowMs)` joins the due decision, one check and the record of the check time. It reads the clock once per call, answers null when the check is neither due nor forced (the check is not called and nothing is recorded), runs the check when it is due or when force is passed, and records the time of that call only when the answer is up to date or available. Never throws: an exception from the clock, the stored time or the check answers the fixed sentence `CheckReasons.UNFINISHED`, and a recorder that throws after a real answer changes no answer. No timer, no install, no rollback, no app wiring: nothing calls it yet.
+  if the signature step threw. The update checker calls it through the install path (`UpdateCheckerImpl`); no Android class is here.
+- **The daily-check rule (built):** `ScheduledUpdateCheck(runCheck, lastCheckAtMs, recordCheckAtMs, nowMs)` joins the due decision, one check and the record of the check time. It reads the clock once per call, answers null when the check is neither due nor forced (the check is not called and nothing is recorded), runs the check when it is due or when force is passed, and records the time of that call only when the answer is up to date or available. Never throws: an exception from the clock, the stored time or the check answers the fixed sentence `CheckReasons.UNFINISHED`, and a recorder that throws after a real answer changes no answer. The timer (`UpdateTimer`) calls it, and the app wiring is in `android/app`.
+- **Install path (built, not tried on a phone):** the install goes through a `PackageInstaller` session, with no file provider. The status receiver is registered at run time and is not exported. Below API 33 the platform has no not-exported flag for a runtime receiver, so the receiver there accepts only a session id the adapter opened. The explicit PendingIntent is MUTABLE, because the system fills in the status and the confirm intent. A failed write or a failed commit abandons the session, and no half-written session is left behind.
+- **Device checks (NOT VERIFIED on a device):** the confirm dialog, a cancelled dialog and a failed install through the system installer, and the unknown-sources toggle; the rollback offer (the server re-offers an older build under a higher code, and only an admin sees the restore line); the daily check after the app has been open about a day; an assembled or bundled release build with neither name set passes and pins no key, and one with a named bad file fails with a fixed sentence; a debug build refuses every update at run time.
+- **Key list:** the pinned public keys come from an owner-supplied file named by the Gradle property `breakerUpdateKeysFile` or, when that property is absent or blank, by the environment variable `BREAKER_UPDATE_KEYS_FILE`. The file is never committed. With neither name set, an assembled or bundled release build passes and pins no key: it writes no `update_keys.txt` asset and logs one warning, and the app then refuses every update (NO_PINNED_KEY). With a name set to a file that is missing, a symbolic link, not a regular file, empty, or holding a line that is not a canonical base64 32-byte key, the release build fails with a fixed sentence and produces no APK. A debug build and the unit tests never need the file; a debug build has no `update_keys.txt` asset, which the app reads as an empty key list.
