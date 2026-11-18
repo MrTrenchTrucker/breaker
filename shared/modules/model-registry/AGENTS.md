@@ -31,7 +31,7 @@ family (sherpa-onnx|whisper), params, size_mb (MiB, rounded; for the `small`
 entry, 365,748,162 is the byte size of release asset 191972150 from that
 asset's GitHub release metadata, and 191972150 is the asset id in that entry's
 own url: 348.8 MiB = 349, in decimal MB it would be 366 - the upstream
-checksum.txt that sha256 is checked against is a different file, 57,134 bytes),
+checksum.txt that sha256 is checked against is a different file, 57,685 bytes),
 url, sha256, **license** (the
 SPDX id when the license has one, e.g. `MIT` for Whisper weights; check sherpa-onnx
 model cards), `license_name` and `license_link` (required when the license has no

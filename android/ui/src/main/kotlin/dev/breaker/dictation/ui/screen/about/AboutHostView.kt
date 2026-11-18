@@ -46,10 +46,15 @@ internal class AboutHostView(
         this.onInstall = onInstall
     }
 
-    /** Stores the app's seven plain facts as the state and draws the screen from it. */
+    /** Stores the app's seven plain facts as the state, keeps the held refusal, and draws the screen from it. */
     override fun show(admin: Boolean, updateAvailable: Boolean, installReady: Boolean, checking: Boolean, installing: Boolean, failed: Boolean, upToDate: Boolean) {
-        state = AboutState(admin, updateAvailable, installReady, checking, installing, failed, upToDate)
+        state = AboutState(admin, updateAvailable, installReady, checking, installing, failed, upToDate).copy(installRefused = state.installRefused)
         draw()
+    }
+
+    /** Stores whether the last install answer was a refusal. It draws nothing: the next drawing shows it. */
+    override fun setInstallRefused(refused: Boolean) {
+        state = state.copy(installRefused = refused)
     }
 
     /** Redraws the screen from the last facts the app handed in. */

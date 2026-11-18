@@ -1,10 +1,10 @@
 # upstream-checksum-excerpt.txt — fixture for the offline T21 check.
 #
 # Source: k2-fsa/sherpa-onnx release "asr-models" (tag asr-models), the
-# checksum.txt asset, asset id 424735889 (fetch date 2026-10-01, fetched over
-# the tag download route).
-# Full upstream file at fetch time: 57,134 bytes, sha256
-# 4e34edcb64434bcf533afaee9dcc14b5b2f9c277ed3a745f263e79a4464b28d0.
+# checksum.txt asset, asset id 761425283 (fetch date 2026-11-18, fetched over
+# the asset API route: https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/761425283
+# with Accept: application/octet-stream). Full upstream file at fetch time: 57,685 bytes, sha256
+# a96a8ecfa4377305cce41cf5cc3833552477e547ff7ad10a2c9615b3e6921f1a.
 # Asset id -> filename for the line below (from the release API, 2026-10-01):
 #   191972150 -> sherpa-onnx-streaming-zipformer-en-2023-06-21-mobile.tar.bz2
 #   143510207 -> sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2

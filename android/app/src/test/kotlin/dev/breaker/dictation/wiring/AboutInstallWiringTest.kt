@@ -56,14 +56,14 @@ class AboutInstallWiringTest {
     }
 
     @Test
-    fun `a refused answer lands on failed and frees the install row`() {
+    fun `a refused answer is not the generic failure and frees the install row`() {
         val h = AboutControlWiringTest.Harness()
         h.wiring.bind()
         checkOffering(h, release())
         h.control.onInstall!!.invoke()
         assertTrue("the install is running after the tap", h.last.installing)
         h.answers.report(InstallResult.Refused(InstallReasons.NOT_ALLOWED))
-        assertTrue("a refusal is drawn as a failure", h.last.failed)
+        assertFalse("a refusal is not drawn as the generic failure", h.last.failed)
         assertFalse("a refusal frees the install row", h.last.installing)
     }
 
@@ -181,8 +181,8 @@ class AboutInstallWiringTest {
         h.wiring.bind()
         checkOffering(h, release())
         h.control.onInstall!!.invoke()
-        h.answers.report(InstallResult.Refused(InstallReasons.NOT_ALLOWED))
-        assertTrue("the refusal left a failure", h.last.failed)
+        h.wiring.onInstallFinished(1)
+        assertTrue("the other finish code left a failure", h.last.failed)
         h.control.onInstall!!.invoke()
         assertTrue("the second install is running", h.last.installing)
         h.wiring.onInstallFinished(3)

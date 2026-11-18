@@ -34,4 +34,7 @@ internal data class AboutState(
 
     /** Whether a check finished and nothing is offered. */
     val upToDate: Boolean = false,
+
+    /** Whether the last install answer was a refusal, which draws the refusal sentence in place of the failure sentence. */
+    val installRefused: Boolean = false,
 )

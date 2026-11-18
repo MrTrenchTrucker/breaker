@@ -58,7 +58,7 @@ class HttpModelFetcherTest {
     @Test
     fun `the default checksum address is the published asset route`() {
         assertEquals(
-            "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/424735889",
+            "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/761425283",
             DownloadLimits().checksumsUrl,
         )
     }
