@@ -18,6 +18,9 @@ upstream already publishes** — not just our own recorded SHA-256 [2].
 - `base`, `medium` — non-streaming Whisper (English); optional, higher
   accuracy, slower; they need non-streaming support, which is not built yet
   (see Known Gotchas)
+- `kws-gigaspeech-3m` — a keyword-spotting model (English), kept in its own
+  list (`keyword_models:`) apart from the speech models; it is a registry
+  entry only: nothing downloads, unpacks or loads it yet
 
 **Server (Whisper X container, CPU):** whatever the existing pipeline already
 serves — document it here for parity.
@@ -43,7 +46,15 @@ hosted, notes.
 Required in every entry:
 id, family, params, size_mb, url, sha256, upstream_commit, tamper_verified, hosted, archive_name,
 and either `license` or both `license_name` and `license_link`; only `notes` is
-optional. The generated `licence` constant (ADR-016) carries the SPDX id, or
+optional. The keyword models are a second top-level list, `keyword_models:`
+(optional), whose entries obey the same rules with three differences: the id
+may hold single hyphens between alphanumerics (the generated constant turns
+them into underscores), `params` may carry a decimal point (the number is only
+the one in the model's own name), and `upstream_commit` is optional (checked
+when given; the keyword entry records none, because no source revision could
+be tied to it truthfully). An id may not be in both lists and may not name a
+constant the generated object declares (`ALL`, `KEYWORD_MODELS`). The generated
+`licence` constant (ADR-016) carries the SPDX id, or
 `license_name` when there is none. `models.yaml` is the hand-edited source of
 record; it is not shipped to the phone and never parsed at runtime (ADR-016).
 
@@ -55,14 +66,19 @@ the license check result (R26).
 **Build phase:** Before Phase 2: `settings` (Phase 2) and `stt-ondevice` (Phase 3) both depend on it. Needs first: nothing beyond `shared`.
 
 ## Invariants
-- Every entry has a sha256. The download and verify path is stt-ondevice's: its loader tests load an archive that does not match its pin and see the load refused. `tamper_verified` stays false for an entry until the tamper test has been run against that entry's real archive, and all four entries are true today: the opt-in `RealArchiveTamperTest` in stt-ondevice (skipped unless `BREAKER_REAL_MODELS_DIR` names a folder that holds the real archives) was run on 2026-11-13 against all four, accepted each real archive and refused a copy of it with one flipped byte. The per-entry test `RegistryTamperTest` in stt-ondevice loops `ModelRegistry.ALL` and proves each registry pin refuses a mismatched archive, an unlisted pin and an archive name listed with another digest, against a stand-in file; it flips no flag.
+- Every entry has a sha256. The download and verify path is stt-ondevice's: its loader tests load an archive that does not match its pin and see the load refused. `tamper_verified` stays false for an entry until the tamper test has been run against that entry's real archive, and all four entries are true today: the opt-in `RealArchiveTamperTest` in stt-ondevice (skipped unless `BREAKER_REAL_MODELS_DIR` names a folder that holds the real archives) was run on 2026-11-13 against all four, accepted each real archive and refused a copy of it with one flipped byte. The per-entry test `RegistryTamperTest` in stt-ondevice loops `ModelRegistry.ALL` and proves each registry pin refuses a mismatched archive, an unlisted pin and an archive name listed with another digest, against a stand-in file; it flips no flag. The keyword entry's `tamper_verified` is false: its real
+archive has not been tamper-tested, and that per-entry test loops `ALL` (the
+speech list) only.
 - Every entry has a license field (R8).
 - URLs pinned to specific releases (no floating "latest").
 - Registry versioned; app refuses unknown model ids.
 - **Every entry verifies against upstream's checksum.txt** (T21) [2]. The fetch
   route, fetch date, upstream file size and sha256, and the byte-exact
   upstream line are recorded in `fixtures/upstream-checksum-excerpt.txt`;
-  each entry's own `notes` field carries the rest of its provenance.
+  each entry's own `notes` field carries the rest of its provenance. The
+  keyword entry's checksum.txt (a different release) was uploaded or updated
+  on 2026-11-18, years after the model asset, so its provenance is weaker than
+  the speech entries'; the fixture and the entry's notes say so.
 - The generator checks every entry before it writes anything, and fails on a
   missing required field (archive_name is among them), an unknown field, an
   archive_name that is not a plain file name or whose (archive_name, sha256)
@@ -70,8 +86,9 @@ the license check result (R26).
   that is not 64 hex
   characters, a url that is neither a release-asset id URL
   (`.../releases/assets/<numeric id>`) nor a URL naming a full 40-character commit,
-  or a license with neither an SPDX id nor a `license_name` and `license_link`.
-  CI runs it, so a bad entry never reaches the app.
+  or a license with neither an SPDX id nor a `license_name` and `license_link`,
+  or an id that is in both lists. Every rule above applies to a keyword entry
+  too. CI runs it, so a bad entry never reaches the app.
 
 ## Owns
 Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag.
@@ -80,6 +97,10 @@ Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, host
 Generated Kotlin model registry (ADR-016)
 - Kotlin constants generated from `models.yaml` by `tools/gen_model_registry.py`;
   consumers name a model by these constants, never by reading `models.yaml`.
+- `ModelRegistry.ALL` and `byId` answer for the speech models only.
+  `ModelRegistry.KEYWORD_MODELS`, `KWS_GIGASPEECH_3M` and `byKeywordId` answer
+  for the keyword models only, so a keyword model is never offered or looked up
+  as a speech model by accident. No consumer uses the keyword list yet.
 
 ## Depends On
 - shared (registered in modules.toml)

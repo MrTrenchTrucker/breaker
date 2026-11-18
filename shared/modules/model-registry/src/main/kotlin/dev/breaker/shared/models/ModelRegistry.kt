@@ -64,7 +64,22 @@ object ModelRegistry {
         archiveName = "sherpa-onnx-whisper-medium.en.tar.bz2",
     )
 
+    val KWS_GIGASPEECH_3M: ModelEntry = ModelEntry(
+        id = "kws-gigaspeech-3m",
+        family = ModelFamily.SHERPA_ONNX,
+        url = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/191975328",
+        sha256 = "2e6ac2577310bfa2f4b6b5fab0478b868c9d0b2cb2c51b3e13b50581b588864d",
+        sizeMb = 15,
+        licence = "Apache-2.0",
+        hosted = false,
+        archiveName = "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile.tar.bz2",
+    )
+
     val ALL: List<ModelEntry> = listOf(SMALL, TINY, BASE, MEDIUM)
 
+    val KEYWORD_MODELS: List<ModelEntry> = listOf(KWS_GIGASPEECH_3M)
+
     fun byId(id: String): ModelEntry? = ALL.firstOrNull { it.id == id }
+
+    fun byKeywordId(id: String): ModelEntry? = KEYWORD_MODELS.firstOrNull { it.id == id }
 }

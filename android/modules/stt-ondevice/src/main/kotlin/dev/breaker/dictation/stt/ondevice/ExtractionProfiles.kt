@@ -85,10 +85,40 @@ internal object ExtractionProfiles {
         ),
     )
 
-    /** The profile for [modelId] ("small" or "tiny"), or null for every other id. */
+    /**
+     * The keyword spotting model. Only the int8 encoder, the plain decoder, the int8
+     * joiner and the token table are written: the plain encoder, the sentencepiece
+     * model and the sample recordings in the archive are never extracted.
+     *
+     * The measured archive is 15,667,804 bytes; its largest entry is the plain encoder
+     * at 11,525,206 bytes, the four written files total 5,232,483 bytes, and the
+     * entries that are listed add up to 17,003,754 bytes before the sample recordings
+     * (whose sizes were not measured). The limits are 16 MiB per entry, 8 MiB written
+     * and 32 MiB of stream, each under twice the measured figure it guards.
+     */
+    private val KEYWORD = ExtractionProfile(
+        encoder = "encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
+        decoder = "decoder-epoch-12-avg-2-chunk-16-left-64.onnx",
+        joiner = "joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
+        tokens = "tokens.txt",
+        limits = ExtractionLimits(
+            maxEntries = 32,
+            maxEntryBytes = 16L * MIB,
+            maxWrittenBytes = 8L * MIB,
+            maxStreamBytes = 32L * MIB,
+            maxPathLength = 128,
+            maxDepth = 4,
+        ),
+    )
+
+    /**
+     * The profile for [modelId]: "small" or "tiny" (speech) or [KEYWORD_MODEL_ID]
+     * (keyword spotting), or null for every other id.
+     */
     fun forModel(modelId: String): ExtractionProfile? = when (modelId) {
         "small" -> SMALL
         "tiny" -> TINY
+        KEYWORD_MODEL_ID -> KEYWORD
         else -> null
     }
 }
