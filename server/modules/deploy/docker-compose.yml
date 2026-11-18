@@ -23,9 +23,11 @@ services:
       BREAKER_SYNC_API_INTERNAL_PORT: ${BREAKER_SYNC_API_INTERNAL_PORT:?BREAKER_SYNC_API_INTERNAL_PORT is required}
       BREAKER_SYNC_API_DB: /var/lib/breaker/sync-api/sync-api.db
       BREAKER_SYNC_API_SERVICE_KEY_FILE: /run/breaker/keys/sync-api-service-key
+      BREAKER_SYNC_API_MANIFEST_FILE: /var/lib/breaker/releases/current/latest.json
       BREAKER_WHISPER_HEALTH_URL: http://${BREAKER_WHISPER_ADDRESS:?BREAKER_WHISPER_ADDRESS is required}:${BREAKER_WHISPER_PORT:?BREAKER_WHISPER_PORT is required}/health
     volumes:
       - breaker_sync_api_data:/var/lib/breaker/sync-api
+      - breaker_releases:/var/lib/breaker/releases:ro
       # The host file's rules are in .env.example above BREAKER_SYNC_API_SERVICE_KEY_HOST.
       - ${BREAKER_SYNC_API_SERVICE_KEY_HOST:?BREAKER_SYNC_API_SERVICE_KEY_HOST is required}:/run/breaker/keys/sync-api-service-key:ro
     ports:
@@ -91,6 +93,8 @@ services:
     restart: unless-stopped
     environment:
       BREAKER_WEB_FE_PORT: ${BREAKER_WEB_FE_PORT:?BREAKER_WEB_FE_PORT is required}
+    volumes:
+      - breaker_releases:/srv/breaker/releases:ro
     ports:
       - ${BREAKER_BIND_ADDR:?BREAKER_BIND_ADDR is required}:${BREAKER_WEB_FE_PORT:?BREAKER_WEB_FE_PORT is required}:${BREAKER_WEB_FE_PORT:?BREAKER_WEB_FE_PORT is required}
     security_opt:
@@ -122,3 +126,4 @@ networks:
 volumes:
   breaker_sync_api_data:
   breaker_whisper_data:
+  breaker_releases:

@@ -327,9 +327,14 @@
      "evidence": "server/modules/deploy/scripts/{install,update,rollback,deploy-common}.sh; tests/unit/server/deploy/{test_install,test_update,test_rollback,test_deploy_common,test_entry_modes}.py"
     },
     {
-     "item": "git-pull build, sign and serve steps, APK signing, auth key rotation",
+     "item": "release pipeline scripts (sign-manifest.sh, write-manifest.sh, build-apk.sh, sign-apk.sh, serve-release.sh), the install code print in install.sh, the releases volume and its mounts, and their tests",
+     "status": "DONE",
+     "evidence": "server/modules/deploy/scripts/{sign-manifest,write-manifest,build-apk,sign-apk,serve-release,install}.sh; server/modules/deploy/docker-compose.yml; server/modules/deploy/images/web-fe/nginx.conf.template; tests/unit/server/deploy/{test_sign_manifest,test_write_manifest,test_build_apk,test_sign_apk,test_serve_release,test_install_code}.py"
+    },
+    {
+     "item": "key-generating script, auth key rotation, the app wiring that pins the manifest key, the openapi manifest schema, and a run of the release pipeline on a real build",
      "status": "NOT_STARTED",
-     "evidence": "deploy card Status: the build, sign and serve steps, APK signing and auth key rotation do not exist"
+     "evidence": "deploy card Status on main: these are not built or not verified"
     }
    ]
   },

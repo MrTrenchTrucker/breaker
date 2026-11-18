@@ -61,7 +61,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-008](ADR-008-configurable-service.md) | Admin-configurable transcription service | accepted |
 | [ADR-009](ADR-009-roles-tokens.md) | Roles + agent tokens (first-account-is-admin) | accepted, amended 2026-11-01 |
 | [ADR-010](ADR-010-retention.md) | Retention policy — 3-month TTL, audio deletes on completion | accepted |
-| [ADR-011](ADR-011-updates.md) | Updates — daily check + signed APK + rollback | accepted, amended 2026-11-05 |
+| [ADR-011](ADR-011-updates.md) | Updates — daily check + signed APK + rollback | accepted, amended 2026-11-05, 2026-11-09, 2026-11-10, 2026-11-18 (signature scheme Ed25519 and the release tool, as built) |
 | [ADR-012](ADR-012-trucking-ui.md) | Trucking UI + CB mic motif (supersedes CB Radio palette) | accepted |
 | [ADR-013](ADR-013-model-hosting.md) | Model hosting in the Breaker container + checksum verification | accepted |
 | [ADR-014](ADR-014-multi-user-isolation.md) | Multi-user isolation, server-enforced | accepted |
@@ -93,7 +93,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-040](ADR-040-the-website-uses-noble-for-key-derivation-and-the-sealed-box.md) | The website uses noble for key derivation and the sealed box | accepted; first task is a phone timing |
 | [ADR-041](ADR-041-rate-limits-on-the-open-sync-api-routes.md) | Rate limits on the open sync-api routes, keyed by source address | accepted (built); the limits are code constants and may be tuned later |
 | [ADR-042](ADR-042-network-model-vpn-or-private-bind.md) | Network model — VPN or private bind only, ordered server addresses | accepted; code enforces part of it |
-| [ADR-043](ADR-043-registration-lock-and-first-admin-install-code.md) | Registration lock - first account is admin, install code required | accepted, amended 2026-11-18; server side built (registration switch, install code), the phone field, the closed line and the install script's print planned |
+| [ADR-043](ADR-043-registration-lock-and-first-admin-install-code.md) | Registration lock - first account is admin, install code required | accepted, amended 2026-11-18; server side built (registration switch, install code), the install script's print built; the phone field and the closed line planned |
 | [ADR-044](ADR-044-service-status.md) | Service status route - signed-in users see which services are up | accepted; the server route GET /v1/status is built, the phone Home line is not |
 | [ADR-045](ADR-045-permission-revoke-on-foreground-return.md) | Re-check permission state on return to foreground; treat kill-on-revoke as a fresh start | accepted |
 | [ADR-046](ADR-046-app-depends-on-android-phrases.md) | App depends on android_phrases  -  registry edge added with the PhraseSendHandler code | accepted |

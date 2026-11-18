@@ -38,7 +38,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   `invalid_field`, and a wrong code costs no password hash. The code is compared in the register transaction as
   well as before the hash. Once an account exists the field is ignored and the file is deleted after the first
   account commits (best effort).
-- Planned, approved 2026-11-18, not built in this module: the deploy install script (`server/modules/deploy`) prints the install code once at the end of install. Nothing here changes; the sync-api still prints only the one notice line.
+- Built in the deploy module (`server/modules/deploy`, step 12 of `scripts/install.sh`; tested there, not run on a real server): the install script prints the install code once at the end of install, only to a terminal with shell tracing off. Nothing here changes; the sync-api still prints only the one notice line.
 - `GET/PUT /v1/admin/registration-open` - **admin-only**: read and flip the
   `registration_open` switch (server_settings key, integer 0/1). GET answers
   `{"enabled":true}` or `{"enabled":false}`; PUT accepts exactly one member,
@@ -347,7 +347,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   JSON object, a missing, blank or mistyped field, a version_code below 1): 503
   unavailable, a fixed body that echoes nothing of the file. A valid file: 200, the
   body rebuilt from the six fields in that order. The release tool that writes the
-  file is not built.
+  file is built in the deploy module (`scripts/write-manifest.sh`, with `sign-manifest.sh` and `serve-release.sh`, which puts the file at `/var/lib/breaker/releases/current/latest.json` through the read-only `breaker_releases` mount); it is tested with the real openssl and python3 and has not been run on a real build.
 - `POST /v1/admin/roles` — **admin-only**: assign/revoke admin on another account.
   Built (adminSetRole): the body is exactly `username` (a string) and `admin` (true or false), nothing
   else; the answer is 200 with the stored username and the new role (asking for the role the account
