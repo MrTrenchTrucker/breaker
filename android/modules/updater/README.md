@@ -1,10 +1,6 @@
 # updater — README
 
-The due decision, the version order, the digest check, the update decision, the check itself (asking the
-server for the latest release and saying whether it is newer), the download of the APK (only from the
-configured server, verified by its SHA-256 before it lands) and the signature check (an Ed25519 signature over
-the version and the digest, against pinned keys) are built. The install, the rollback and the schedule are
-not built yet, and nothing in the app calls the signature check yet. The paragraph below is the target design.
+The due decision, the version order, the digest check, the update decision, the check itself (asking the server for the latest release and saying whether it is newer), the download of the APK (only from the configured server, verified by its SHA-256 before it lands), the signature check (an Ed25519 signature over the version and the digest, against pinned keys), the verify step that joins the download and the signature check, the daily rule, the rollback offer (recognised by its shape and held until an admin restores it), the install step through the system installer port, the daily timer and the update checker with its one builder are built, with tests. The app wires them in: the installer adapter, the owner's key list and the timer start. Built, not tried on a phone: nothing here has run on a phone, so the install dialog, a cancelled dialog, a failed install and the rollback offer are NOT VERIFIED on a device.
 
 Keeps Breaker up to date. Once a day it checks the project's own server for a newer release, and an admin can force a check. It installs only APKs whose signature and SHA-256 check out, and it can roll back. It replaces the base app's updater, which was removed because it pointed elsewhere.
 

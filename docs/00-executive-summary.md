@@ -9,9 +9,7 @@ built today. Not built yet: server `training` and the phone's
 `training-client` (each holds only a card, a README and a build file); part of `deploy`
 (its eight scripts and their shared helpers, image recipes, compose file, env example and
 secrets gate are built; the APK build + sign + serve step, the release manifest writer and
-the key rotation are not); most of the
-updater (its update check, APK download and signature check are built; the
-daily scheduler (only the pure due check exists), the install, the rollback and the app wiring are not); the web front end
+the key rotation are not); the updater's Home buttons (the force check, the install and the rollback; another module; the rest of the updater is built, not tried on a phone); the web front end
 beyond its sign-in page (no history view, APK or model hosting, or admin panel);
 encryption of synced text (sync still pushes at `key_version` 0, Phase 19); on the
 server, the transcription-service route; and wiring the server formatter into the

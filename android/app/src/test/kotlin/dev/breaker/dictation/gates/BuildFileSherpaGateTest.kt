@@ -16,7 +16,8 @@ import org.junit.Test
  * catalog's engine version and is used once, by the run-time only dependency; the hash check task
  * is named by one path value; the pre-build step depends on it; and the by-name hook that makes
  * every compile, lint, test, bundle, extract, merge, package, check, assemble and build step
- * depend on it exists; those two are the only places the file says `dependsOn`. The dependency
+ * depend on it exists; those two, and the two update key lines pinned in [problems] by their exact
+ * text, are the only places the file says `dependsOn`. The dependency
  * line itself is pinned by BuildFileGateTest.
  */
 internal class BuildFileSherpaGateTest {
@@ -39,6 +40,14 @@ internal class BuildFileSherpaGateTest {
             "\\s*\\)\\s*\\.\\s*matches\\s*\\(\\s*name\\s*\\)\\s*\\)\\s*\\{\\s*dependsOn\\s*\\(\\s*verifySherpaAarPath\\s*\\)\\s*\\}\\s*\\}",
     )
     private val anyDependsOn: Regex = Regex("\\bdependsOn\\s*\\(([^)]*)\\)")
+
+    // The update key resource adds exactly these two dependsOn uses to the build file: the copy task's
+    // dependency on the check, inside its registration, and the check that the release and bundle tasks
+    // depend on. Each line is pinned by its exact text, so a changed matcher or target is rejected as well
+    // as an extra line.
+    private val copyCheckLine: String = "dependsOn(checkUpdateKeys)"
+    private val keyCheckLine: String = "tasks.matching { it.name == \"assembleRelease\" || it.name == \"bundleRelease\" }.configureEach { dependsOn(checkUpdateKeys) }"
+    private val expectedUses: List<String> = listOf("verifySherpaAarPath", "verifySherpaAarPath", "checkUpdateKeys", "checkUpdateKeys")
 
     private fun buildFileText(): String {
         val script = File(AppSourceFiles.moduleRoot, "build.gradle.kts")
@@ -75,7 +84,12 @@ internal class BuildFileSherpaGateTest {
         val pattern = literalsOf(stripped, nameHook, 1)
         if (pattern != listOf(namePattern)) found.add("the by-name hook is not exactly once over \"$namePattern\": $pattern")
         val args = anyDependsOn.findAll(code).map { it.groupValues[1].trim() }.toList()
-        if (args != listOf("verifySherpaAarPath", "verifySherpaAarPath")) found.add("dependsOn is used with $args, expected two uses of verifySherpaAarPath")
+        if (args != expectedUses) found.add("dependsOn is used with $args, expected the two uses of verifySherpaAarPath and the two update key uses")
+        // Each update key line must be there once, by exact text: a changed matcher or target is a difference.
+        for (line in listOf(copyCheckLine, keyCheckLine)) {
+            val copies: Int = text.lines().count { it.trim() == line }
+            if (copies != 1) found.add("the update key wiring line is not exactly once: $line")
+        }
         return found
     }
 
@@ -100,6 +114,12 @@ internal class BuildFileSherpaGateTest {
         XmlSample("by-name hook loses its dependency", inner, "", "the by-name hook is not exactly once", "dependsOn is used with"),
         XmlSample("by-name hook narrowed", "\"$namePattern\"", "\"(compile).*\"", "the by-name hook is not exactly once"),
         XmlSample("by-name hook removed", "tasks.configureEach {", "tasks.whenTaskAdded {", "the by-name hook is not exactly once"),
+        // The update key resource: a fifth dependsOn use, and a changed text of each of the two update key lines.
+        XmlSample("a fifth dependsOn line", keyCheckLine, "$keyCheckLine\ntasks.named(\"clean\") { dependsOn(checkUpdateKeys) }", "dependsOn is used with"),
+        XmlSample("the check line matches another build type", "it.name == \"bundleRelease\"", "it.name == \"bundleDebug\"", "the update key wiring line is not exactly once"),
+        XmlSample("the check line runs the copy task", "configureEach { dependsOn(checkUpdateKeys) }", "configureEach { dependsOn(copyUpdateKeys) }", "the update key wiring line is not exactly once", "dependsOn is used with"),
+        XmlSample("the copy registration depends on the copy task", "    dependsOn(checkUpdateKeys)\n}", "    dependsOn(copyUpdateKeys)\n}", "the update key wiring line is not exactly once", "dependsOn is used with"),
+        XmlSample("the copy registration loses its check", "    dependsOn(checkUpdateKeys)\n}", "}", "the update key wiring line is not exactly once", "dependsOn is used with"),
     )
 
     private val quiet: List<XmlSample> = listOf(
@@ -118,23 +138,23 @@ internal class BuildFileSherpaGateTest {
     }
 
     @Test
-    fun `a build file with another coordinate, a lost check or a narrowed hook is rejected with what is wrong`() {
+    fun `a build file with another coordinate a lost check or a narrowed hook is rejected with what is wrong`() {
         val real: String = buildFileText()
         for (sample in firing) {
             val found: List<String> = problems(XmlSamples.apply("build file", real, sample))
-            assertTrue("app: the speech engine gate accepted ${sample.label}", found.isNotEmpty())
+            assertTrue("app: the speech engine check accepted ${sample.label}", found.isNotEmpty())
             for (fragment in sample.fragments) {
-                assertTrue("app: the speech engine gate did not say \"$fragment\" for ${sample.label}, it said $found", found.any { it.contains(fragment) })
+                assertTrue("app: the speech engine check did not say \"$fragment\" for ${sample.label}, it said $found", found.any { it.contains(fragment) })
             }
         }
     }
 
     @Test
-    fun `comments and spacing do not change the verdict`() {
+    fun `comments and spacing do not change the result`() {
         val real: String = buildFileText()
         for (sample in quiet) {
             val found: List<String> = problems(XmlSamples.apply("build file", real, sample))
-            assertEquals("app: the speech engine gate flagged ${sample.label}", emptyList<String>(), found)
+            assertEquals("app: the speech engine check flagged ${sample.label}", emptyList<String>(), found)
         }
     }
 
@@ -143,8 +163,9 @@ internal class BuildFileSherpaGateTest {
         val rules: List<String> = listOf(
             "sherpaCoordinate is not built once", "named 1 times", "named 3 times", "verifySherpaAarPath is not defined",
             "preBuild does not depend", "the by-name hook is not exactly once", "dependsOn is used with",
+            "the update key wiring line is not exactly once",
         )
-        assertEquals("app: the number of firing samples changed", 16, firing.size)
+        assertEquals("app: the number of firing samples changed", 21, firing.size)
         for (rule in rules) {
             assertTrue("app: no firing sample names the rule \"$rule\"", firing.any { sample -> sample.fragments.any { it.contains(rule) } })
         }

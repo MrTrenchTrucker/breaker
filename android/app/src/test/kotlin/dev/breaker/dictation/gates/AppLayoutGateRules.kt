@@ -51,6 +51,9 @@ open class AppLayoutGateRules {
         "wiring/ProbeRefreshingSettingsStore.kt",
         "wiring/PhraseFeedTap.kt", "wiring/PhraseSendHandler.kt", "wiring/PhraseStreamSource.kt", "wiring/PhraseWiring.kt",
         "wiring/TileSpokenSend.kt",
+        "wiring/UpdateKeyList.kt", "wiring/UpdateTimesStore.kt",
+        "wiring/PackageInstallRun.kt", "wiring/InstallStatusRule.kt",
+        "wiring/UpdaterWiring.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */
@@ -65,6 +68,9 @@ open class AppLayoutGateRules {
         "host/SignInBrowser.kt", "host/HandoffReturnActivity.kt",
         "wiring/KeystoreSessionKey.kt",
         "wiring/SyncAllowed.kt",
+        "wiring/UpdateTimerAndroid.kt",
+        "wiring/UpdateInstallerAndroid.kt",
+        "wiring/AppUpdater.kt",
     )
 
     private val softCap: Int = 300

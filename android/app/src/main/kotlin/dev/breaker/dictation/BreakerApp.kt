@@ -286,6 +286,7 @@ class BreakerApp : android.app.Application() {
         }
         // Start the sync worker at app start: a drain runs after every save, at app start and on the backoff timer.
         if (syncOn) syncWorker.onStart()
+        dev.breaker.dictation.wiring.AppUpdater.start(this)
     }
 
     override fun onTerminate() {

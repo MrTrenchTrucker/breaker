@@ -62,4 +62,4 @@ The signature scheme is Ed25519. The manifest `signature` is the canonical base6
 
 The release tool that writes the file is built in the deploy module: `write-manifest.sh` writes the six-field manifest and calls `sign-manifest.sh`, which signs with a key file the owner supplies by path and checks the signature before printing it; `serve-release.sh` puts the APK and the manifest on the `breaker_releases` volume, which sync-api reads through `BREAKER_SYNC_API_MANIFEST_FILE`. It has not run on a real release build.
 
-**Still open.** The real keys and their custody are the project owner's call. The app wiring that pins the key, and a key-id field in the manifest for rotation, are not built.
+**Still open.** The real keys and their custody are the project owner's call. The app wiring that pins the key is built in android/app: a release build reads the owner's key list from the Gradle property `breakerUpdateKeysFile` (or the environment variable `BREAKER_UPDATE_KEYS_FILE`), fails when it names a bad file, and without one pins no key, so that app refuses every update. Not tried on a phone. A key-id field in the manifest for rotation is not built.

@@ -18,6 +18,8 @@ internal class HandoffReturnManifestPinTest {
         "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SYSTEM_ALERT_WINDOW",
+        // The install permission is in the app for the approved updater install path.
+        "android.permission.REQUEST_INSTALL_PACKAGES",
     )
 
     // A copy of the allow-list in ManifestGateTest.kt; the two must be changed together.

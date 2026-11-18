@@ -7,9 +7,9 @@ import org.junit.Test
 /**
  * The service, wiring and host code logs nothing, starts no thread, timer or lock, reads no
  * clock and draws no random number; no main string says an http:// address; no main text
- * uses the one word the project bans for putting text into a field. One named exception:
- * `host/AppThreads.kt` is the only file that may name a handler, a looper, an executor or a
- * thread, and it is still held to every other rule.
+ * uses the one word the project bans for putting text into a field. Three named exceptions,
+ * listed in AppThreadExceptions, may name the thread, handler and clock types they list; every
+ * other rule still holds in all three files.
  *
  * Dictated text, audio and transcripts must never reach a log, a print or a toast, and
  * the new code does its waiting through signals, not through clocks and threads. The scan
@@ -47,7 +47,7 @@ internal class AppPrivacyScanTest {
         Rule("clock read", Regex("""\b(currentTimeMillis|nanoTime|elapsedRealtime|elapsedRealtimeNanos|uptimeMillis)\b|\bSystemClock\b"""), "object A { val t = System.currentTimeMillis() }"),
     )
 
-    private val ruleMap: Map<String, Regex> = rules.associate { it.label to it.pattern }
+    internal val ruleMap: Map<String, Regex> = rules.associate { it.label to it.pattern }
 
     /** Files that predate the service and wiring folders. They are scanned by name with the rules above. */
     private val predating: Set<String> = setOf("BreakerApp.kt", "AppStartPurge.kt")
@@ -55,9 +55,9 @@ internal class AppPrivacyScanTest {
     /** The one exception, by name: the application class may keep a single fixed-shape warning log (see [logProblems]). */
     private val logException: String = "BreakerApp.kt"
 
-    /** The other named exception: this one file may name the thread types, and no other rule is lifted for it. */
+    /** The thread file and the names it may use; the table of all three exceptions is in AppThreadExceptions. */
     private val threadFile: String = "host/AppThreads.kt"
-    private val threadRules: Set<String> = setOf("Handler", "Executor", "Thread")
+    private val threadRules: Set<String> = AppThreadExceptions.lifted.getValue(threadFile)
 
     private val quiet: Map<String, String> = mapOf(
         "a line comment" to "// Log.d println(x) Thread.sleep(1) synchronized Random currentTimeMillis\nobject A",
@@ -128,10 +128,10 @@ internal class AppPrivacyScanTest {
         sources.filterKeys { it.startsWith("service/") || it.startsWith("wiring/") || it.startsWith("host/") || it in predating }
 
     /** One line per file and rule hit in the scanned files; the application class is not read for the Log rule (see [logProblems]). */
-    private fun codeOffences(sources: Map<String, String>): List<String> =
+    internal fun codeOffences(sources: Map<String, String>): List<String> =
         AppSourceFiles.offences(scanned(sources), ruleMap)
             .filterNot { it.startsWith("$logException: Log x") }
-            .filterNot { line -> threadRules.any { line.startsWith("$threadFile: $it x") } }
+            .filterNot { AppThreadExceptions.lifts(it) }
 
     private fun httpOffences(sources: Map<String, String>): List<String> {
         val found: MutableList<String> = ArrayList()
@@ -165,7 +165,7 @@ internal class AppPrivacyScanTest {
         return problems
     }
 
-    private fun mainKotlin(): Map<String, String> {
+    internal fun mainKotlin(): Map<String, String> {
         val main: Map<String, String> = AppSourceFiles.mainKotlinSources()
         assertTrue("app: the privacy scan found no main file to read", main.isNotEmpty())
         assertTrue("app: the privacy scan did not reach the files that predate the folders, found ${main.keys}", main.keys.containsAll(predating))
