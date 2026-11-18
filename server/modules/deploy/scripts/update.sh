@@ -103,13 +103,24 @@ update_schema_verdict() {
     printf 'unchanged\n'
 }
 
-# update_report VERDICT [RUNNING_TAG] - the backup folder, the tag actually
-# RUNNING and the schema versions. Never an environment VALUE. RUNNING_TAG
-# defaults to the target: the stack is unchanged unless a recovery redeployed
-# the previous tag.
+# update_report VERDICT [RUNNING_TAG] [NOTE] - the backup folder, the tag
+# actually RUNNING and the schema versions. Never an environment VALUE. With
+# no RUNNING_TAG the running tag is READ FROM DOCKER (deploy_running_image_tag:
+# every running service must agree; mixed, nothing running or an unreadable
+# answer is `unknown`) - never the target, because every caller is a FAILURE
+# arm and the target is not evidence of what is running. An EXPLICIT second
+# argument wins: the recovery arm passes a tag it already read from docker.
+# NOTE, when given, qualifies the tag line for an arm whose tag was NOT
+# verified healthy, so the line cannot stand alone as a clean status.
 update_report() {
     echo "update: backup folder $BACKUP_OUT"
-    echo "update: deployed tag ${2:-$TAG}"
+    _ur_tag=${2:-}
+    if [ -z "$_ur_tag" ]; then
+        if ! _ur_tag=$(deploy_running_image_tag 2>/dev/null); then
+            _ur_tag=unknown
+        fi
+    fi
+    echo "update: running tag $_ur_tag${3:+ ($3)}"
     echo "update: schema verdict $1"
     for _ur_db in "$_udb_sync_db" "$_udb_whisper_db"; do
         [ -n "$_ur_db" ] || continue
@@ -464,6 +475,7 @@ if ! deploy_check_health $_health_urls; then
             # recovery would always fail. rollback.sh also owns its own
             # --env-file/timeout defaults; update.sh pins only the values it
             # must.
+            RUNNING_NOTE=""
             if "$SCRIPT_DIR/rollback.sh" --remote "$REMOTE" --env-file "$ENV_FILE" \
                     --timeout "$TIMEOUT" --recovery --tag "$RECORDED_TAG"; then
                 echo "update: recovery ok"
@@ -477,8 +489,14 @@ if ! deploy_check_health $_health_urls; then
                 # read. NEVER the target.
                 RUNNING_TAG=$(deploy_running_image_tag 2>/dev/null) || true
                 [ -n "$RUNNING_TAG" ] || RUNNING_TAG=unknown
+                # The recovery did not become healthy: say so EXPLICITLY, with
+                # the recorded tag it tried, the health state and the running
+                # tag read above - before the report, so no line reads as a
+                # clean result for a tag that was NOT verified healthy.
+                echo "update: FAILED: recovery to $RECORDED_TAG did not become healthy (health state: failed; running tag: $RUNNING_TAG)"
+                RUNNING_NOTE="recovery failed; not verified healthy"
             fi
-            update_report "$verdict" "$RUNNING_TAG"
+            update_report "$verdict" "$RUNNING_TAG" "$RUNNING_NOTE"
             exit 1
             ;;
         changed)

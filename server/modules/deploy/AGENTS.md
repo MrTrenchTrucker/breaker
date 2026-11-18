@@ -27,6 +27,8 @@ and ship updates.
   release tag by default (`--previous`), or an explicitly named tag with `--tag TAG`; giving both is a
   usage error. `--tag` is what `update.sh` passes when it recovers a failed update, because the release
   that was running is not necessarily the previous one; no restore and no down-migration of data volumes.
+  The recovery rebuild overwrites the local image of that tag; accepted, because rollback.sh rebuilds
+  with `--no-cache`, so a reused tag cannot serve a stale image.
 - `NOTICE` — server-side copy of the licensing notice (XIAOMI sherpa-onnx +
   OpenWhispr authors + modifications statement) for any shipped artifacts.
 - `scripts/` - install, update, rollback, health-check. Built: `health-check.sh`, `release-tags.sh`, `backup-data.py`, `vpn-bind.sh`, `git-pull.sh`, `install.sh`, `update.sh` and `rollback.sh`, with the shared `deploy-common.sh` helpers (see Status on main). Backups keep the N most recent stamp directories in total, this run's own stamp included: `--keep N` (default 5) on `backup-data.py`, and the same option on `install.sh`, `update.sh` and `rollback.sh`, which pass it on.

@@ -1238,8 +1238,8 @@ class UpdateTest(unittest.TestCase):
         # target that failed its health check.
         r = self.run_ok(env_extra={"STUB_CURL_RC": "1"})
         self.assertEqual(r.returncode, 1, r.stderr)
-        self.assertIn("update: deployed tag v1.0.0", r.stdout, r.stdout)
-        self.assertNotIn("update: deployed tag v1.2.0", r.stdout)
+        self.assertIn("update: running tag v1.0.0", r.stdout, r.stdout)
+        self.assertNotIn("update: running tag v1.2.0", r.stdout)
 
     # -- defects 3 + 5: the running tag and the recovery target -------------
 
@@ -1269,7 +1269,7 @@ class UpdateTest(unittest.TestCase):
              "--recovery --tag v1.0.0" % (REMOTE, self.env_file)],
             self.log_text())
         self.assertNotIn("--previous", self.log_text())
-        self.assertIn("update: deployed tag v1.0.0", r.stdout, r.stdout)
+        self.assertIn("update: running tag v1.0.0", r.stdout, r.stdout)
 
     def test_the_plain_recovery_still_deploys_the_previous_tag(self):
         # The plain case (no --tag): the tag recorded as running before the
@@ -1281,8 +1281,8 @@ class UpdateTest(unittest.TestCase):
             ["rollback --remote %s --env-file %s --timeout 5 "
              "--recovery --tag v1.0.0" % (REMOTE, self.env_file)],
             self.log_text())
-        self.assertIn("update: deployed tag v1.0.0", r.stdout, r.stdout)
-        self.assertNotIn("update: deployed tag v1.2.0", r.stdout)
+        self.assertIn("update: running tag v1.0.0", r.stdout, r.stdout)
+        self.assertNotIn("update: running tag v1.2.0", r.stdout)
 
     def test_a_failed_recovery_reports_the_tag_docker_says_is_running(self):
         # Defect 3: after a FAILED recovery the report must be the tag docker
@@ -1294,8 +1294,8 @@ class UpdateTest(unittest.TestCase):
                                    "STUB_PS_AFTER_FAIL": after})
         self.assertEqual(r.returncode, 1, r.stderr)
         log = self.log_text()
-        self.assertIn("update: deployed tag v1.1.0", r.stdout, r.stdout)
-        self.assertNotIn("update: deployed tag v1.2.0", r.stdout)
+        self.assertIn("update: running tag v1.1.0", r.stdout, r.stdout)
+        self.assertNotIn("update: running tag v1.2.0", r.stdout)
         # the report is backed by a docker read taken AFTER the recovery attempt
         self.assertGreater(log.rfind("compose -p breaker ps"),
                            log.find("rollback --remote"), log)
@@ -1307,8 +1307,55 @@ class UpdateTest(unittest.TestCase):
         r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_ROLLBACK_RC": "1",
                                    "STUB_PS_FAIL_FILE": str(fail)})
         self.assertEqual(r.returncode, 1, r.stderr)
-        self.assertIn("update: deployed tag unknown", r.stdout, r.stdout)
-        self.assertNotIn("update: deployed tag v1.2.0", r.stdout)
+        self.assertIn("update: running tag unknown", r.stdout, r.stdout)
+        self.assertNotIn("update: running tag v1.2.0", r.stdout)
+
+    # -- D2: a failed recovery says FAILED, never a clean status -------------
+
+    def test_a_failed_recovery_prints_an_explicit_failed_line(self):
+        # D2: the recovery redeploy was attempted and its health check ALSO
+        # failed. The arm must say FAILED explicitly, naming the recorded tag it
+        # tried, the health state and the running tag read from docker (v1.1.0 -
+        # not the target v1.2.0 and not the recorded tag v1.0.0).
+        after = ("sync-api breaker/sync-api:v1.1.0\n"
+                 "whisper-server breaker/whisper-server:v1.1.0\n"
+                 "web-fe breaker/web-fe:v1.1.0\n")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_ROLLBACK_RC": "1",
+                                   "STUB_PS_AFTER_FAIL": after})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn(
+            "update: FAILED: recovery to v1.0.0 did not become healthy "
+            "(health state: failed; running tag: v1.1.0)",
+            r.stdout, r.stdout)
+        self.assertNotIn("update: deployed tag", r.stdout)
+
+    def test_a_failed_recovery_report_tag_line_is_not_a_clean_status(self):
+        # D2: the report may still print the tag, but in this arm it must not
+        # stand alone as a clean status for a tag that was NOT verified healthy.
+        after = ("sync-api breaker/sync-api:v1.1.0\n"
+                 "whisper-server breaker/whisper-server:v1.1.0\n"
+                 "web-fe breaker/web-fe:v1.1.0\n")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_ROLLBACK_RC": "1",
+                                   "STUB_PS_AFTER_FAIL": after})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn(
+            "update: running tag v1.1.0 (recovery failed; not verified healthy)",
+            r.stdout, r.stdout)
+        self.assertNotIn("update: running tag v1.1.0\n", r.stdout, r.stdout)
+        self.assertNotIn("update: deployed tag", r.stdout)
+
+    def test_a_failed_recovery_with_an_unreadable_tag_prints_unknown_in_the_failed_line(self):
+        # D2: the FAILED line's running tag is READ from docker; when the read
+        # fails it says unknown - never the recorded tag and never the target.
+        fail = self.tmp / "ps-fail"
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_ROLLBACK_RC": "1",
+                                   "STUB_PS_FAIL_FILE": str(fail)})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn(
+            "update: FAILED: recovery to v1.0.0 did not become healthy "
+            "(health state: failed; running tag: unknown)",
+            r.stdout, r.stdout)
+        self.assertNotIn("running tag: v1.0.0)", r.stdout)
 
     def test_a_recorded_unknown_running_tag_skips_the_recovery_redeploy(self):
         # the running tag could not be read before the swap,
@@ -1323,6 +1370,148 @@ class UpdateTest(unittest.TestCase):
             "update: the release that was running could not be read; "
             "the stack is left as it is; the pre-update backup is in %s"
             % self.backup_out, r.stdout, r.stdout)
+
+
+    # -- D1: the report names the tag docker says is RUNNING, never the target --
+    # update_report is called with NO second argument in the no-schema-record
+    # arm, the verdict-changed arm and the unknown-verdict arm. In all three
+    # the tag must come from the REAL deploy_running_image_tag through the stub
+    # docker seam at test_update.py:98 (`compose -p breaker ps --format
+    # {{.Service}} {{.Image}}` answered from ${STUB_PS_FILE:-default-ps}), or be
+    # `unknown`; the target is never a default.
+
+    def write_ps(self, text):
+        self.ps_file.write_text(text, encoding="utf-8")
+
+    def assert_report_running_tag(self, r, tag):
+        self.assertIn("update: running tag %s" % tag, r.stdout, r.stdout)
+        self.assertNotIn("update: running tag v1.2.0", r.stdout)
+
+    def test_no_schema_record_report_names_the_running_tag(self):
+        # no-schema-record arm - no data was present, so nothing was recorded.
+        # the one tag every running service agrees on (v1.3.0), not the target.
+        self.write_ps(
+            "sync-api breaker/sync-api:v1.3.0\n"
+            "whisper-server breaker/whisper-server:v1.3.0\n"
+            "web-fe breaker/web-fe:v1.3.0\n")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1",
+                                   "STUB_SYNC_MOUNT": "",
+                                   "STUB_WHISPER_MOUNT": ""})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assert_report_running_tag(r, "v1.3.0")
+
+    def test_no_schema_record_report_unknown_on_mixed_tags(self):
+        # no-schema-record arm - the services DISAGREE: unknown.
+        self.write_ps(
+            "sync-api breaker/sync-api:v1.3.0\n"
+            "whisper-server breaker/whisper-server:v1.4.0\n")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1",
+                                   "STUB_SYNC_MOUNT": "",
+                                   "STUB_WHISPER_MOUNT": ""})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assert_report_running_tag(r, "unknown")
+
+    def test_no_schema_record_report_unknown_when_nothing_is_running(self):
+        # no-schema-record arm - nothing is running (an empty ps answer):
+        # unknown, never the target.
+        self.write_ps("")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1",
+                                   "STUB_SYNC_MOUNT": "",
+                                   "STUB_WHISPER_MOUNT": ""})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assert_report_running_tag(r, "unknown")
+
+    def test_no_schema_record_report_unknown_when_the_read_fails(self):
+        # no-schema-record arm - the ps read FAILS: unknown, never the target.
+        fail = self.tmp / "ps-fail"
+        fail.write_text("", encoding="utf-8")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1",
+                                   "STUB_SYNC_MOUNT": "",
+                                   "STUB_WHISPER_MOUNT": "",
+                                   "STUB_PS_FAIL_FILE": str(fail)})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assert_report_running_tag(r, "unknown")
+
+    def test_changed_verdict_report_names_the_running_tag(self):
+        # verdict-changed arm - the new version migrated, so the stack is left
+        # as it is. The report names the tag docker says is running, not the
+        # target.
+        self.write_ps(
+            "sync-api breaker/sync-api:v1.3.0\n"
+            "whisper-server breaker/whisper-server:v1.3.0\n"
+            "web-fe breaker/web-fe:v1.3.0\n")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_UP_MIGRATE": "1"})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("schema verdict changed", r.stdout, r.stdout)
+        self.assert_report_running_tag(r, "v1.3.0")
+
+    def test_changed_verdict_report_unknown_on_mixed_tags(self):
+        # verdict-changed arm - the services DISAGREE: unknown.
+        self.write_ps(
+            "sync-api breaker/sync-api:v1.3.0\n"
+            "whisper-server breaker/whisper-server:v1.4.0\n")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_UP_MIGRATE": "1"})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("schema verdict changed", r.stdout, r.stdout)
+        self.assert_report_running_tag(r, "unknown")
+
+    def test_changed_verdict_report_unknown_when_nothing_is_running(self):
+        # verdict-changed arm - nothing is running (an empty ps answer): unknown.
+        self.write_ps("")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_UP_MIGRATE": "1"})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("schema verdict changed", r.stdout, r.stdout)
+        self.assert_report_running_tag(r, "unknown")
+
+    def test_changed_verdict_report_unknown_when_the_read_fails(self):
+        # verdict-changed arm - the ps read FAILS: unknown.
+        fail = self.tmp / "ps-fail"
+        fail.write_text("", encoding="utf-8")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_UP_MIGRATE": "1",
+                                   "STUB_PS_FAIL_FILE": str(fail)})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("schema verdict changed", r.stdout, r.stdout)
+        self.assert_report_running_tag(r, "unknown")
+
+    def test_unknown_verdict_report_names_the_running_tag(self):
+        # unknown-verdict arm - the post-swap read cannot be made. The report
+        # still names the tag docker says is running.
+        self.write_ps(
+            "sync-api breaker/sync-api:v1.3.0\n"
+            "whisper-server breaker/whisper-server:v1.3.0\n"
+            "web-fe breaker/web-fe:v1.3.0\n")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_UP_DELETE": "1"})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("schema verdict unknown", r.stdout, r.stdout)
+        self.assert_report_running_tag(r, "v1.3.0")
+
+    def test_unknown_verdict_report_unknown_on_mixed_tags(self):
+        # unknown-verdict arm - the services DISAGREE: unknown.
+        self.write_ps(
+            "sync-api breaker/sync-api:v1.3.0\n"
+            "whisper-server breaker/whisper-server:v1.4.0\n")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_UP_DELETE": "1"})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("schema verdict unknown", r.stdout, r.stdout)
+        self.assert_report_running_tag(r, "unknown")
+
+    def test_unknown_verdict_report_unknown_when_nothing_is_running(self):
+        # unknown-verdict arm - nothing is running (an empty ps answer): unknown.
+        self.write_ps("")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_UP_DELETE": "1"})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("schema verdict unknown", r.stdout, r.stdout)
+        self.assert_report_running_tag(r, "unknown")
+
+    def test_unknown_verdict_report_unknown_when_the_read_fails(self):
+        # unknown-verdict arm - the ps read FAILS: unknown.
+        fail = self.tmp / "ps-fail"
+        fail.write_text("", encoding="utf-8")
+        r = self.run_ok(env_extra={"STUB_CURL_RC": "1", "STUB_UP_DELETE": "1",
+                                   "STUB_PS_FAIL_FILE": str(fail)})
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("schema verdict unknown", r.stdout, r.stdout)
+        self.assert_report_running_tag(r, "unknown")
 
 
 if __name__ == "__main__":
