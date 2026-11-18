@@ -286,9 +286,9 @@
    "path": "android/modules/updater",
    "items": [
     {
-     "item": "update check (manifest fetch, decode, update decision, pure due check, rollback offer recognised by shape)",
+     "item": "update check (manifest fetch, decode, update decision, pure due check)",
      "status": "DONE",
-     "evidence": "UpdateCheck, ManifestFetch, ManifestJson, UpdateDecision, UpdateSchedule.isDue, RollbackOffer, VersionName, RollbackAwareCheck and HeldRollback, with tests in android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater (UpdateCheckTest, RollbackOfferTest, VersionNameTest, RollbackAwareCheckTest)"
+     "evidence": "UpdateCheck, ManifestFetch, ManifestJson, UpdateDecision, and UpdateSchedule.isDue, with tests in android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater (UpdateCheckTest)"
     },
     {
      "item": "APK download (same-origin, streamed, SHA-256 verified)",

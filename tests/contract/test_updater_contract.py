@@ -5,7 +5,7 @@ rest of the repository (registry entry, card, Gradle wiring, declared
 dependencies) and leaves the behavioural contract to the tests added with the
 module's own code.
 
-The module's card also carries the facts the install path, the rollback offer,
+The module's card also carries the facts the install path, the older build offer,
 the key list and the daily timer depend on. Those facts are checked here by
 name, so a card that drops one of them fails this file.
 """
@@ -27,10 +27,10 @@ CARD_CHECKS = (
         ("FileProvider",),
     ),
     (
-        "rollback shape",
-        ("four numeric parts", "1.2.10.0", "1.2.9.0", "a higher version code",
-         "Roll back"),
-        ("keep previous APK", "Rollback restores the previous version"),
+        "older build offer",
+        ("a higher version code", "an ordinary update"),
+        ("HeldRollback", "heldRollbackVersion", "RollbackAwareCheck",
+         "RollbackOffer", "RollbackReasons"),
     ),
     (
         "key list",
@@ -105,8 +105,8 @@ class AndroidModulesUpdaterContractTest(contract_support.ModuleContractTest):
     def test_card_install_session(self):
         self._assert_card_check("install session")
 
-    def test_card_rollback_shape(self):
-        self._assert_card_check("rollback shape")
+    def test_card_older_build_offer(self):
+        self._assert_card_check("older build offer")
 
     def test_card_key_list(self):
         self._assert_card_check("key list")

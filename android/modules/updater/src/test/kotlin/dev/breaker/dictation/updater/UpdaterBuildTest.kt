@@ -1,5 +1,6 @@
 package dev.breaker.dictation.updater
 
+import dev.breaker.dictation.core.model.ReleaseInfo
 import dev.breaker.dictation.core.model.UpdateCheckResult
 import dev.breaker.dictation.http.BytesReply
 import java.io.File
@@ -122,21 +123,32 @@ class UpdaterBuildTest {
     }
 
     @Test
-    fun `a rollback shaped offer is held while the check answers up to date`() {
+    fun `a rollback shaped offer is an ordinary update`() {
         val transport = manifestAnswer(version = "\"1.2.3.4\"", versionCode = "6")
         val updater = buildUpdater(config(transport, BuildTimes(), FakeTimerScheduler(), installedCode = 5L, installedName = "1.2.3.5"))
+        val expected = ReleaseInfo("1.2.3.4", "https://example.test/app.apk", "aaaa", "bbbb", "Latest release")
         assertEquals(
-            "android_updater: up to date with the installed name",
-            UpdateCheckResult.UpToDate("1.2.3.5"),
+            "android_updater: the older name under a higher code is available",
+            UpdateCheckResult.Available(expected),
             updater.checker.check(false),
         )
-        assertEquals("android_updater: the held version", "1.2.3.4", updater.heldRollbackVersion())
     }
 
     @Test
-    fun `the held version is null before any check`() {
-        val updater = buildUpdater(config(FakeTransport { BytesReply(200, bytesOf(manifestText())) }, BuildTimes(), FakeTimerScheduler()))
-        assertNull("android_updater: nothing held yet", updater.heldRollbackVersion())
+    fun `a non-admin forced check still runs the daily rule only`() {
+        val dueTransport = FakeTransport { BytesReply(200, bytesOf(manifestText())) }
+        val dueTimes = BuildTimes(lastCheck = nowValue - 86_400_001L)
+        val due = buildUpdater(config(dueTransport, dueTimes, FakeTimerScheduler(), admin = false))
+        assertTrue("android_updater: a due day runs the check", due.checker.check(true) is UpdateCheckResult.Available)
+        assertEquals("android_updater: one request when due", 1, dueTransport.sent.size)
+        assertEquals("android_updater: the check time is recorded", listOf(nowValue), dueTimes.checkRecords)
+
+        val recentTransport = FakeTransport { BytesReply(200, bytesOf(manifestText())) }
+        val recentTimes = BuildTimes(lastCheck = nowValue - 1_000L)
+        val recent = buildUpdater(config(recentTransport, recentTimes, FakeTimerScheduler(), admin = false))
+        assertNull("android_updater: a recent check is not forced", recent.checker.check(true))
+        assertEquals("android_updater: no request when not due", 0, recentTransport.sent.size)
+        assertEquals("android_updater: no time recorded when not due", 0, recentTimes.checkRecords.size)
     }
 
     @Test

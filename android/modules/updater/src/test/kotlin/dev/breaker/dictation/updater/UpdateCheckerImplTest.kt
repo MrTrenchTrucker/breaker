@@ -14,14 +14,12 @@ class UpdateCheckerImplTest {
             UpdateVerificationResult.Refused(ApkDownloadReasons.BAD_STATUS)
         },
         install: CheckerFakeInstall = CheckerFakeInstall { InstallResult.Started },
-        held: HeldRollback = HeldRollback(),
         reports: CheckerFakeReports = CheckerFakeReports(),
     ): UpdateCheckerImpl = UpdateCheckerImpl(
         runScheduled = scheduled::run,
         isAdmin = admin::isAdmin,
         verifyRelease = verifier::verify,
         installReady = install::install,
-        held = held,
         onInstallResult = reports::report,
     )
 
@@ -86,38 +84,31 @@ class UpdateCheckerImplTest {
     }
 
     @Test
-    fun `a ready verification that starts the install reports started and clears the held offer`() {
-        val held = HeldRollback()
-        held.hold(checkerRelease())
+    fun `a ready verification that starts the install reports started`() {
         val reports = CheckerFakeReports()
         val verifier = CheckerFakeVerifier { checkerReady("ready.apk") }
-        checker(
-            verifier = verifier,
-            install = CheckerFakeInstall { InstallResult.Started },
-            held = held,
-            reports = reports,
-        ).install(checkerRelease())
+        val install = CheckerFakeInstall { InstallResult.Started }
+        checker(verifier = verifier, install = install, reports = reports).install(checkerRelease())
+        assertEquals("android_updater: the release was verified", listOf(checkerRelease()), verifier.verified)
+        assertEquals("android_updater: one install", 1, install.installed.size)
         assertEquals("android_updater: started is reported", listOf<InstallResult>(InstallResult.Started), reports.reported)
-        assertNull("android_updater: the held offer is cleared", held.current())
     }
 
     @Test
-    fun `a ready verification that the installer refuses keeps the held offer`() {
-        val held = HeldRollback()
-        held.hold(checkerRelease())
+    fun `a ready verification that the installer refuses reports the refusal`() {
         val reports = CheckerFakeReports()
+        val install = CheckerFakeInstall { InstallResult.Refused(InstallReasons.NOT_STARTED) }
         checker(
             verifier = CheckerFakeVerifier { checkerReady("ready.apk") },
-            install = CheckerFakeInstall { InstallResult.Refused(InstallReasons.NOT_STARTED) },
-            held = held,
+            install = install,
             reports = reports,
         ).install(checkerRelease())
+        assertEquals("android_updater: the installer was asked once", 1, install.installed.size)
         assertEquals(
             "android_updater: the refusal is reported",
             listOf<InstallResult>(InstallResult.Refused(InstallReasons.NOT_STARTED)),
             reports.reported,
         )
-        assertEquals("android_updater: the held offer is kept", checkerRelease(), held.current())
     }
 
     @Test
@@ -151,63 +142,14 @@ class UpdateCheckerImplTest {
 
     @Test
     fun `a report that throws changes no answer`() {
-        val held = HeldRollback()
-        held.hold(checkerRelease())
+        val install = CheckerFakeInstall { InstallResult.Started }
         val reports = CheckerFakeReports(failing = true)
         checker(
             verifier = CheckerFakeVerifier { checkerReady("ready.apk") },
-            held = held,
+            install = install,
             reports = reports,
         ).install(checkerRelease())
         assertEquals("android_updater: the report was attempted once", 1, reports.reported.size)
-        assertNull("android_updater: the started install still cleared the offer", held.current())
-    }
-
-    @Test
-    fun `a rollback by a non-admin reports not allowed and verifies nothing`() {
-        val held = HeldRollback()
-        held.hold(checkerRelease())
-        val verifier = CheckerFakeVerifier { checkerReady("ready.apk") }
-        val reports = CheckerFakeReports()
-        checker(verifier = verifier, admin = CheckerFakeAdmin(false), held = held, reports = reports).rollback()
-        assertEquals(
-            "android_updater: not allowed is reported",
-            listOf<InstallResult>(InstallResult.Refused(RollbackReasons.NOT_ALLOWED)),
-            reports.reported,
-        )
-        assertEquals("android_updater: nothing verified", 0, verifier.verified.size)
-    }
-
-    @Test
-    fun `a rollback with nothing held reports none held`() {
-        val verifier = CheckerFakeVerifier { checkerReady("ready.apk") }
-        val reports = CheckerFakeReports()
-        checker(verifier = verifier, admin = CheckerFakeAdmin(true), reports = reports).rollback()
-        assertEquals(
-            "android_updater: none held is reported",
-            listOf<InstallResult>(InstallResult.Refused(RollbackReasons.NONE_HELD)),
-            reports.reported,
-        )
-        assertEquals("android_updater: nothing verified", 0, verifier.verified.size)
-    }
-
-    @Test
-    fun `a rollback with a held release verifies and installs exactly that release`() {
-        val held = HeldRollback()
-        held.hold(checkerRelease("1.2.3.4"))
-        val verifier = CheckerFakeVerifier { checkerReady("ready.apk") }
-        val install = CheckerFakeInstall { InstallResult.Started }
-        val reports = CheckerFakeReports()
-        checker(
-            verifier = verifier,
-            install = install,
-            admin = CheckerFakeAdmin(true),
-            held = held,
-            reports = reports,
-        ).rollback()
-        assertEquals("android_updater: the held release was verified", listOf(checkerRelease("1.2.3.4")), verifier.verified)
-        assertEquals("android_updater: one install", 1, install.installed.size)
-        assertEquals("android_updater: started is reported", listOf<InstallResult>(InstallResult.Started), reports.reported)
-        assertNull("android_updater: the offer is cleared", held.current())
+        assertEquals("android_updater: the install ran once", 1, install.installed.size)
     }
 }
