@@ -81,7 +81,7 @@
 - Transcriptions appear in the focused field (or clipboard) AND in the app history.
 - Everything syncs to the server; view/search/copy from the web FE on any device.
 
-> Planned, not built: the phone side of sync (the sync module is not wired into the app) and viewing, searching and copying on the web FE. The server-side sync routes are built.
+> Planned, not built: viewing, searching and copying on the web FE. The phone side of sync is wired into the app (`BreakerApp.kt`, `host/AppThreads.kt`, `wiring/SyncHttpUploader.kt`) but is not verified on a device. The server-side sync routes are built.
 
 ## For admins: transcription service + agent tokens
 

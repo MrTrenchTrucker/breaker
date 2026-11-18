@@ -97,7 +97,7 @@ than in a hang.
 - Timeout/error at either step surfaced as `SttResult.failure`, never a
   hang (R4).
 - The upload is sent at most once. No retry of the POST.
-- Only http and https addresses are called, and only the one address the engine was given: every URL it calls is that base plus a fixed path. The check runs before any request and refuses another scheme, a missing host, user information, a space or a control character with one fixed sentence. It does not read ports, host characters or brackets. The address setter, the settings line about an unencrypted connection and the settings screen are decided in ADR-034 and not built.
+- Only http and https addresses are called, and only the one address the engine was given: every URL it calls is that base plus a fixed path. The check runs before any request and refuses another scheme, a missing host, user information, a space or a control character with one fixed sentence. It does not read ports, host characters or brackets. The settings screen's address field, its plain-http line and its remove row are built in the ui module (PRs #387 and #653), not in this module.
 - The key never reaches a log line (the module logs nothing), an exception
   message, or a failure text.
 

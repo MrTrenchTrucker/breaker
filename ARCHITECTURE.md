@@ -466,9 +466,7 @@ ends it.
 - **Screens (F44):** Home (on/off card, the tile's mic (F45), last transcript), plus Settings,
   History, How it works and About, each its own screen opened from the Home
   menu; Back from any of them returns to Home.
-- **OPEN defects (ADR-026):** X and check not tappable while recording (blocker); Home lacks
-  the tile's mic-busy and sending faces (same signal required); late transcript on Home;
-  Settings narrower than Home on the phone (not reproduced on the emulator); Home mic ignores the stored theme (`setTheme` has no caller).
+- **Defects (ADR-026):** the X and check not tappable while recording (blocker) have a cause found (the page scroll took a long press on a Home that did not fit one screen) and are fixed in code by PR #608 and PR #610 (2026-11-13), not yet tried on a phone build that includes them; Settings narrower than Home on the phone (not reproduced on the emulator); the Home mic is handed the stored theme (`setTheme`, called from `LauncherEntry.kt` and `ActivityHelpers.kt`). The Home mic's busy and sending faces and the new transcript on settle are built in code (PRs #203, #205, #215; not confirmed on a phone).
 - **Spoken Send (F5, ADR-029), BUILT (off):** app class `PhraseSendHandler` alone owns detector
   start/stop, the audio tee and the one-Send-per-take gate; a hit submits `finish(trimBeforeMs)`
   to the take worker. The app -> phrases edge lands with that code.

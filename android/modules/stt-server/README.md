@@ -11,7 +11,7 @@ container directly.
 
 The app passes one provider, read once per call, that gives the base address (http or https)
 and the API key together. The older form with two providers stays as an adapter; it reads
-the key only when the address is usable. The address setter, the settings line about an unencrypted connection and the settings screen are decided in ADR-034 and not built. The module reads no settings and no storage. The app uses this engine through its composition root (in automatic mode only when the probe answers, in server mode always).
+the key only when the address is usable. The settings screen's address field, its plain-http line and its remove row are built in the ui module (`screen/settings/ServerAddressEntry.kt`, `SettingsServerRows.kt`; PRs #387 and #653); this module still reads no settings. The module reads no settings and no storage. The app uses this engine through its composition root (in automatic mode only when the probe answers, in server mode always).
 
 ## What a call does
 
