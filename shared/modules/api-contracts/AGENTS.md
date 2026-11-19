@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The OpenAPI 3 spec for the endpoint groups that exist today (jobs, auth, sync, admin and the updates manifest body; training and streaming are planned, not built), with its Kotlin
+The OpenAPI 3 spec for the endpoint groups that exist today (jobs, auth, sync, admin and the updates manifest body; the training group is specified in the contract, unit-tested against the Kotlin types, with no server and no client calling it yet; streaming is planned, not built), with its Kotlin
 request/response types (ADR-017): the single contract both the Android client (`stt-server`) and the server
 (`whisper-server`) implement.
 
@@ -244,9 +244,9 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   cannot), **clear-store** (F29) — BUILT: `POST /v1/admin/clear-store` clears
   transcriptions per-user or for all users with confirmation; every live row gets a delete
   record so other devices remove the rows through the feed.
-- **training** — `POST /v1/training/samples`, `GET /v1/training/model` (+ checksum)
-  Planned, not built: no training path is in `openapi.yaml` yet and no module serves it.
-  Decided, not built (ADR-051 C): the training group is these operations, all with the user's token and scoped to that user: upload samples, start a training job, read the job's status, download the trained model (with its sha256 and byte size), delete my samples, and delete my model. The contract step sets the final paths, and the two names above are a starting point.
+- **training** — six operations under `/v1/training/`: `PUT /v1/training/samples/{kind}/{sample_id}` (an idempotent sample upload), `POST /v1/training/jobs` (start a job), `GET /v1/training/jobs/{job_id}` (its status), `GET /v1/training/jobs/{job_id}/model` (one binary call that carries the sha256, the byte size and the sample count in headers), `DELETE /v1/training/samples` and `DELETE /v1/training/model`.
+  Specified in the contract (ADR-051 C), unit-tested against the Kotlin types (`SampleReceipt`, `TrainingJob`, `TrainingJobStatus`, `TrainingKind`, `TrainingJobState`, `TrainingJobFailure`) and by the Python contract tests; no server and no client call it yet.
+  Rules the contract states (specified, not built on either side): every operation takes the user's session token and is scoped to that user, with no user id in any path or body, and an agent token is refused with 403, which the phone reads as Refused; a sample is at most 131072 bytes and each kind keeps at most 20 samples (the 21st distinct id is 409, a repeat of a stored id is 200); the model is at most 32 MiB (33554432 bytes) and arrives with its SHA-256, byte size and sample count in headers; deleting the samples ends any queued or running job without a model, and deleting the model makes the download answer 404 for that job; the deletes answer 204 and are safe to repeat; a job with too few samples is state failed with failure too_few_samples, not an HTTP error; the contract states no retention window. The status codes map one to one to the typed results of the phone's training client port (`android_training_client`): 401 NotSignedIn; 400, 403, 404 and 409 Refused; 413 TooLarge; 429 and 503 Unavailable; NoServer and Network are client-side outcomes with no HTTP answer.
 
 **Auth:** `Authorization: Bearer <apiKey | userToken | agentToken>`.
 
@@ -292,6 +292,7 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
 ## Test Locations
 - Unit (Python, the spec and its conformance checks): `tests/unit/shared/api-contracts/`, created with the module's first slice. Run: `python3 -m unittest discover -s tests/unit/shared/api-contracts`
 - Kotlin types (ADR-017): their tests run with `./gradlew :shared:modules:api-contracts:test` (the module applies the Kotlin plugin).
+- Training group (specified, unit-tested against the Kotlin types, no server and no client call it yet): `tests/unit/shared/api-contracts/test_training_contract.py`, `test_training_limits.py` and `test_training_conformance.py` read the spec and the Kotlin files; the Kotlin types have `TrainingContractTest`.
 - Sync body vectors: `examples/sync_body_vectors.json`. The Kotlin codec test under
   `src/test/kotlin/dev/breaker/shared/api/sync/` checks them, and the stdlib oracle
   `tests/unit/shared/api-contracts/test_sync_body_vectors.py` re-derives them. The
