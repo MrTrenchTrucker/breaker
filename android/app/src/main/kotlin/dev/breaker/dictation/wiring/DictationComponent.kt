@@ -126,6 +126,8 @@ class DictationComponent(
                         if (t is Error) throw t
                     }
                 }
+                override fun generation() = TakeStartAnchor.generation()
+                override fun clearIf(generation: Long) = TakeStartAnchor.clearIfGeneration(generation)
                 override fun clear() { TakeStartAnchor.clear() }
             },
         )

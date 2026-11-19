@@ -49,6 +49,7 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
   stores a window with no id and no package, which refuses every later commit for
   that take. No take running means no anchor at all, and the ownership check does
   not run. It stores no node and no text, and its `toString` is a fixed word.
+  It also names `generation()` and `clearIfGeneration()`, both built, unit-tested, and not tried on a phone.
 - `KeyboardProbeReadings` is the holder of the keyboard readings. It is not probe only:
   its production seam (`publishLatest`, `readings`, `current`) feeds the keyboard tile in
   every build. Its probe members (`setEnabled`, `isEnabled`, `publish`, `recent`): no release
@@ -215,3 +216,4 @@ agents, not required: an outside contributor may write the code themselves
   - The whole focused-field flow, from a field being published to text
     appearing in it, once `commit/accessibility` exists to publish one.
   - Where the cursor lands after the text is committed.
+- The catch for InterruptedException at PostedMainThread.kt:86 is dead code today because no code interrupts the take worker (every production interrupt re-arms the calling thread); if a source is ever added, a still-running posted block can read a cleared anchor and skip the window check. No code change is made for it.

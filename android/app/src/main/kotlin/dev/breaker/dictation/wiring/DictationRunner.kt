@@ -54,18 +54,6 @@ sealed class FinishResult {
 }
 
 /**
- * Records the window a take started in. One method, so the runner can be tested with a fake: the
- * app cannot construct the commit module's capture object (its constructor is internal to that
- * module), and the composition root adapts it into this instead.
- */
-fun interface TakeStartRecorder {
-    fun capture()
-
-    /** Drop the anchor this take captured. A recorder that keeps no anchor has nothing to drop. */
-    fun clear() {}
-}
-
-/**
  * Drives one dictation at a time over the core use cases: begin listening, finish and transcribe,
  * send, or cancel.
  *
@@ -225,9 +213,10 @@ class DictationRunner(
     fun onCaptureEnded() {
         val current = session.get()
         if (current.state != DictationState.RECORDING) return
+        val gen = takeStart?.generation() ?: 0L
         stopOwed.set(true)  // before the session moves: a begin that sees idle also sees the debt
         if (session.compareAndSet(current, current.cancel())) {  // a lost CAS: finish still owns it
-            takeStart?.clear()
+            takeStart?.clearIf(gen)
         } else {
             stopOwed.set(false)
         }
