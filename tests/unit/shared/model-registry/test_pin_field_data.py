@@ -37,7 +37,7 @@ class CommittedValuesTest(unittest.TestCase):
                 "parakeet": (487211443, 719769366)}
         got = {i: (e["size_bytes"], e["asset_id"]) for i, e in self.by.items()}
         self.assertEqual(want, got)
-        self.assertEqual((15667804, 191975328),
+        self.assertEqual((17626723, 166405338),
                          (self.kw[0]["size_bytes"], self.kw[0]["asset_id"]))
 
     def test_size_mb_is_the_mib_rounding_of_size_bytes_for_every_entry(self):
@@ -129,7 +129,7 @@ class RenderedKotlinTest(unittest.TestCase):
 
     def test_a_keyword_block_carries_only_the_pin(self):
         kw = self.block("KWS_GIGASPEECH_3M")
-        self.assertIn("        sizeBytes = 15667804L,\n        assetId = 191975328L,\n", kw)
+        self.assertIn("        sizeBytes = 17626723L,\n        assetId = 166405338L,\n", kw)
         for field in ("kind =", "label =", "rating =", "offered ="):
             self.assertNotIn(field, kw)
 

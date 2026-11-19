@@ -69,10 +69,10 @@ internal object ExtractionProfiles {
      * joiner and the token table are written: the plain encoder, the sentencepiece
      * model and the sample recordings in the archive are never extracted.
      *
-     * The measured archive is 15,667,804 bytes; its largest entry is the plain encoder
-     * at 11,525,206 bytes, the four written files total 5,232,483 bytes, and the
-     * entries that are listed add up to 17,003,754 bytes before the sample recordings
-     * (whose sizes were not measured). The limits are 16 MiB per entry, 8 MiB written
+     * The measured archive is 17,626,723 bytes; its largest entry is the plain encoder
+     * at 12,174,219 bytes, the four written files total 6,038,734 bytes, and the
+     * entries that are listed add up to 20,126,636 bytes over 17 members. The limits
+     * are 16 MiB per entry, 8 MiB written
      * and 32 MiB of stream, each under twice the measured figure it guards.
      */
     private val KEYWORD = ExtractionProfile(

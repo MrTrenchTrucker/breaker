@@ -6,11 +6,11 @@ import gen_model_registry as gmr
 KW_ID = "kws-gigaspeech-3m"
 KW_PREFIX = f"entry '{KW_ID}' line "
 KW_URL = ("https://api.github.com/repos/k2-fsa/sherpa-onnx"
-          "/releases/assets/191975328")
-KW_SHA = "2e6ac2577310bfa2f4b6b5fab0478b868c9d0b2cb2c51b3e13b50581b588864d"
-KW_NAME = ("sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile"
+          "/releases/assets/166405338")
+KW_SHA = "f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a"
+KW_NAME = ("sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01"
            ".tar.bz2")
-KW_SIZE_MB = 15
+KW_SIZE_MB = 17
 CHECKSUM_TXT_SHA = (
     "284637b2b9fec1287aca10315dcc960710c6ec14224fb1dfa9fe427e77eb6c18")
 SPEECH_IDS = ["small", "tiny", "base", "medium", "parakeet"]
