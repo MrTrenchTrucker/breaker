@@ -1,6 +1,6 @@
 # ADR-050: Two speech models, the user chooses between them; each model pinned by our own sha256
 
-**Status:** accepted (the first build change is built, not compiled or run; the second is not built: see Build status below)
+**Status:** accepted (both build changes are built, unit-tested, not tried on a phone: see Build status below)
 **Date:** 2026-11-18
 **Approved by:** project owner (typed approval, 2026-11-18)
 
@@ -24,7 +24,7 @@ Licence conditions for Parakeet, from its CC BY 4.0 terms and the owner's instru
 
 ## Decision
 
-Everything below is the target. The first build change has put A, E and G and the registry side of B into the code (not compiled or run); the screens in B, C and D and the notices in H belong to the second build change and are not built.
+Everything below is the target. The first build change has put A, E and G and the registry side of B into the code (built, unit-tested, not tried on a phone); the screens in B, C and D and the notices in H belong to the second build change and are built, unit-tested, not tried on a phone.
 
 A. **The second model.** The second model is Parakeet TDT 0.6B v3, packaged by the sherpa-onnx project as the release asset `sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8` (487,211,443 bytes). Its registry id is `parakeet`. The existing id `small` does not change.
 
@@ -46,6 +46,8 @@ E. **Parakeet is offline.** A take is decoded once, after stop. Today's take pat
 
    Download limits follow the registry size.
 
+   Each take loads the model and releases it when the take ends (owner, 2026-11-19: memory is held only during a take; the extra load time per take is accepted).
+
 F. **Wake and send phrases are unaffected.** They run on the separate keyword model (training option C). No phrase code reads the speech-model setting.
 
 G. **Integrity pin.** Every model is pinned by our own sha256, byte size and release-asset id, held in the registry. The app verifies each download against that pin. The upstream checksum.txt becomes advisory, not required. This applies to every model. Parakeet has no upstream checksum.txt line, and an upstream re-upload broke installs on 2026-11-18. ADR-003 and ADR-013 say the pin must match upstream's list. They are amended in this same change.
@@ -59,12 +61,19 @@ I. **Not decided here.** These are left open:
    - the bench numbers (word error rate, speed, memory). They are pending and do not block this decision;
    - a real-phone memory check, which is an acceptance item for the build.
 
+J. **Models are data, not code (owner, typed 2026-11-19).** The owner, verbatim: "I don't necessarily want to hardwire any one model into any one path in the app ... we just point the app at whatever model and as long as it supports one of two of those modes then it's a direct plug and play." So:
+   - Each registry entry declares everything the app needs to run it: its mode (streaming or offline), the sherpa-onnx model type its engine needs, the file names inside its archive, its extraction limits, and its language.
+   - The app code names no model id. The engine path is picked by the entry's mode and model type; the unpack rules and file names come from the entry.
+   - Adding a model that uses a supported mode and model type is a registry entry, its own pin, and its notice text. No app code changes.
+   - A model whose mode or model type the app does not support yet is refused at the registry check, and supporting it is a code change to the speech module (a new engine path), not to every caller.
+   - The keyword model for the wake and send phrases stays its own entry type; it is not a speech model and is not offered in the model choice.
+
 **Build split.** Two build changes, in this order:
 
 1. `android/modules/stt-ondevice` and the shared model-registry entry: the offline recognizer, the extraction profile and the pin.
 2. `android/ui` and the settings module: the first-run second button, the settings section, the ratings, and the notices.
 
-**Build status.** The first build change (`android/modules/stt-ondevice` and the registry) is built, not compiled or run: the registry holds the `parakeet` entry and, for every entry, its own byte size, asset id, kind, label, rating and offered flag; the speech module installs and loads each model against that pin (upstream's checksum.txt is no longer fetched), has an unpack profile and an offline recogniser for `parakeet`, and chooses the recogniser by model id. Not built: the offline native binding has never been compiled against the sherpa-onnx library, so its library names are unverified; the real-phone memory check is pending; the first-run second button, the settings section, the ratings display, the About notice entry and the NOTICE text belong to the second build change (the `android/ui` and settings modules). Nothing downloads a model from a screen yet, and the app still offers `small` only.
+**Build status.** Both build changes are built, unit-tested, not tried on a phone. The first (`android/modules/stt-ondevice` and the registry): the registry holds the `parakeet` entry and, for every entry, its own byte size, asset id, kind, label, rating and offered flag; the speech module installs and loads each model against that pin (upstream's checksum.txt is no longer fetched), has an unpack profile and an offline recogniser for `parakeet`, and chooses the recogniser by model id. The offline native binding (`OfflineRecognizerBinding.kt`) is compiled by the project's CI build against the sherpa-onnx library. The real-phone memory check is pending. The second build change is built in the `android/ui`, settings and app modules: the first-run second button, the settings section, the ratings display and the About notices from the registry. Screens download, pick and delete models, and the app offers `small` and `parakeet`.
 
 ## Reasons
 

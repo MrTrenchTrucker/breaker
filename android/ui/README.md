@@ -48,7 +48,7 @@ draws its READY badge as a plain node). The geometry and the colours are plain K
 
 ## Public declarations
 
-The module offers exactly seventeen, all in ten files (SpeechModelChoice is the new one; built, not yet compiled or run):
+The module offers exactly seventeen, all in ten files (SpeechModelChoice is the new one; built, unit-tested, not tried on a phone):
 
 - `createHomeView(context, switch, modelReady, lastDictationAt, lastTranscript, transcriptTime, onCopy, onHistory, onHowItWorks, onAbout, onSettings, onTap, settings, micView, usableHeightDp, onShownMode, sessionLive, onSignIn, onSignOut)` builds the home view. It reads the stored theme through `settings` when the view is built. It hands the mode it resolved back through `onShownMode` as the view is built, so the app paints the mic it placed here with the same mode the page drew with instead of reading the phone's own mode again. The app passes the switch, the answers for the model, the last dictation and the last transcript, the phone's time for the transcript, the copy request, the four screen requests (history, how it works, about and settings), the request for a take from the big mic, the hand-back of the mode the page drew with, the reader that says whether a session is live, and the answers to the Sign in and Sign out taps; every fact is read again on each drawing.
 - `createSettingsView(context, settings, modelReady, downloadLine, onDownloadModel, onThemeChanged, sessionLive, onSignIn)` builds the settings view. The last three are optional (null by default): `onThemeChanged` is called after each saved theme change, `sessionLive` says whether the session is live, and `onSignIn` is called when the signed-out block's Sign in is tapped. It draws live through the theme controller, not the stored-theme reader.
@@ -59,7 +59,7 @@ The module offers exactly seventeen, all in ten files (SpeechModelChoice is the 
 - `BreakerSwitch` is the interface the app implements: `isOn()`, `switchOn()` and `switchOff()`. `switchOn()` answers `BreakerSwitch.Result`, which is nested in the interface: `On`, `AlreadyOn` or `Refused(sentence)`. The sentence is shown to the user as the app wrote it.
 - `DownloadControl` is the interface a view answers to the app for the model download: `refresh()` re-reads the model providers and draws the screen again, `focusDownload(): Boolean` puts focus on the model step's download button, and three download calls with empty defaults (`downloadProgress`, `downloadChecking`, `downloadStopped`). The app casts the settings view and the first-run view to it.
 - `ModelStepControl` extends `DownloadControl`; the interface the first-run view answers for its switch notice. Adds `showSwitchRefused(sentence)`: draws a switch-on that the app refused as the notice. The app casts the first-run view to it.
-- `SpeechModelChoice` is a public data class (id, label, rating, sizeMb) for each offered speech model. The app passes the offered models into `createSettingsView` and `createFirstRunView`, and leaves out a model with no label or rating. Built, not yet compiled or run.
+- `SpeechModelChoice` is a public data class (id, label, rating, sizeMb) for each offered speech model. The app passes the offered models into `createSettingsView` and `createFirstRunView`, and leaves out a model with no label or rating. Built, unit-tested, not tried on a phone.
 
 - `HomeControl` is the interface the home view answers: `showLine(line)` shows the line below the last-transcript box (nothing for null), and `showRecording(recording)` shows the recording look on the big mic. `refresh()` re-reads the app's facts and draws the screen again. The app casts the view from `createHomeView` to it.
 - `createAuthView(context, settings, onSubmit)` builds the auth view: the app passes the shared store and the submit callback `(username, password: CharArray, register: Boolean, installCode: String?) -> Unit`. The screen has a user name input, a masked password input and an optional install code input shown on the create-account face only. The callback gets the typed user name, a password array it owns and must zero (the view keeps no copy past the submit), the chosen face and the install code (null when the field is blank after a trim, null on the sign-in face, otherwise the trimmed text). The handler zero-fills the array the view gave it whether the callback returns or throws.
@@ -103,9 +103,9 @@ The auth screen's input views (`AuthFieldView.kt`, `PasswordEntryView.kt` and `U
 
 The theme control on the settings screen is three cells, System, Light and Dark, drawn as one segmented track. The selected cell is the stored choice, so System stays selected while the app follows the phone. The words on the first-run flow are drafts still to be checked. Each screen entry except the settings view reads the stored theme through the settings store each time a screen is built; the settings view draws live through the theme controller.
 
-## Decided, not built (ADR-050)
+## Decided (ADR-050); built except where a line below says not built
 
-Decided in ADR-050, not built: a second speech model (Parakeet, labelled "Better", 2 of 3 truck emoji; `small` is "Good", 1 of 3). The first-run step gets a second button under the first one. Settings gets a speech model section with download, delete and use-this-one. About gets a third-party notices entry. None of it is in the code yet.
+Decided in ADR-050, built, unit-tested, not tried on a phone: a second speech model (Parakeet, labelled "Better", 2 of 3 truck emoji; `small` is "Good", 1 of 3). The first-run step gets a second button under the first one. Settings gets a speech model section with download, delete and use-this-one. About gets a third-party notices entry. The delete confirmation and the in-use wording are not built.
 
 ## Tests
 

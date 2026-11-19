@@ -12,7 +12,7 @@ Vendored code and dependencies:
      or modified; the app uses a prebuilt package (see the last bullet).
    - Security note: the pinned sherpa-onnx tree carries an open upstream
      decoder bug (GitHub issue #3983, transducer greedy-search OOB write).
-     Breaker mitigates this: models are pinned to immutable release-asset ids and each download is checked against its own sha256 pin (ADR-050; the upstream checksum.txt is advisory), and sherpa-onnx
+     Breaker mitigates this: models are named by release-asset id (upstream can re-point an id, so our own pin is the check) and each download is checked against its own sha256 pin and byte size (ADR-050: built in the speech module and the registry, unit-tested, not tried on a phone; the upstream checksum.txt is advisory and never fetched on install), and sherpa-onnx
      is kept off the server's network-exposed path [2].
    - The phone app's on-device speech engine is Breaker's own ASR-only build of
      this sherpa-onnx AAR (text-to-speech and speaker diarization compiled out),
@@ -100,9 +100,9 @@ Vendored code and dependencies:
      repository or distributed with Breaker; it is a build-time CI tool only,
      fetched by the openapi-validate job in .github/workflows/checks.yml.
 
-11. Parakeet TDT 0.6B v3 speech model (decided in ADR-050, not yet in any build)
-   - The notice below applies once a build ships this model. Until then no
-     build contains it.
+11. Parakeet TDT 0.6B v3 speech model (ADR-050)
+   - In the app since 2026-11-19 as a user-selectable model. It is downloaded
+     on demand, not bundled in the app file.
    - Upstream: NVIDIA Corporation, https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3
      (sherpa-onnx packaging: k2-fsa/sherpa-onnx release asset).
    - License: CC BY 4.0, https://creativecommons.org/licenses/by/4.0/

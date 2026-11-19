@@ -35,8 +35,11 @@ their own:
   frontend's code).
 - sherpa-onnx's transducer greedy-search decoder has an open upstream bug
   (issue #3983). Breaker keeps sherpa-onnx off the server's network-facing
-  path and pins every model to an immutable release-asset id verified
-  against upstream's checksum (`decisions/ADR-003-sherpa-onnx.md`).
+  path and names every model by release-asset id (upstream can re-point an
+  id, so our own pin is the check), verified against our own SHA-256 pin and
+  byte size — ADR-050: built in the speech module and the registry, not
+  compiled or run; upstream's checksum.txt is advisory and never fetched on
+  install (`decisions/ADR-003-sherpa-onnx.md`).
 - Brute-force protection for the login endpoints is out of scope for the
   first version, except the sign-in limit of ADR-036: 5 wrong passwords,
   then a 15-minute wait, built on the server (`docs/01-requirements.md`).

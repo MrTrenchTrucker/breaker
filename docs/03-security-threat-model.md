@@ -74,7 +74,7 @@ Gates and releases, says "Not passed").
 | T18 | **Queue abuse / DoS** — flooding the transcription queue | FIFO worker and job size caps are built; per-user rate limits are built (T18): `BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN` optional, off when absent, whole number 1..10000, fixed 60 s window per account, 429 with `Retry-After` before the upload is read, counters in memory and reset on restart (`UserRateLimit.kt`, `TranscriptionRoutes.kt`, `WhisperConfig.kt` in the whisper-server module). The unauthenticated auth endpoints (salt lookup, register, login) carry a 4096-byte request body cap (413); their other limits: see T25 |
 | T19 | **Agent token leakage** — a leaked token transcribes as the owner | Scoped + revocable tokens, optional expiry (F27). An optional per-token request limit is built in whisper-server: off unless the admin sets it |
 | T20 | **SSRF via transcription service config** — admin-configured URL probed by the server | Admin-only config; URL validation; no arbitrary localhost probing (F26) |
-| T21 | **Tampered model / transducer OOB write** — issue #3983, reachable via a malicious .onnx | Models pinned to immutable release-asset ids + upstream checksum.txt verified; adopt upstream decoder fix when it lands; sherpa-onnx off the server network path [2] |
+| T21 | **Tampered model / transducer OOB write** — issue #3983, reachable via a malicious .onnx | Models named by release-asset id (upstream can re-point an id, so our own pin is the check) and verified against our own SHA-256 pin and byte size — ADR-050: the pin is the rule for every model, built, unit-tested, not tried on a phone, in the speech module and the registry; upstream's checksum.txt is advisory and never fetched on install; adopt upstream decoder fix when it lands; sherpa-onnx off the server network path [2] |
 | T22 | **Plaintext leakage via logs** — a log line containing a transcription defeats encryption-at-rest | Log policy: events only, per-user, never plaintext transcriptions (F32) |
 | T23 | **Store-clear abuse** — wiping another user's (or all) transcriptions | Admin-only endpoints + confirmation; audited (F29) |
 | T24 | **Destructive account/delete-all abuse** — accidental or malicious self-wipe | Type-to-confirm + clear irreversible warning; audit event (F33, F34) |
@@ -109,7 +109,7 @@ Items tagged **[Phase 0–8]** are what the Phase 9 gate blocks on — they must
 - [ ] Queue verified: concurrent requests serialize FIFO; restart-safe (F23) **[Phase 4]**
 - [ ] Service config verified: connectivity test works; misconfigured URL fails clearly (F26) **[Phase 20]**
 - [ ] Agent tokens verified: scoped, revocable; results to owner (F27, T19) **[Phase 20]** (whisper-server: both job routes now require a live session token; tests in `TranscriptionAuthTest`). The optional per-token request limit is built in whisper-server and is off unless the admin sets it
-- [ ] Model tamper test: corrupt/pinned-mismatch model refused (T21); checksum.txt verified [2] **[Phase 3]**
+- [ ] Model tamper test: corrupt/pinned-mismatch model refused (T21); verified against our own SHA-256 pin and byte size — ADR-050: built, unit-tested, not tried on a phone, in the speech module and the registry; upstream's checksum.txt is advisory and never fetched on install [2] **[Phase 3]**
 - [ ] Retention verified: 3-month TTL; audio deleted on job completion; 3× retry @10 s (F28) **[Phase 21]**
 - [ ] Log audit: no plaintext transcription content in any log (F32, T22) **[Phase 21]**
 - [ ] Sync idempotency tested (retries don't duplicate) **[Phase 11]**

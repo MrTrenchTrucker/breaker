@@ -246,8 +246,11 @@ with a way to sign in and nothing is forced (ADR-033).
 **sherpa-onnx** — The on-device (fallback) speech-to-text engine, vendored
 from XIAOMI CORPORATION (Apache-2.0), already present in the forked base
 app. Kept with three mitigations for its known transducer-decoder bug
-(upstream issue #3983): every model pinned to an immutable release-asset id
-and verified against upstream's checksum.txt, the upstream fix tracked, and
+(upstream issue #3983): every model named by release-asset id (upstream can
+re-point an id, so our own pin is the check) and verified against our own
+SHA-256 pin and byte size — ADR-050: built, unit-tested, not tried on a phone, in the speech module and the
+registry; upstream's checksum.txt is advisory and never
+fetched on install, the upstream fix tracked, and
 sherpa-onnx kept off any server-side network-exposed path
 (`ARCHITECTURE.md` §5; `ADR-003-sherpa-onnx.md`).
 

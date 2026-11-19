@@ -66,12 +66,12 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   not be deleted instead of saying it was deleted.
 
 **Native adapter side:**
-- `SherpaOnnxRecognizerFactory` is a public class here. `create(model)` decides (built, not compiled or run) from the registry entry of the model id, in this order: a supported entry (its kind and model type are in the registry's supported set) of kind STREAMING
+- `SherpaOnnxRecognizerFactory` is a public class here. `create(model)` decides (built, unit-tested, not tried on a phone) from the registry entry of the model id, in this order: a supported entry (its kind and model type are in the registry's supported set) of kind STREAMING
   (`StreamingProfiles` takes the language from the entry; `small` and `tiny` are English) takes the streaming path; else a supported entry of kind OFFLINE that has files and
   limits (today only `parakeet`) takes the offline path, through `SherpaOfflineRecognizer`, with a blank language so that the engine wrap
   labels the transcript with the language of the request; anything else (the `base` and `medium` Whisper entries, whose model type `whisper` is not in the supported set, and ids the registry does not know)
-  is refused with a fixed message and no opener is called (built and tested with fakes only; the offline native binding has never been compiled
-  against the library or run, see the binding paragraph below). On either path `create`
+  is refused with a fixed message and no opener is called (built, unit-tested, not tried on a phone; the offline native binding is compiled against the library by the project's CI build
+  and has never run on a device, see the binding paragraph below). On either path `create`
   then asks
   the entry for its four file names (each must be a non-empty regular file in the model folder) and its model type, which travels to the binding with the files, and only then opens the engine, so a refusal leaves
   nothing to release. Every refusal and every failure to open is a `SherpaTranscriptionException`
@@ -81,7 +81,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   other `Error` passes through the adapter (the engine has its own arms for out of memory and stack
   overflow). The thread count is a constructor argument, at least 1, default 2.
 - `SherpaOnnxWordStreamFactory` is the public factory for the word stream: `create()` returns a `FedWordStream`. Its public constructor takes the thread count (at least 1, default 2, the same default as the recognizer factory); an internal constructor takes the native opener, so a test can use a fake one. `create(model: SherpaModel)` refuses a model with no streaming profile, and a model whose files are missing or empty, or whose unpacked-file stamp is missing or does not match the files, by throwing `SherpaTranscriptionException` with the same two fixed messages as the recognizer factory; neither message carries a path, a file name or a model id. The stamp check reads plain files: it never hashes and deletes nothing. `create()` opens nothing and loads no native code: the native engine is opened by the stream's `start()`, on the stream's own slot. The module adds no thread for it; the stream runs on the single slot over the IO pool, as the `OnDeviceWordStream` bullet below says.
-- `TransducerFileLocator` is now used by the keyword path only (`SherpaOnnxKeywordStreamFactory`); no speech path calls it, because the speech file names come from the registry entry (built, not compiled or run). It picks the files by which names are present, not from a fixed list: the
+- `TransducerFileLocator` is now used by the keyword path only (`SherpaOnnxKeywordStreamFactory`); no speech path calls it, because the speech file names come from the registry entry (built, unit-tested, not tried on a phone). It picks the files by which names are present, not from a fixed list: the
   encoder prefers the int8 file, the decoder and the joiner prefer the plain file, and each falls
   back to the other kind. A name belongs to a role when it starts with the role word followed by a
   dash or a dot and ends with `.onnx`; of several, the first by sort order is taken, and the token
@@ -111,7 +111,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   the CPU provider, greedy search and no endpoint detection, and passes the model type of the registry entry (empty for the streaming entries, so the library
   reads it from the model files. `KeywordSpotterBinding` sets 16 kHz, 80 mel bins, the CPU provider and an empty
   model type, passes the keywords file and no boost or threshold; its library field shapes are unverified until
-  a build compiles them. `OfflineRecognizerBinding` sets 16 kHz, the CPU provider, greedy search and the model type of the registry entry (`nemo_transducer` for `parakeet`, a value held in the registry and named in no main code; built, not compiled or run); it has never been compiled against the library and has never run, and every offline library name in it except the class `OfflineRecognizer` is UNVERIFIED. None of the three loads a native library itself; the library's own classes do that on first use.
+  a build compiles them. `OfflineRecognizerBinding` sets 16 kHz, the CPU provider, greedy search and the model type of the registry entry (`nemo_transducer` for `parakeet`, a value held in the registry and named in no main code; built, unit-tested, not tried on a phone); the offline binding is compiled against the library by the project's CI build, every offline library name in it compiles there, and it has never run on a device. None of the three loads a native library itself; the library's own classes do that on first use.
 - `RefusalMapping.kt` holds `mapRefusal` (a loader refusal to a failure result). It was moved out of
   `OnDeviceSttEngine.kt` with its text unchanged except for visibility (`internal`).
 - `OnDeviceWordStream` (internal) implements `FedWordStream` (the core `WordStream` port plus `feed`) over the same native seam. It
@@ -156,7 +156,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
 
 **Unpack side:**
 - Five files make it up. `ModelExtractor` unpacks a verified archive and is the only file in the
-  module that imports the archive library. `ExtractionProfiles` holds no table of models: it reads the registry entry (built, not compiled or run); for
+  module that imports the archive library. `ExtractionProfiles` holds no table of models: it reads the registry entry (built, unit-tested, not tried on a phone); for
   each supported speech entry that has files and limits (today `small`, `tiny`, `parakeet`) it takes the four files the engine opens
   (encoder, decoder, joiner, tokens) and the bounds from the entry; the registry holds no path length, so one constant, 128, stays in the module, and the keyword model keeps its own profile in code. The profile of the `parakeet` entry writes its four int8 files only (the readme and the sample recordings are read past) within 640 MiB per entry, 704 MiB written and 720 MiB of decompressed stream, from the listing of the real archive (built and pinned by a test against that listing; the extractor has not been run on the real archive). `ModelExtractor.unpackedBytesAllowed(id)` returns the written-bytes bound, and the installer uses it in its free-space check before the download (built). `EntryRules` holds
   entry's header (name, type flag, declared size). `BoundedStream` counts the decompressed bytes and
@@ -185,7 +185,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   Three new user sentences: the archive could not be unpacked safely, the phone could not unpack it,
   and there is not enough free space to unpack it.
 - Known gotcha: a disk that fills up while the model is being downloaded, after the free-space check passed (for example another app takes the space), is still filed as `STAGING_FAILED`, because telling it apart from other write errors would mean reading exception text, which is fragile.
-- `NO_SPACE` also covers a download that cannot start for lack of free space: before any request, the installer checks the free space of the staging volume against the registry byte size of the archive plus the profile's cap on what the unpack may write (for `parakeet`, 487,211,443 bytes plus the profile's cap of 704 MiB, about 1.14 GiB, which is more than the 1.08 GiB the measured unpack needs), and the fetcher's own check before it writes a byte can refuse too; in both cases the user sees `ModelMessages.DOWNLOAD_NO_SPACE` ("There is not enough free space on the phone to download the model.") and nothing is left installed, and a shortfall found by the installer's check makes no request at all (built, not compiled or run). The installer takes an optional `usableSpace` reader so a test does not depend on the disk of the machine it runs on.
+- `NO_SPACE` also covers a download that cannot start for lack of free space: before any request, the installer checks the free space of the staging volume against the registry byte size of the archive plus the profile's cap on what the unpack may write (for `parakeet`, 487,211,443 bytes plus the profile's cap of 704 MiB, about 1.14 GiB, which is more than the 1.08 GiB the measured unpack needs), and the fetcher's own check before it writes a byte can refuse too; in both cases the user sees `ModelMessages.DOWNLOAD_NO_SPACE` ("There is not enough free space on the phone to download the model.") and nothing is left installed, and a shortfall found by the installer's check makes no request at all (built, unit-tested, not tried on a phone). The installer takes an optional `usableSpace` reader so a test does not depend on the disk of the machine it runs on.
 - The loader answers not-installed, and keeps the archive, when the archive verifies but `files/` does
   not hold all four profile files, each a regular file of at least one byte. That check comes after
   the archive check, so a tampered archive is still judged and deleted first. The loader hands the
@@ -200,10 +200,10 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
 **Model lifecycle:**
 - Models from `shared/model-registry` (sizes + SHA-256 + per-model license terms).
 - Download once → app data dir → **verify against our own registry pin (SHA-256 and
-  byte size) before load** (N3, T1, T21) [2]. Upstream's checksum list is neither fetched nor consulted, and the install makes one request, for the model (built, not compiled or run).
+  byte size) before load** (N3, T1, T21) [2]. Upstream's checksum list is neither fetched nor consulted, and the install makes one request, for the model (built, unit-tested, not tried on a phone).
 - The check: an archive is trusted only when the SHA-256 of the downloaded
   archive equals the SHA-256 in its registry entry AND its byte length equals the size in that entry (a size of zero never matches).
-  The size is checked before the digest; no upstream list and no archive name is consulted (built, not compiled or run).
+  The size is checked before the digest; no upstream list and no archive name is consulted (built, unit-tested, not tried on a phone).
   The archive is checked when it is
   installed (in staging, and again after the move). A load verifies it too, except when a stamp for the pinned model is present (see the load rules below).
 - A file that fails the check is deleted at once, never loaded, never kept, so
@@ -211,8 +211,8 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   stays: the result carries `leftOnDisk` and its fixed sentence says the file
   could not be removed.
 - A `.checksums` file left in a model folder by an earlier version is never read: it neither blocks nor helps a load and it stays on disk unused; the loader's refusal for unreadable stored checksums
-  and the code that stored and read the list are removed (built, not compiled or run), so the recognizer factory
-  is called for a model with no checksum file as for any other (built, not compiled or run) and an installed model
+  and the code that stored and read the list are removed (built, unit-tested, not tried on a phone), so the recognizer factory
+  is called for a model with no checksum file as for any other (built, unit-tested, not tried on a phone) and an installed model
   keeps loading after an update.
 - Load with a stamp: when the stamp for the pinned model is present and the four files are there, the archive is
   not hashed. The sizes and modified times of the four unpacked files are compared with the stamp. A size that
@@ -241,7 +241,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
 of malware/backdoors/phone-home; the Kotlin bindings of the copy vendored in the base repo match upstream
 signatures exactly. **Known bug:** issue #3983 — OOB write in the offline
 transducer greedy-search decoder, reachable via a tampered .onnx (vocab_size
-parsed with no upper bound). Mitigations adopted here: our own SHA-256, byte size and release-asset id pinned per model in the registry, verified before anything is unpacked (built, not compiled or run); upstream's checksum list is advisory only, checked at authoring time and never fetched on install (built, not compiled or run); the release-asset id is not immutable, because upstream can re-point it, and our pin catches that (built: a re-pointed asset fails the size or digest check, hand-traced only, not run) (closes the tampered-model delivery
+parsed with no upper bound). Mitigations adopted here: our own SHA-256, byte size and release-asset id pinned per model in the registry, verified before anything is unpacked (built, unit-tested, not tried on a phone); upstream's checksum list is advisory only, checked at authoring time and never fetched on install (built, unit-tested, not tried on a phone); the release-asset id is not immutable, because upstream can re-point it, and our pin catches that (built: a re-pointed asset fails the size or digest check, hand-traced only, not run) (closes the tampered-model delivery
 vector); track #3983 and adopt the upstream decoder fix when it lands; revisit
 (beam-search / non-transducer models) only if the fix doesn't land in a
 reasonable window [2]. Whether our package (upstream commit 11afbd00) contains that fix has not been
@@ -319,7 +319,7 @@ it.
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/stt-ondevice/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:stt-ondevice:test`
-- Registry pins: `RegistryTamperTest` loops `ModelRegistry.ALL` (five speech entries) and checks, per entry, that `ModelIntegrity.verify` refuses an archive that does not hash to its pin and an archive whose length is not the pinned byte size, and accepts a stand-in that matches its own pin and size; it works on a stand-in file, so no `tamper_verified` flag flips from it (built, not compiled or run). The opt-in `RealArchiveTamperTest` (skipped unless `BREAKER_REAL_MODELS_DIR` names a folder that holds the real archives) loops all five speech entries, so it needs all five archives; it was run on 2026-11-13 against the four archives then listed (under the earlier pin rule, not re-run under the size and digest rule), accepted each real archive and refused a copy of it with one flipped byte, which is why `tamper_verified` is true on `small`, `tiny`, `base` and `medium` in `shared/modules/model-registry/models.yaml`; it has not been run with the `parakeet` archive, so that entry is false.
+- Registry pins: `RegistryTamperTest` loops `ModelRegistry.ALL` (five speech entries) and checks, per entry, that `ModelIntegrity.verify` refuses an archive that does not hash to its pin and an archive whose length is not the pinned byte size, and accepts a stand-in that matches its own pin and size; it works on a stand-in file, so no `tamper_verified` flag flips from it (built, unit-tested, not tried on a phone). The opt-in `RealArchiveTamperTest` (skipped unless `BREAKER_REAL_MODELS_DIR` names a folder that holds the real archives) loops all five speech entries, so it needs all five archives; it was run on 2026-11-13 against the four archives then listed (under the earlier pin rule, not re-run under the size and digest rule), accepted each real archive and refused a copy of it with one flipped byte, which is why `tamper_verified` is true on `small`, `tiny`, `base` and `medium` in `shared/modules/model-registry/models.yaml`; it has not been run with the `parakeet` archive, so that entry is false.
 - The fetcher tests use a scripted opener and no network. One class, `JdkHttpOpenerLoopbackTest`,
   tests the real opener against a plain server on the loopback address only. Exactly one of its
   tests (the read timeout) waits on a real timer, by design: the timer is the behaviour under test.
@@ -343,7 +343,7 @@ it.
 - The adapter tests are `SherpaOnnxRecognizerTest` and `SherpaOnnxRecognizerFailureTest` (the adapter
   over `FakeNative.kt`, a scripted native engine), `SherpaOnnxRecognizerFactoryTest`,
   `TransducerFileLocatorTest`, `StreamingProfilesConsistencyTest` (the streaming ids equal the unpack
-  ids, and the locator picks the files the unpack writes), `RegistryDrivenSpeechModelTest` (a made-up offline entry that no code names installs, unpacks, loads and opens, and entries that are unsupported or incomplete are refused; written and traced by hand, not compiled or run), `SherpaOnnxRecognizerWiringTest` (a real
+  ids, and the locator picks the files the unpack writes), `RegistryDrivenSpeechModelTest` (a made-up offline entry that no code names installs, unpacks, loads and opens, and entries that are unsupported or incomplete are refused; built, unit-tested, not tried on a phone), `SherpaOnnxRecognizerWiringTest` (a real
   loader and engine over the real recognizer factory, with a fake opener) and `SherpaOnnxRealBindingTest` (the
   public recognizer factory on a plain JVM: a failure result, not an exception). The preload change has
   `OnDeviceSttEnginePreloadBusyTest`, `SlotOrderRecordTest` and the other `OnDeviceSttEngine*Test` classes (no native engine), and the four-names check has `LocalModelStoreFourNamesTest`
@@ -364,7 +364,7 @@ it.
 - Contract (release file pins): `tests/contract/stt_ondevice_aar_pins.py` holds the tests and
   `tests/contract/stt_ondevice_aar_checks.py` the rules they call; the contract test above imports
   and runs them. They pin the pin file, the settings and build wiring, the compile-only
-  declaration, and that only the three binding files name the library and no main source loads a native library; the scope rule and the keyword and offline binding pins are in `tests/contract/stt_ondevice_aar_binding.py` and `tests/contract/stt_ondevice_aar_binding_pins.py`, which the same contract test runs. Both the streaming and the offline binding pin the model type as read from the entry (`modelType = files.modelType`), and the pin still fires when the type is hardwired to an empty string, to `zipformer` or to `nemo_transducer` (python, hand-traced for the mutants; the three binding pin tests are not run against compiled Kotlin). The rule that no speech model id appears in the app's main Kotlin (ADR-050 J, models are data) is gated by `tests/unit/contract/test_no_speech_model_id_in_main.py`, which lists its allowlist (the generated registry file and one literal in core's `AppSettings`) and fires on a planted id (python, run; the Kotlin it scans is not compiled).
+  declaration, and that only the three binding files name the library and no main source loads a native library; the scope rule and the keyword and offline binding pins are in `tests/contract/stt_ondevice_aar_binding.py` and `tests/contract/stt_ondevice_aar_binding_pins.py`, which the same contract test runs. Both the streaming and the offline binding pin the model type as read from the entry (`modelType = files.modelType`), and the pin still fires when the type is hardwired to an empty string, to `zipformer` or to `nemo_transducer` (python, hand-traced for the mutants; the three binding pin tests are not run against compiled Kotlin). The rule that no speech model id appears in the app's main Kotlin (ADR-050 J, models are data) is gated by `tests/unit/contract/test_no_speech_model_id_in_main.py`, which lists its allowlist (the generated registry file and one literal in core's `AppSettings`) and fires on a planted id (python, run; the Kotlin it scans compiles in the project's CI build).
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -394,18 +394,18 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Built and not built (ADR-050)
 
-Decided in ADR-050. The first of its two build changes (this module and the registry entry) is in the code, built and not compiled or run; the screens are not built.
+Decided in ADR-050. Both of its build changes are in the code: this module and the registry entry are built, unit-tested, not tried on a phone, and the first-run, Settings and About screens for the second model are built, unit-tested, not tried on a phone.
 
-- A second model, Parakeet TDT 0.6B v3 (registry id `parakeet`, the sherpa-onnx int8 offline archive of 487,211,443 bytes): its registry entry, its unpack profile and the offline recognizer behind the existing recognizer interface are built (not compiled or run). The offline native binding has never been compiled against the library, every offline library name in it except the class `OfflineRecognizer` is unverified, and nothing has been decoded with the real model (not verified).
-- A kind switch chosen by the registry entry: built in `SherpaOnnxRecognizerFactory` as a choice by the entry's kind and model type, with no model id in main code (ADR-050 J, models are data), so a model that uses a supported kind and model type is a registry entry and its pin with no app code change; an entry outside the supported set is refused (not compiled or run).
-- The extraction profile for Parakeet, with limits taken from its real archive listing, is now read from its registry entry rather than a table in code: built, and pinned by a test against that listing (not compiled or run); the `small` limits do not fit that archive, and the extractor has not been run on the real archive.
+- A second model, Parakeet TDT 0.6B v3 (registry id `parakeet`, the sherpa-onnx int8 offline archive of 487,211,443 bytes): its registry entry, its unpack profile and the offline recognizer behind the existing recognizer interface are built, unit-tested, not tried on a phone. The offline native binding is compiled against the library by the project's CI build, every offline library name in it compiles there, and nothing has been decoded with the real model (not verified).
+- A kind switch chosen by the registry entry: built in `SherpaOnnxRecognizerFactory` as a choice by the entry's kind and model type, with no model id in main code (ADR-050 J, models are data), so a model that uses a supported kind and model type is a registry entry and its pin with no app code change; an entry outside the supported set is refused (built, unit-tested, not tried on a phone).
+- The extraction profile for Parakeet, with limits taken from its real archive listing, is now read from its registry entry rather than a table in code: built, unit-tested, not tried on a phone, and pinned by a test against that listing; the `small` limits do not fit that archive, and the extractor has not been run on the real archive.
 - Download limits follow the registry size, as they did before (built, unchanged: the body cap is the registry size in MiB plus one MiB, 466 MiB for `parakeet`).
-- Our own pin (SHA-256, byte size and release-asset id) per model is the verify rule: built, in the installer and the loader (not compiled or run); the upstream checksum list is never fetched and the refusal for a pin missing from upstream's list no longer exists (built, not compiled or run).
+- Our own pin (SHA-256, byte size and release-asset id) per model is the verify rule: built, unit-tested, not tried on a phone, in the installer and the loader; the upstream checksum list is never fetched and the refusal for a pin missing from upstream's list no longer exists (built, unit-tested, not tried on a phone).
 - The take shape does not change: one decode after stop, through `OnDeviceSttEngine` (built, unchanged).
-- Not built here: the first-run second button, the settings section, the ratings display, the About notice entry and the NOTICE text, which belong to the `android/ui` and settings modules (the second build change); nothing downloads a model from a screen yet. Not measured: the memory the Parakeet model needs on a real phone (the check is pending).
+- Built, unit-tested, not tried on a phone: the first-run second button, the settings section, the ratings display, the About notice entry and the NOTICE text, which belong to the `android/ui` and settings modules (the second build change); a model is downloaded from the first-run and settings screens (built, unit-tested, not tried on a phone). Not measured: the memory the Parakeet model needs on a real phone (the check is pending).
 
 ## Known Gotchas
-- Every .onnx is untrusted - verify the archive against our own pin (SHA-256 and byte size) before load [2]; the upstream checksum.txt is not consulted (built, not compiled or run; ADR-050); track #3983 [2].
+- Every .onnx is untrusted - verify the archive against our own pin (SHA-256 and byte size) before load [2]; the upstream checksum.txt is not consulted (built, unit-tested, not tried on a phone; ADR-050); track #3983 [2].
 - The Gradle edge to `:shared:modules:model-registry` is required and present:
   the registry publishes an artifact (its build file applies `java-library`),
   this module's build file declares the edge, and its `modules.toml` entry
@@ -416,14 +416,14 @@ Decided in ADR-050. The first of its two build changes (this module and the regi
 - The check does not use the archive name. `ModelEntry` still carries `archiveName`, generated from `archive_name` in
   the registry, but `ModelIntegrity.verify` takes only the file, the pinned digest and the pinned size.
   The archive name is not an input of the check; a test in this module
-  asserts that the same bytes verify under any file name (built, not compiled or run).
+  asserts that the same bytes verify under any file name (built, unit-tested, not tried on a phone).
   A test in this module also asserts that every entry in the registry has a non-blank archiveName.
 - A crash between moving the archive into place and writing the verified
-  marker can leave an archive without the marker. The loader does not read the marker, so this does not stop a load (built, not compiled or run). The
+  marker can leave an archive without the marker. The loader does not read the marker, so this does not stop a load (built, unit-tested, not tried on a phone). The
   window is the span in `ModelInstaller` from the move to that write,
   and it includes the second check of the archive. A crash in it leaves the archive and no unpacked files, and the loader then keeps the
   archive and answers not installed on every load (the unpacked-files check comes after the archive check);
-  installing the model again heals it (built, not compiled or run).
+  installing the model again heals it (built, unit-tested, not tried on a phone).
   The window now also runs from the unpack to the stamp write: a crash there leaves the
   archive, the unpacked files and no stamp, and the loader then verifies the archive once and writes the stamp.
   A torn stamp reads as absent, because its final `end` line is missing.
@@ -548,7 +548,7 @@ Decided in ADR-050. The first of its two build changes (this module and the regi
   `<id>.download` can stay in the staging directory after a process death, and the installer never
   sweeps it; the fetcher deletes its own same-name file at the start of the next attempt, so a
   partial for a model that is never tried again stays.
-  No checksum list is staged any more (built, not compiled or run).
+  No checksum list is staged any more (built, unit-tested, not tried on a phone).
 - The download limits and the two host sets are recommended values and are NOT measured on a
   device. The redirect host was read from the live release when the fetcher was written. If the
   release host changes, a download fails closed (the "could not be downloaded" sentence) until the
@@ -558,7 +558,7 @@ Decided in ADR-050. The first of its two build changes (this module and the regi
   check, which is the integrity control.
 - The host rate limits unauthenticated API access (the limit itself was not measured). A 403 or 429
   shows as "could not be downloaded". The install makes one request, for the model, so a
-  network failure shows the model sentence (built, not compiled or run).
+  network failure shows the model sentence (built, unit-tested, not tried on a phone).
 - The metered-data and Wi-Fi-only policy, the `INTERNET` permission, running the download off the UI
   thread and allowing one install at a time belong to the app wiring, not to this module.
   `install()` now also unpacks inside the same blocking call, so the whole call must stay off the UI

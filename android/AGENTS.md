@@ -26,7 +26,7 @@ upgrade path (ARCHITECTURE section 8). Shake + tap remain the manual fallbacks.
 **Module map (details in each module's AGENTS.md):**
 - `core` — domain models, ports, use cases (no Android imports)
 - `audio` — mic capture, VAD, noise suppression, WAV encode
-- `stt-ondevice` — sherpa-onnx local transcription (fallback; pinned models + checksum.txt [2])
+- `stt-ondevice` — sherpa-onnx local transcription (fallback; models named by release-asset id — upstream can re-point an id, so our own pin is the check — and checked against their own SHA-256 pin and byte size [2]; ADR-050: built, unit-tested, not tried on a phone, upstream's checksum.txt advisory and never fetched on install)
 - `stt-server` — client for Breaker's own `whisper-server` job queue (primary)
 - `transport` — connectivity probe: is the Local Server reachable (core routes on the answer); no cloud path
 - `format` — Whisper Flow-style formatting (server LLM + rule-based local)

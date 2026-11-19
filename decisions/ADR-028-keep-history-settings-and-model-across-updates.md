@@ -23,7 +23,7 @@ What the code in main does today (checked at main f2887786):
   (`BreakerCompositionRoot.kt`). `ModelLoader` deletes a model at once when its
   check fails (the archive does not match its pinned SHA-256 or byte size:
   `Refusal.VERIFICATION_REFUSED`); a `.checksums` file that an earlier version left in
-  a model folder is never read and does not stop a load (built after that check, not compiled or run).
+  a model folder is never read and does not stop a load (built, unit-tested, not tried on a phone, after that check).
 - **Settings:** `SettingsFileStore(File(filesDir, "settings.properties"), ...)`
   (`BreakerCompositionRoot.kt`).
 - **History:** SQLite, file name `breaker_history.db`
