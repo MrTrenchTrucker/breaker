@@ -101,5 +101,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-048](ADR-048-t4-remember-the-window-at-take-start.md) | T4 window ownership: remember the window at take start, compare at commit | accepted; build planned |
 | [ADR-049](ADR-049-no-paste-fallback-for-accessibility-insert.md) | No ACTION_PASTE fallback for the accessibility insert | accepted |
 | [ADR-050](ADR-050-two-speech-models-user-chooses.md) | Two speech models (Good and Better), the user chooses between them, and each model is pinned by our own sha256; decided, not built | accepted |
+| [ADR-051](ADR-051-per-user-phrase-training.md) | Per-user voice phrase training: the phone records, the server trains, the phone checks and installs the model; decided, not built | accepted |
 
-Next free number: **ADR-051**.
+Next free number: **ADR-052**.

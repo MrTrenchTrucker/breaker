@@ -764,7 +764,7 @@ train a KWS model. The **training container** does the heavy lifting.
 3. Training container fine-tunes a small per-user KWS model (sherpa-onnx KWS
    toolkit / k2-fsa training recipes).
 4. Phone downloads the trained model, SHA-256 verified, and uses it for phrase
-   detection (upgrade path in section 8). Until trained, streaming-match is used.
+   detection (upgrade path in section 8). Until trained, or with no server, the default keyword model is used (ADR-051).
 
 **Privacy:** voice samples are user-scoped and stored in the user's namespace;
 deletable by the user.
@@ -773,6 +773,12 @@ deletable by the user.
 confirm the model size in Phase 13. If GPU training is required, the training
 container registers with the local inference engine and uses **Local Inference**
 (FIFO multi-agent, Fast Lane priority) for GPU job management.
+
+**Decision (ADR-051, accepted, decided not built):** this section is accepted as the design for
+training option A. ADR-051 adds the phone install and fallback (a verified user model is installed as
+its own keyword model; any failure uses the default keyword model), the delete action, and the build
+order: the phone side first, then the shared API contract, then the server container. Nothing here is
+built yet, and the training screen's words need the owner's approval first.
 
 ## 14. Distribution: APK, Certificates & Sideload
 

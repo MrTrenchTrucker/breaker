@@ -46,6 +46,7 @@ does not buffer or cut the dictation audio itself (see Audio handling).
 - Dedicated keyword-spotting model (how "Hey Google" / "Alexa" work) for lower
   CPU/latency. Requires a small custom-trained model for our phrases; sherpa-onnx
   ships the KWS training toolkit (a few hundred clips per phrase).
+- Decided, not built (ADR-051 E): a user model from per-user training, once it has passed its checksum on the phone, is installed as its own keyword model and the detector switches to it. The default keyword model of option C stays the fallback. This module's interface does not change, and no code reads a user model yet.
 - Built in a first form, not the trained form: the keyword spotter runs with a pretrained open-vocabulary model and the library's default tuning, with the two phrases as fixed token lines. No training and no per-user calibration is built, and no measurement on a device exists.
 
 **Audio handling:**
