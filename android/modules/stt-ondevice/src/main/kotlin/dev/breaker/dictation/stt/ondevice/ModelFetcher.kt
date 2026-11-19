@@ -52,6 +52,22 @@ interface ModelFetcher {
         stagingDir: File,
         onProgress: (received: Long, total: Long) -> Unit,
     ): Result = fetchModel(entry, stagingDir)
+
+    /**
+     * Fetch the model archive for [entry] into [stagingDir], reporting progress and
+     * stopping when [cancelled] returns true.
+     *
+     * [cancelled] is polled before every request and once per chunk of a body, like a
+     * caller that wants to stop a download already running. The default is never
+     * cancelled; the default body ignores the flag and calls the three-argument form,
+     * so an existing fetcher that only implements that form keeps working.
+     */
+    fun fetchModel(
+        entry: ModelEntry,
+        stagingDir: File,
+        onProgress: (received: Long, total: Long) -> Unit,
+        cancelled: () -> Boolean = { false },
+    ): ModelFetcher.Result = fetchModel(entry, stagingDir, onProgress)
 }
 
 /**

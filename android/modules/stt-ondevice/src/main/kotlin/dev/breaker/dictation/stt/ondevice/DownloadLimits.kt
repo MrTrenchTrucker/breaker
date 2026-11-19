@@ -13,6 +13,10 @@ import java.net.URI
  * @property readTimeoutMillis longest wait for the next bytes of a reply.
  * @property totalTimeoutMillis longest time for one whole fetch, so a body
  *   that trickles in cannot outlast the per-read timeout forever.
+ * @property stallTimeoutMillis longest gap between two chunks of a body before the
+ *   fetch is called stalled. The per-read timeout bounds one blocked read, but a
+ *   trickling body resets it on every byte; a byte-gap this long is a stall, not a
+ *   slow honest link, and sits far below [totalTimeoutMillis].
  * @property maxRedirects most redirects followed for one fetch.
  * @property firstHopHosts hosts the first request may go to.
  * @property redirectHosts hosts a redirect may go to.
@@ -22,6 +26,7 @@ data class DownloadLimits(
     val connectTimeoutMillis: Int = 15_000,
     val readTimeoutMillis: Int = 30_000,
     val totalTimeoutMillis: Long = 3_600_000L,
+    val stallTimeoutMillis: Long = 120_000L,
     val maxRedirects: Int = 5,
     val firstHopHosts: Set<String> = setOf("api.github.com"),
     val redirectHosts: Set<String> = setOf("release-assets.githubusercontent.com"),

@@ -54,7 +54,7 @@ internal class ModelNoSpaceSentenceTest {
         for (refusal in ModelInstaller.Refusal.values()) {
             if (refusal == ModelInstaller.Refusal.NO_SPACE) continue
             val port = InstallerPort { ModelInstaller.InstallResult.Refused(refusal, "x") }
-            assertEquals("app: $refusal maps to a refused outcome with the detail", InstallOutcome.Refused("x"), port.install(entry))
+            assertEquals("app: $refusal maps to a refused outcome with the detail", InstallOutcome.Refused("x", refusal), port.install(entry))
             checked += 1
         }
         assertEquals("app: every refusal but no space was checked", ModelInstaller.Refusal.values().size - 1, checked)

@@ -17,14 +17,14 @@ import com.k2fsa.sherpa.onnx.OfflineTransducerModelConfig
  * loads a native library; the library's own classes do that the first time one is used, so on a machine without
  * the library [open] fails with a [LinkageError], which the factory reports as an ordinary open failure.
  *
- * THIS FILE HAS NEVER BEEN COMPILED AGAINST THE LIBRARY AND HAS NEVER RUN. The contract pin records its imports
- * AS WRITTEN; the compile against the library's AAR is what confirms them. Only one class name is measured: the
- * shipped build holds `com.k2fsa.sherpa.onnx.OfflineRecognizer`. Every other library name below is UNVERIFIED
- * (FIELD NAMES TO CONFIRM): the config class names and each field are copied in shape from the streaming
- * binding, not read from the library. What the documentation page for NeMo offline transducer models shows is
- * only this: four files (encoder, decoder, joiner, tokens) and a model type string, which the registry entry carries.
+ * THIS FILE IS COMPILED AGAINST THE LIBRARY BY THE PROJECT'S CI BUILD AND HAS NEVER RUN ON A DEVICE. The contract pin
+ * records its imports AS WRITTEN; the CI compile against the library's AAR confirms every class and field name below.
+ * What the compile does not settle is the behaviour at runtime: nothing here has run on a device, so the engine call
+ * sequence and the values the library accepts are UNVERIFIED. What the documentation page for NeMo offline transducer
+ * models shows is only this: four files (encoder, decoder, joiner, tokens) and a model type string, which the registry
+ * entry carries.
  *
- * UNVERIFIED, each one an assumption that the compile settles:
+ * UNVERIFIED at runtime, none of it exercised on a device (the names and signatures are confirmed by the CI compile):
  * - the config classes are `OfflineRecognizerConfig`, `OfflineModelConfig` and `OfflineTransducerModelConfig`,
  *   built by field name like the streaming ones: `featConfig`, `modelConfig`, `decodingMethod`, `transducer`,
  *   `encoder`, `decoder`, `joiner`, `tokens`, `numThreads`, `provider`, `modelType`;
@@ -44,7 +44,7 @@ internal object OfflineRecognizerBinding : NativeOfflineOpener {
      * throwing when a file is missing.
      */
     override fun open(files: TransducerFiles, numThreads: Int): NativeOfflineRecognizer {
-        // FIELD NAMES TO CONFIRM: every offline class and field below is copied in shape from the streaming binding.
+        // Every class and field name below is confirmed by the project's CI compile against the library.
         val config = OfflineRecognizerConfig(
             featConfig = FeatureConfig(
                 sampleRate = SherpaOnnxRecognizer.SAMPLE_RATE_HZ,

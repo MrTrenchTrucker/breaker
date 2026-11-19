@@ -88,14 +88,14 @@ class BindingPins:
 
     def test_the_offline_binding_imports_six_types_and_passes_its_fields_by_name(self):
         """Six imports and no more; internal object implementing NativeOfflineOpener; the fields it sets, and no other named
-        field. Only the class `OfflineRecognizer` is evidenced in the library, so the pin records the file AS WRITTEN."""
+        field. The CI compile against the AAR evidences the library names, so the pin records the file AS WRITTEN."""
         self._ok(check_offline_binding(self._main().get(OFFLINE_BINDING, "")), "offline binding")
 
-    def test_the_offline_binding_says_it_was_never_compiled_and_its_names_are_unconfirmed(self):
-        """The file keeps its own warning (read with comments): never compiled against the library, UNVERIFIED, and the
-        `FIELD NAMES TO CONFIRM` marker on its config block."""
+    def test_the_offline_binding_says_ci_compiled_it_and_it_is_never_run_on_a_device(self):
+        """The file keeps its own warning (read with comments): compiled against the library by the project's CI build,
+        never run on a device, and the runtime behaviour marked UNVERIFIED."""
         self._ok(check_offline_binding_says_unverified(self._read(MAIN + OFFLINE_BINDING)), "offline binding warning")
-        for text in ("NEVER BEEN COMPILED", "UNVERIFIED", "FIELD NAMES TO CONFIRM"):
+        for text in ("COMPILED AGAINST THE LIBRARY", "NEVER RUN ON A DEVICE", "UNVERIFIED"):
             self.assertNotEqual(check_offline_binding_says_unverified(self._read(MAIN + OFFLINE_BINDING).replace(text, "x")), [], text)
 
     def test_offline_binding_rule_flags_each_bad_text(self):
