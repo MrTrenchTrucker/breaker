@@ -249,8 +249,8 @@
    "items": [
     {
      "item": "android_training_client (its own code)",
-     "status": "NOT_STARTED",
-     "evidence": "0 code files, 0 test files"
+     "status": "PARTIAL",
+     "evidence": "recorder, sample store with its ledger, the typed server port, the client with the verified download and the core-port wrapper are written and unit-tested by reading only (not compiled, not run, not tried on a phone); 12 main files and 20 test files under android/modules/training-client/src; no screen, no real network client, no shared API operations, no server, no install of the downloaded model: not built"
     }
    ]
   },
@@ -517,8 +517,8 @@
  "summary": {
   "live": 36,
   "done": 27,
-  "partial": 6,
-  "not_started": 3,
+  "partial": 7,
+  "not_started": 2,
   "containers": 4,
   "retired": 1
  },
