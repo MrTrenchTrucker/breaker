@@ -66,8 +66,8 @@ internal class OwnershipPrivacyGateTest {
     private val quiet: List<Quiet> = listOf(
         Quiet(
             "ANCHOR",
-            "    /** The whole holder value. It starts at null: no take has been captured yet. */",
-            "    // the holder value\n    /** The whole holder value. It starts at null: no take has been captured yet. */",
+            "    /** The generation of the anchor held right now, or 0L when nothing is held (INACTIVE). */",
+            "    // the generation\n    /** The generation of the anchor held right now, or 0L when nothing is held (INACTIVE). */",
         ),
         Quiet(
             "COMMIT_MAIN_ALL",
@@ -105,8 +105,8 @@ internal class OwnershipPrivacyGateTest {
         ),
         Sample(
             "NO_LOG_CALL_NAMES_THE_ANCHOR",
-            "        state.update { window ?: noFocusedField }",
-            "        println(TakeStartAnchor.toString())\n        state.update { window ?: noFocusedField }",
+            "        state.update { Holder(counter.incrementAndGet(), window ?: noFocusedField) }",
+            "        println(TakeStartAnchor.toString())\n        state.update { Holder(counter.incrementAndGet(), window ?: noFocusedField) }",
         ),
     )
 
