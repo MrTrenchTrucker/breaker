@@ -1,6 +1,7 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.stt.ondevice.ModelInstaller
+import dev.breaker.dictation.stt.ondevice.ModelMessages
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -64,7 +65,7 @@ internal class ModelNoSpaceTest {
     fun `every other refusal reason answers the download sentence in every log`() {
         var checked = 0
         for (refusal in ModelInstaller.Refusal.values()) {
-            if (refusal == ModelInstaller.Refusal.NO_SPACE) continue
+            if (refusal == ModelInstaller.Refusal.NO_SPACE || refusal == ModelInstaller.Refusal.EXTRACT_FAILED) continue
             val notifications = ModelRecordingNotice()
             val listener = ModelRecordingNotice()
             val forwarder = ForwardingDownloadNotice(notifications)
@@ -75,8 +76,20 @@ internal class ModelNoSpaceTest {
             assertEquals("app: $refusal shows the download sentence in the launcher line", "failed:${ModelSentences.DOWNLOAD_FAILED}", listener.log.last())
             checked += 1
         }
-        assertEquals("app: every refusal but no space was checked", ModelInstaller.Refusal.values().size - 1, checked)
-        assertTrue("app: at least seven other refusals were checked", checked >= 7)
+        assertEquals("app: every refusal but no space and extract failed was checked", ModelInstaller.Refusal.values().size - 2, checked)
+        assertTrue("app: at least six other refusals were checked", checked >= 6)
+    }
+
+    @Test
+    fun `an extract failed refusal answers the unpack sentence in every log`() {
+        val notifications = ModelRecordingNotice()
+        val listener = ModelRecordingNotice()
+        val forwarder = ForwardingDownloadNotice(notifications)
+        forwarder.setListener(listener)
+        val answers = runWith(refusing(ModelInstaller.Refusal.EXTRACT_FAILED), forwarder)
+        assertEquals("app: extract failed answers the unpack sentence", listOf<DownloadOutcome>(DownloadOutcome.Failed(ModelMessages.UNPACK_FAILED)), answers)
+        assertEquals("app: extract failed shows the unpack sentence in the notification", "failed:${ModelMessages.UNPACK_FAILED}", notifications.log.last())
+        assertEquals("app: extract failed shows the unpack sentence in the launcher line", "failed:${ModelMessages.UNPACK_FAILED}", listener.log.last())
     }
 
     @Test

@@ -21,8 +21,8 @@ import dev.breaker.dictation.core.model.SttSegment
  * [release] frees the native recognizer. It does nothing the second time and never throws.
  *
  * The real native engine behind this class is OfflineRecognizerBinding.kt (see NativeOffline.kt):
- * written, but never compiled against the library and never run, with its library names
- * UNVERIFIED. Only tests with a fake engine have run this class.
+ * compiled against the library by the project's CI build and never run on a device, so its
+ * runtime behaviour is UNVERIFIED. Only tests with a fake engine have run this class.
  */
 internal class SherpaOfflineRecognizer(
     private val native: NativeOfflineRecognizer,

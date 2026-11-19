@@ -47,6 +47,10 @@ class ModelInstaller(
     private val usableSpace: (File) -> Long = { it.usableSpace },
     /** Resolves a model id to its registry entry, which gives the unpack profile; the real registry by default. */
     private val lookup: (String) -> ModelEntry? = ModelRegistry::byId,
+    /** Polled by the fetcher while the model downloads; the default never cancels an install. A caller hands in a supplier that answers true once. */
+    private val cancelled: () -> Boolean = { false },
+    /** Deletes a stale partial in the sweep; the default asks the file system. A test may force a failure. */
+    private val sweepDelete: (File) -> Boolean = { it.delete() },
 ) {
 
     /**
@@ -95,7 +99,7 @@ class ModelInstaller(
         /** The archive is unsafe or damaged and was not unpacked; the model was deleted. */
         EXTRACT_REFUSED,
 
-        /** The phone could not unpack the archive (a write or the final move failed); the model was deleted. */
+        /** The phone could not unpack the archive (a write, the final move, or an archive over the profile's bounds); the model was deleted. */
         EXTRACT_FAILED,
 
         /**
@@ -134,26 +138,21 @@ class ModelInstaller(
 
         // Step 0b: a model with no unpack profile can never be unpacked, so it is
         // refused before anything is downloaded.
-        val profile = profileOf(entry)
+        val profile = profileOf(entry, lookup)
         if (profile == null) {
             return refuse(Refusal.UNSUPPORTED_MODEL, ModelMessages.MODEL_WRONG_FAMILY, "no unpack profile for '${entry.id}'")
         }
 
-        // Step 1: the free-space check. The disk holds the archive and the files
-        // unpacked from it at the same moment, so the check needs the pinned archive
-        // size plus the most the unpack profile lets it write. It runs before any
-        // byte is fetched, so a refusal leaves nothing behind.
-        val unpackBytes = profile.limits.maxWrittenBytes
-        val needBytes = entry.sizeBytes + unpackBytes
-        val freeBytes = usableSpace(stagingDir)
-        if (freeBytes < needBytes) {
-            return refuse(
-                Refusal.NO_SPACE,
-                ModelMessages.DOWNLOAD_NO_SPACE,
-                "need $needBytes bytes (archive ${entry.sizeBytes} + unpacked $unpackBytes), " +
-                    "free $freeBytes in ${stagingDir.absolutePath}",
-            )
-        }
+        // Step 1: the free-space check, before any byte is fetched (see freeSpaceRefusal).
+        val spaceRefusal = freeSpaceRefusal(
+            stagingDir,
+            entry,
+            profile.limits.maxWrittenBytes,
+            usableSpace,
+            sweepDelete,
+            debug,
+        )
+        if (spaceRefusal != null) return spaceRefusal
 
         // The progress callback is guarded: a RuntimeException from it is logged
         // once by class name, and the download goes on.
@@ -172,7 +171,7 @@ class ModelInstaller(
         // Step 2: fetch model archive. A write into staging that throws is a staging failure, not a
         // network one (a network failure comes back as Result.Failed), and a no-space failure is told apart.
         val modelResult = try {
-            fetcher.fetchModel(entry, stagingDir, guarded)
+            fetcher.fetchModel(entry, stagingDir, guarded, cancelled)
         } catch (e: NoSpaceException) {
             return refuseFetchNoSpace(stagingDir, e)
         } catch (e: IOException) {
@@ -296,19 +295,6 @@ class ModelInstaller(
     }
 
     /**
-     * The unpack profile of [entry], the one source for support, the free-space figure, the unpack and the
-     * stamp. An entry that carries its own files and limits is read as given ([ExtractionProfiles.forEntry]);
-     * an entry missing either is resolved by its id through [lookup] ([ExtractionProfiles.forModel]).
-     * Null means no profile.
-     */
-    private fun profileOf(entry: ModelEntry): ExtractionProfile? =
-        if (entry.files != null && entry.limits != null) {
-            ExtractionProfiles.forEntry(entry)
-        } else {
-            ExtractionProfiles.forModel(entry.id, lookup)
-        }
-
-    /**
      * Measures the four unpacked files of [entry] and writes their stamp, then reports the
      * install as Installed. When a file cannot be measured or the stamp cannot be written, the
      * whole model is deleted and the install is refused, the same way a failed metadata write is.
@@ -340,11 +326,7 @@ class ModelInstaller(
      */
     private fun refuseUnpack(modelId: String, rejected: ExtractionOutcome.Rejected): InstallResult.Refused {
         val removed = store.delete(modelId)
-        val (refusal, sentence) = when (rejected.reason.fault) {
-            ExtractionFault.ARCHIVE -> Refusal.EXTRACT_REFUSED to ModelMessages.UNPACK_REFUSED
-            ExtractionFault.LOCAL -> Refusal.EXTRACT_FAILED to ModelMessages.UNPACK_FAILED
-            ExtractionFault.SPACE -> Refusal.NO_SPACE to ModelMessages.UNPACK_NO_SPACE
-        }
+        val (refusal, sentence) = unpackRefusalFor(rejected.reason)
         return refuse(refusal, sentence, "${rejected.reason.name}: ${rejected.detail}", leftOnDisk = !removed)
     }
 
@@ -359,11 +341,8 @@ class ModelInstaller(
     )
 
     /**
-     * Build a refusal: [userSentence] is what the result carries, [technical]
-     * goes to the debug sink once, before the result is returned. When
-     * [leftOnDisk] is true the result carries [sentenceIfLeft] (by default the
-     * sentence plus the note that the file could not be deleted) and the sink
-     * text says the delete failed.
+     * Build a refusal through [refuseInstall]: [userSentence] is what the result carries,
+     * [technical] goes to the debug sink once, before the result is returned.
      */
     private fun refuse(
         refusal: Refusal,
@@ -371,10 +350,6 @@ class ModelInstaller(
         technical: String,
         leftOnDisk: Boolean = false,
         sentenceIfLeft: String = userSentence + ModelMessages.COULD_NOT_DELETE,
-    ): InstallResult.Refused {
-        val note = if (leftOnDisk) "; delete failed" else ""
-        debug.debug("install refused (${refusal.name}): $technical$note")
-        val sentence = if (leftOnDisk) sentenceIfLeft else userSentence
-        return InstallResult.Refused(refusal, sentence, leftOnDisk)
-    }
+    ): InstallResult.Refused =
+        refuseInstall(debug, refusal, userSentence, technical, leftOnDisk, sentenceIfLeft)
 }

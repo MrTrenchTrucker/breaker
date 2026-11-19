@@ -55,7 +55,8 @@ internal data class ExtractionProfile(
  *
  * A speech model's profile is built from its registry entry (its four file names and its limits); no model id is
  * written here. The keyword model keeps its own profile below. A model with no profile cannot be unpacked and is
- * refused before any download. This code is written but not compiled or run.
+ * refused before any download. Compiled by the project's CI build and exercised by the
+ * module's unit tests; its behaviour on a device is not measured.
  */
 internal object ExtractionProfiles {
     private const val MIB = 1_048_576L

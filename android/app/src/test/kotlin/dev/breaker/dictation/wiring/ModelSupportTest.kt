@@ -158,7 +158,7 @@ internal class ModelSupportTest {
         }
         assertEquals(
             "app: Refused maps to Refused with the installer's sentence",
-            InstallOutcome.Refused("The model could not be downloaded."),
+            InstallOutcome.Refused("The model could not be downloaded.", ModelInstaller.Refusal.FETCH_FAILED),
             refused.install(entry),
         )
         assertEquals("app: both installers got the very same entry", listOf(entry, entry), handed)

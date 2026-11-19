@@ -25,8 +25,11 @@ import javax.net.ssl.SSLException
  * thrown, as an [IOException], after the partial file has been deleted. A failed
  * free-space check is thrown as a [NoSpaceException], which is an [IOException].
  *
- * [cancelled] is polled before every request and once per chunk of a body.
- * A read that is already blocked in the socket ends at the read timeout.
+ * The stop signal (the constructor's [cancelled], or a call's own flag through the
+ * four-argument form) is polled before every request and once per chunk of a body.
+ * A read that is already blocked in the socket ends at the read timeout. A body
+ * that brings no byte for [DownloadLimits.stallTimeoutMillis] is Failed("stalled")
+ * even while it is still inside the total time.
  *
  * The progress callback of the three-argument fetchModel is not guarded here.
  * A RuntimeException thrown by it is caught by the generic handler in fetchTo
@@ -64,7 +67,20 @@ class HttpModelFetcher internal constructor(
     ): ModelFetcher.Result {
         if (!LocalModelStore.isSafeName(entry.id)) return ModelFetcher.Result.Failed("model id not allowed")
         val target = File(stagingDir, entry.id + DOWNLOAD_SUFFIX)
-        return fetchTo(entry.url, target, limits.modelCapBytes(entry), stagingDir, onProgress)
+        return fetchTo(entry.url, target, limits.modelCapBytes(entry), stagingDir, onProgress, cancelled)
+    }
+
+    /** The four-argument form also stops on its own [cancelled] flag, beside the constructor's signal. */
+    override fun fetchModel(
+        entry: ModelEntry,
+        stagingDir: File,
+        onProgress: (received: Long, total: Long) -> Unit,
+        cancelled: () -> Boolean,
+    ): ModelFetcher.Result {
+        if (!LocalModelStore.isSafeName(entry.id)) return ModelFetcher.Result.Failed("model id not allowed")
+        val target = File(stagingDir, entry.id + DOWNLOAD_SUFFIX)
+        val stop = { this.cancelled() || cancelled() }
+        return fetchTo(entry.url, target, limits.modelCapBytes(entry), stagingDir, onProgress, stop)
     }
 
     /**
@@ -77,12 +93,13 @@ class HttpModelFetcher internal constructor(
         capBytes: Long,
         stagingDir: File,
         onProgress: (received: Long, total: Long) -> Unit,
+        stop: () -> Boolean,
     ): ModelFetcher.Result {
         val startedAt = elapsedMillis()
         target.delete()
         var completed = false
         try {
-            val result = transfer(startUrl, target, capBytes, stagingDir, startedAt, onProgress)
+            val result = transfer(startUrl, target, capBytes, stagingDir, startedAt, onProgress, stop)
             if (result is ModelFetcher.Result.Fetched) completed = true
             return result
         } catch (e: StagingWriteException) {
@@ -108,11 +125,12 @@ class HttpModelFetcher internal constructor(
         stagingDir: File,
         startedAt: Long,
         onProgress: (received: Long, total: Long) -> Unit,
+        stop: () -> Boolean,
     ): ModelFetcher.Result {
         var current: URI = parseAddress(startUrl) ?: return ModelFetcher.Result.Failed("address refused: invalid")
         var hop = 0
         while (true) {
-            if (cancelled()) return ModelFetcher.Result.Failed("cancelled")
+            if (stop()) return ModelFetcher.Result.Failed("cancelled")
             if (elapsedMillis() - startedAt > limits.totalTimeoutMillis) return ModelFetcher.Result.Failed("timed out")
             if (!limits.isAllowed(current, hop)) return ModelFetcher.Result.Failed(refusedReason(current, hop))
             val reply = opener.open(
@@ -132,7 +150,7 @@ class HttpModelFetcher internal constructor(
                     current = next
                     continue
                 }
-                return readReply(reply, target, capBytes, stagingDir, startedAt, onProgress)
+                return readReply(reply, target, capBytes, stagingDir, startedAt, onProgress, stop)
             } finally {
                 closeQuietly(reply)
             }
@@ -147,6 +165,7 @@ class HttpModelFetcher internal constructor(
         stagingDir: File,
         startedAt: Long,
         onProgress: (received: Long, total: Long) -> Unit,
+        stop: () -> Boolean,
     ): ModelFetcher.Result {
         if (reply.status != 200) return ModelFetcher.Result.Failed("http " + reply.status)
         val contentType = reply.contentType
@@ -161,13 +180,19 @@ class HttpModelFetcher internal constructor(
         try {
             var total = 0L
             var reported = 0L
+            // The moment bytes last arrived. A read that comes back empty advances the
+            // clock without moving this, so a long empty gap is caught as a stall.
+            var lastProgress = elapsedMillis()
             val buffer = ByteArray(CHUNK_BYTES)
             while (true) {
-                if (cancelled()) return ModelFetcher.Result.Failed("cancelled")
-                if (elapsedMillis() - startedAt > limits.totalTimeoutMillis) return ModelFetcher.Result.Failed("timed out")
+                if (stop()) return ModelFetcher.Result.Failed("cancelled")
+                val now = elapsedMillis()
+                if (now - startedAt > limits.totalTimeoutMillis) return ModelFetcher.Result.Failed("timed out")
+                if (now - lastProgress > limits.stallTimeoutMillis) return ModelFetcher.Result.Failed("stalled")
                 val count = reply.body.read(buffer)
                 if (count < 0) break
                 total += count
+                if (count > 0) lastProgress = elapsedMillis()
                 if (total > capBytes) return ModelFetcher.Result.Failed("too large")
                 writeChunk(output, buffer, count)
                 if (total - reported >= limits.progressStepBytes) {
@@ -255,7 +280,6 @@ class HttpModelFetcher internal constructor(
     private class StagingWriteException(val failure: IOException) : Exception()
 
     private companion object {
-        const val DOWNLOAD_SUFFIX = ".download"
         const val CHUNK_BYTES = 64 * 1024
         const val JSON_TYPE = "application/json"
         const val ACCEPT_HEADER = "Accept"

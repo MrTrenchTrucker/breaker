@@ -564,9 +564,9 @@ Decided in ADR-050. Both of its build changes are in the code: this module and t
   free disk space in the temp folder equal to the tiny model's written-bytes bound (80 MiB); on a
   full disk they fail with a no-space refusal, not a hang.
 - There is no resume: an interrupted download starts again from zero. A partial file named
-  `<id>.download` can stay in the staging directory after a process death, and the installer never
-  sweeps it; the fetcher deletes its own same-name file at the start of the next attempt, so a
-  partial for a model that is never tried again stays.
+  `<id>.download` can stay in the staging directory after a process death; the installer sweeps every
+  such stale partial before the fetch and counts the bytes it actually frees toward the free-space
+  check, refusing NO_SPACE if they do not cover the shortfall (built, unit-tested, not tried on a phone).
   No checksum list is staged any more (built, unit-tested, not tried on a phone).
 - The download limits and the two host sets are recommended values and are NOT measured on a
   device. The redirect host was read from the live release when the fetcher was written. If the
@@ -598,8 +598,8 @@ Decided in ADR-050. Both of its build changes are in the code: this module and t
 - The limit (30 seconds plus three times the clip length) is a recommended value, not a
   measurement. It has not been tried on a device.
 - Five source files under `src/main` are over the soft line cap of 300 lines and under the hard cap of 500:
-  `OnDeviceWordStream.kt` at 450 lines, `ModelInstaller.kt` at 365 lines, `ModelLoader.kt` at 329 lines,
-  `LocalModelStore.kt` at 323 lines and `OnDeviceSttEngine.kt` at 302 lines. None is split further for now.
+  `OnDeviceWordStream.kt` at 450 lines, `ModelInstaller.kt` at 355 lines, `ModelLoader.kt` at 329 lines,
+  `LocalModelStore.kt` at 331 lines and `OnDeviceSttEngine.kt` at 302 lines. None is split further for now.
 - The test `test_build_file_adds_exactly_one_external_dependency` (in the unpack pins) is false by
   its own name, because the build file now adds two coordinates. It is to be renamed in a later
   change.
@@ -611,5 +611,5 @@ Decided in ADR-050. Both of its build changes are in the code: this module and t
 - The port has no error channel: an Exception from a native call, or one from the update callback, ends the word stream quietly, with nothing thrown and no final update, and `failures` counts it. A link failure (a LinkageError) from the native open ends the run the same way and is counted. Any other Error (an AssertionError or an OutOfMemoryError, for example, or a LinkageError from a later native call) is not caught: it leaves the worker once the native objects are released, and it reaches the uncaught-exception handler of the scope. A release that throws an Exception is counted in `failures` and swallowed; an Error from a release propagates only after both releases have run (if both throw an Error, the recogniser's replaces the stream's). Coroutine cancellation is rethrown and not counted.
 - `onUpdate` must never wait on the thread that calls `stop`: the final update is delivered while that caller is blocked in `stop`, so the app posts each update to its own queue and never blocks.
 - `ModelFetcher.fetchModel` has a three-argument form with a progress callback (bytes received, total from the final reply or -1 when unknown). The two-argument form stays abstract, so a fetcher that only knows it keeps working; the installer guards the callback.
-- Nothing in production can cancel a download. The fetcher's `cancelled` function is polled, but the app builds the fetcher with the default `{ false }`; a cancel would end the fetch as a Failed("cancelled") result.
+- Nothing in production can cancel a download; the fetcher and the installer carry a polled cancel signal (built, unit-tested, not tried on a phone); the app does not wire it to a control or to the downloader yet. The fetcher's `cancelled` function is polled, but the app builds the fetcher with the default `{ false }`; a cancel would end the fetch as a Failed("cancelled") result.
 - NOT REPRODUCED (a defect report): a phone test of APK 8 found the installed model gone after an update; an in-place 6 to 8 update keeps it in the emulator, and APKs 1-5 had different signing keys. The app keeps the model app-private in `filesDir/models` (`LocalModelStore`, built in `BreakerCompositionRoot`), which an update keeps; the loader deletes a model whose archive or unpacked-file check fails, so a change to the pins or the check list is one lead. Required: an update keeps the model.

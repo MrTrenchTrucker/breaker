@@ -29,7 +29,7 @@ import dev.breaker.shared.models.ModelRegistry
  *
  * The public constructor opens the real engines (streaming and offline); it refers to each
  * binding only inside a lambda, so this class loads without the native classes present.
- * The offline binding has not been compiled against the library yet.
+ * The offline binding is compiled against the library by the project's CI build; it has not been run on a device.
  *
  * @property numThreads threads the engine may use for one decode (at least 1).
  */

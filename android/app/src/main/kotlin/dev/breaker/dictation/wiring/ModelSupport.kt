@@ -4,6 +4,7 @@ import dev.breaker.dictation.stt.ondevice.HttpModelFetcher
 import dev.breaker.dictation.stt.ondevice.LocalModelStore
 import dev.breaker.dictation.stt.ondevice.ModelFetcher
 import dev.breaker.dictation.stt.ondevice.ModelInstaller
+import dev.breaker.dictation.stt.ondevice.ModelMessages
 import dev.breaker.shared.models.ModelEntry
 import dev.breaker.shared.models.ModelRegistry
 import java.io.File
@@ -62,8 +63,8 @@ sealed class InstallOutcome {
     /** Nothing was installed because the phone has too little free space. */
     object NoSpace : InstallOutcome()
 
-    /** Nothing usable was installed; [reason] is the installer's fixed sentence. */
-    data class Refused(val reason: String) : InstallOutcome()
+    /** Nothing usable was installed; [reason] is the installer's fixed sentence and [refusal] its category, when the installer named one. */
+    data class Refused(val reason: String, val refusal: ModelInstaller.Refusal? = null) : InstallOutcome()
 }
 
 /** Installs one registry model into the local store. Blocking: call it off the main thread. */
@@ -100,7 +101,7 @@ class InstallerPort(
                 if (result.refusal == ModelInstaller.Refusal.NO_SPACE) {
                     InstallOutcome.NoSpace
                 } else {
-                    InstallOutcome.Refused(result.detail)
+                    InstallOutcome.Refused(result.detail, result.refusal)
                 }
         }
 }
@@ -128,10 +129,7 @@ interface ModelDownloadNotice {
     /** A download started; the sentence names the source and the size. */
     fun downloading(sentence: String)
 
-    /**
-     * Bytes are arriving. [totalMb] is 0 when there is no known total, and the bar is then indeterminate.
-     * Called on the main thread.
-     */
+    /** Bytes are arriving; [totalMb] is 0 when the total is not known, and the bar is then indeterminate. */
     fun progress(sentence: String, doneMb: Int, totalMb: Int) {}
 
     /** The model is installed. */
@@ -198,10 +196,7 @@ class ModelDownloader(
         start(id, onFinished)
     }
 
-    /**
-     * The id of the model being downloaded now, or null when no download runs. This is a read of the download
-     * in flight: it starts nothing and changes nothing, so it is not a way in.
-     */
+    /** The id of the model being downloaded now, or null when no download runs; a read that starts nothing. */
     fun downloadingId(): String? = (active.get() as? Download)?.id
 
     private class Download(val id: String)
@@ -232,10 +227,13 @@ class ModelDownloader(
 
     private fun installAndReport(entry: ModelEntry, token: Any, onFinished: (DownloadOutcome) -> Unit) {
         val outcome = try {
-            when (installer.install(entry) { received, total -> postProgress(token, received, total) }) {
+            when (val installed = installer.install(entry) { received, total -> postProgress(token, received, total) }) {
                 is InstallOutcome.Installed -> DownloadOutcome.Done(entry.id)
                 is InstallOutcome.NoSpace -> DownloadOutcome.Failed(ModelSentences.DOWNLOAD_NO_SPACE)
-                is InstallOutcome.Refused -> DownloadOutcome.Failed(ModelSentences.DOWNLOAD_FAILED)
+                is InstallOutcome.Refused ->
+                    DownloadOutcome.Failed(
+                        if (installed.refusal == ModelInstaller.Refusal.EXTRACT_FAILED) ModelMessages.UNPACK_FAILED else ModelSentences.DOWNLOAD_FAILED
+                    )
             }
         } catch (e: Exception) {
             DownloadOutcome.Failed(ModelSentences.DOWNLOAD_FAILED)

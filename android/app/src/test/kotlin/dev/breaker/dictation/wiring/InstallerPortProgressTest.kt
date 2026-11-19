@@ -61,7 +61,7 @@ internal class InstallerPortProgressTest {
         val port = bothForms(
             ModelInstaller.InstallResult.Refused(ModelInstaller.Refusal.FETCH_FAILED, "The model could not be downloaded."),
         )
-        val expected = InstallOutcome.Refused("The model could not be downloaded.")
+        val expected = InstallOutcome.Refused("The model could not be downloaded.", ModelInstaller.Refusal.FETCH_FAILED)
         assertEquals("app: the one-argument form maps Refused with its sentence", expected, port.install(entry))
         assertEquals("app: the callback form maps Refused with its sentence", expected, port.install(entry) { _, _ -> })
     }

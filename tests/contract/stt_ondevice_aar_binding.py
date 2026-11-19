@@ -17,9 +17,9 @@ does NOT pin any value of a keyword field of the library: those shapes are unver
 library's strings only), so the pin names only what the file really sets today, and a new named field is a
 rule change that someone must look at.
 
-The offline binding pin has the same strength and records the offline file's imports AS WRITTEN. That file has
-never been compiled against the library; apart from the class `OfflineRecognizer`, none of its names is
-evidenced, so the pin is to be confirmed by the compile against the AAR, and the file must say so (see
+The offline binding pin has the same strength and records the offline file's imports AS WRITTEN. That file is
+compiled against the library by the project's CI build, so its class and field names are confirmed; what stays
+UNVERIFIED is its behaviour at runtime, because it has never run on a device, and the file must say so (see
 `check_offline_binding_says_unverified`).
 """
 import re
@@ -112,7 +112,7 @@ def check_offline_binding(code):
 
 
 def check_offline_binding_says_unverified(raw):
-    """`raw` is the offline binding WITH its comments: it must say plainly that it was never compiled against the library
-    and that its names are to be confirmed, and must mark the config block."""
+    """`raw` is the offline binding WITH its comments: it must say plainly that the project's CI build compiled it
+    against the library, that it has never run on a device, and must mark the runtime behaviour UNVERIFIED."""
     return [f"the offline binding must carry the text {t!r}" for t in
-            ("NEVER BEEN COMPILED", "UNVERIFIED", "FIELD NAMES TO CONFIRM") if t not in raw]
+            ("COMPILED AGAINST THE LIBRARY", "NEVER RUN ON A DEVICE", "UNVERIFIED") if t not in raw]

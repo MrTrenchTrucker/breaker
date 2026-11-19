@@ -19,7 +19,8 @@ internal class StreamingProfile(val language: String)
  * A model belongs here when its registry entry is of kind STREAMING and is a supported entry (see
  * [SpeechModels.usable]); the profile is read from the entry, so no model id is written in this module.
  * An entry of kind OFFLINE, an entry that is not supported, and an id the registry does not know have no
- * streaming profile. This code is written but not compiled or run.
+ * streaming profile. Compiled by the project's CI build and exercised by the module's unit
+ * tests; its behaviour on a device is not measured.
  */
 internal object StreamingProfiles {
 
