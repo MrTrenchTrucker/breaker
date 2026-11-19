@@ -54,7 +54,7 @@ FE and Android app share one token set and look identical.
 - Base repo: **clean bill of health** with 4 fixes (no silent cloud fallthrough,
   delete the in-app updater, change package ID, pin Gradle SHA-256) + NOTICE
   file (licensing) [1].
-- sherpa-onnx: **safe with 3 mitigations** — pin models to immutable release-asset ids + verify upstream checksum.txt; track decoder bug #3983; keep sherpa-onnx
+- sherpa-onnx: **safe with 3 mitigations** — name models by release-asset id (upstream can re-point an id, so our own pin is the check) + verify our own SHA-256 pin and byte size — ADR-050: built, unit-tested, not tried on a phone, in the speech module and the registry; upstream's checksum.txt is advisory and never fetched on install; track decoder bug #3983; keep sherpa-onnx
   off the server's network-exposed path [2].
 - Honest caveat: the forked base app has not passed its build and smoke test
   yet — Phase 0 is that gate [1][2].

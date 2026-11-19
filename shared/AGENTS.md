@@ -8,7 +8,7 @@ defines these independently.
 
 **Module map:**
 - `api-contracts` — OpenAPI spec: auth, sync, jobs, updates, admin, training
-- `model-registry` — model sizes, immutable release-asset URLs, upstream checksum.txt,
+- `model-registry` — model sizes, release-asset ids (upstream can re-point an id; our own SHA-256 pin and byte size per model is the check), the advisory upstream checksum.txt,
   per-model licenses, hosted flag
 - `format-prompts` — strict non-destructive formatting prompts for the server LLM
 - `ui-tokens` — Trucking design tokens (colors light/dark, type, spacing,

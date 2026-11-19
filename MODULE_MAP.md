@@ -40,7 +40,7 @@
 | Module | Path | Job |
 |--------|------|-----|
 | `api-contracts` | `shared/modules/api-contracts/` | OpenAPI spec: auth, sync, jobs, updates, admin, training |
-| `model-registry` | `shared/modules/model-registry/` | Model sizes, immutable release-asset URLs, checksum.txt, licenses |
+| `model-registry` | `shared/modules/model-registry/` | Model sizes; models named by release-asset id, verified against our own SHA-256 pin and byte size (ADR-050: built, unit-tested, not tried on a phone, in the speech module and the registry; upstream's checksum.txt is advisory and never fetched on install); licenses |
 | `format-prompts` | `shared/modules/format-prompts/` | Strict non-destructive formatting prompts for the server LLM |
 | `ui-tokens` | `shared/modules/ui-tokens/` | Trucking design tokens (colors, type, spacing, breakpoints) |
 | `seal` | `shared/modules/seal/` | Sealed box (libsodium crypto_box_seal) opener and sealer: HSalsa20, SealedBox.open and SealedBox.seal. |

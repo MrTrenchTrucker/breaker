@@ -25,8 +25,11 @@ breaker/
   (3) change package id, (4) pin Gradle SHA-256. Plus NOTICE file (licensing).
 - Caveat: base code was never built/run — Phase 0 includes a build + smoke-test gate.
 - Second security review (k2-fsa/sherpa-onnx): **safe to use with three
-  mitigations** — pin models to immutable release-asset ids + verify upstream
-  checksum.txt; track transducer decoder bug #3983; keep sherpa-onnx off the
+  mitigations** — name models by release-asset id (upstream can re-point an id,
+  so our own pin is the check) + verify our own SHA-256 pin and byte size —
+  ADR-050: built, unit-tested, not tried on a phone, in the speech module and the registry;
+  upstream's checksum.txt is advisory and never fetched on install; track
+  transducer decoder bug #3983; keep sherpa-onnx off the
   server's network-exposed path [2].
 
 ## Priority model

@@ -97,8 +97,11 @@
 ## Non-functional
 - **N1** Dictation starts < 1 s after wake phrase (models preloaded where possible).
 - **N2** No telemetry; the only network calls are to Local Server.
-- **N3** Model files **pinned to immutable release-asset ids** and verified against
-  upstream's published checksum.txt (SHA-256) before use [2].
+- **N3** Model files **named by release-asset id** (upstream can re-point an id,
+  so our own pin is the check) and verified against our own SHA-256 pin and byte
+  size before use [2] — ADR-050: the pin is the rule for every model, built, unit-tested, not tried on a phone, in the
+  speech module and the registry; upstream's checksum.txt is
+  advisory and never fetched on install.
 - **N4** Battery-friendly: sensor + overlay listeners idle when not dictating.
 - **N5** Android 11+ (min SDK 30), arm64-v8a primary target.
 - **N6** Audio never leaves the device in local/fallback mode (except user-initiated sync).

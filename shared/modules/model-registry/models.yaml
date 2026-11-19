@@ -197,15 +197,15 @@ models:
       the number in the model's name, not a count measured here. size_mb 465 is
       the MiB rounding of 487,211,443 bytes (464.6 MiB). The model is licensed
       CC BY 4.0, which asks for attribution: the attribution text is the
-      `notice` field of this entry, and the About screen that shows it is not
-      built in this registry. The id
+      `notice` field of this entry, and the About screen that shows it is
+      built, unit-tested, not tried on a phone, in the app and not in this registry. The id
       parakeet can be chosen in the settings file, because the settings
       check reads this registry, and the wiring written for it installs and
       loads it, with its own extraction profile and an offline engine built
-      behind the existing recogniser: all of that is written but not compiled
-      or run. No screen offers it until the settings and first-run work lands
-      (not built), and the offline library names the engine uses are
-      unverified against the library.
+      behind the existing recogniser: all of that is built, unit-tested, not tried on a phone.
+      The first-run and settings screens offer it.
+      The offline library names the engine uses compile against the library in the project's CI build, and the
+      offline engine has not been run on a device.
 
 # Keyword-spotting models. An id may hold single hyphens here (the generated
 # constant turns them into underscores), params may carry a decimal point, and

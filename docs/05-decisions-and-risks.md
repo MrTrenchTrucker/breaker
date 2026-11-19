@@ -155,7 +155,7 @@ results sync to the owner's account and appear in the web FE. No Android app
 needed. Tokens are revocable (F27, T19).
 
 **D23 — Retain the sherpa-onnx transducer path (pinned + verified).**
-Security Review's audit: safe with three mitigations [2]. Models pin to immutable release-asset ids and verify against upstream checksum.txt (closes the tampered-model
+The audit: safe with three mitigations [2]. Models are named by release-asset id (upstream can re-point an id, so our own pin is the check) and verified against our own SHA-256 pin and byte size — ADR-050: the pin is the rule for every model, built, unit-tested, not tried on a phone, in the speech module and the registry; upstream's checksum.txt is advisory and never fetched on install (closes the tampered-model
 delivery vector); track decoder bug #3983 and adopt the upstream fix when it
 lands; revisit (beam-search / non-transducer models) only if the fix doesn't
 land in a reasonable window. sherpa-onnx stays off Local Server's network-exposed
@@ -260,7 +260,7 @@ An admin-scoped `registration_open` switch (`GET`/`PUT /v1/admin/registration-op
 | R21 | **Client-side crypto complexity (Android + web FE)** | Med | One shared spec (ADR-006, "Exact bytes") + test vectors; the vectors live in the crypto module's tests today and move to a shared file in api-contracts when the web FE's crypto is built (Phase 19) |
 | R22 | **Misconfigured transcription endpoint** | Med | Connectivity test + clear errors; queue fails jobs with visible status (F26) |
 | R23 | **Agent token leakage** | Med | Scoped + revocable tokens, optional expiry (T19); an optional per-token request limit is built in whisper-server and is off unless the admin sets it |
-| R24 | **sherpa-onnx transducer OOB write (issue #3983)** | Med | Pinned models + upstream checksum.txt; adopt upstream fix; revisit transducer path if fix doesn't land [2] |
+| R24 | **sherpa-onnx transducer OOB write (issue #3983)** | Med | Models named by release-asset id (upstream can re-point an id, so our own pin is the check) + verified against our own SHA-256 pin and byte size — ADR-050: built, unit-tested, not tried on a phone, in the speech module and the registry; upstream's checksum.txt is advisory and never fetched on install; adopt upstream fix; revisit transducer path if fix doesn't land [2] |
 | R25 | **Retention deletion surprises users** | Low | 3-month TTL warned in UI; admin override via store management (F28/F29) |
 | R26 | **Model licensing blocks hosting** | Med | Fallback: direct upstream download with pinned checksums [2] |
 | R27 | **CPU training infeasible** | Low | GPU via Local Inference (D26) |

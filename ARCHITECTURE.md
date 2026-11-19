@@ -29,7 +29,7 @@ fork, rebuilt in **Kotlin / native Android**, with the Security Review's four se
 fixes applied in Phase 0 [1]. Every module ships an `AGENTS.md` so the user's
 agent lanes (Bug Hunt, Orchestration, Coding) can build each piece independently.
 
-**Target device:** Samsung Galaxy S25 Ultra (16 GB RAM) - `small` model on-device (labelled Good). Parakeet (labelled Better) is decided as a second choice the user picks, not built (ADR-050). `medium` possible. **Power:** high-power mode, phone plugged in (battery non-issue).
+**Target device:** Samsung Galaxy S25 Ultra (16 GB RAM) - `small` model on-device (labelled Good). Parakeet (labelled Better) is decided as a second choice the user picks, built, unit-tested, not tried on a phone (ADR-050). `medium` possible. **Power:** high-power mode, phone plugged in (battery non-issue).
 
 **Updates & admin:** the app checks **once a day** for newer tagged releases (the
 update endpoint reads a release manifest file, `BREAKER_SYNC_API_MANIFEST_FILE`),
@@ -199,11 +199,11 @@ admins.
 - F43. **Say where the model comes from:** the model step and the download notice
       state that the speech model is downloaded from GitHub, the public page of the
       speech library makers, that the Local Server is not used, and that the file is
-      checked before use; the size shown comes from the registry (ADR-025). Decided, not built (ADR-050): the second model's line names its own size and source the same way.
+      checked before use; the size shown comes from the registry (ADR-025). Decided (ADR-050), built, unit-tested, not tried on a phone: the second model's line in Settings names its own size and source the same way.
 - F44. **App menu:** the app opens on Home. A menu button (three lines) at the top
       left of Home opens a menu with Settings, History, How it works and About;
       each one opens as a screen of its own, and Back returns to Home. Settings
-      holds only settings, including the speech model download (decided, not built: a section that lists both speech models, with download, delete and use-this-one, ADR-050); the first-run
+      holds only settings, including the speech model download (decided, built, unit-tested, not tried on a phone: a section that lists both speech models, with download, delete and use-this-one, ADR-050); the first-run
       walk-through is not repeated inside it, and History is reached from the
       menu, not from Settings.
 - F45. **Home mic works like the tile:** the mic on Home is the floating tile's
@@ -218,14 +218,14 @@ admins.
       background colour, in light and dark mode, with no strip of another colour
       at the edges, and its content stays clear of the status bar and the
       navigation bar.
-- F47. **Speech model choice (decided, not built, ADR-050):** two on-device speech models, Good (`small`, 1 of 3 truck emoji) and Better (Parakeet TDT 0.6B v3, 2 of 3 truck emoji). The user picks one on first run or in Settings; both can be downloaded and deleted, and the model in use cannot be deleted. Each model has its own pin and its own third-party notice.
+- F47. **Speech model choice (decided, built, unit-tested, not tried on a phone, ADR-050):** two on-device speech models, Good (`small`, 1 of 3 truck emoji) and Better (Parakeet TDT 0.6B v3, 2 of 3 truck emoji). The user picks one on first run or in Settings; both can be downloaded and deleted, and the model in use cannot be deleted. Each model has its own pin and its own third-party notice.
 
 **Non-functional**
 - N1. Dictation starts < 1 s after wake phrase (models preloaded where possible).
 - N2. No telemetry; the app's network calls are to the Local Server and, once per
       model, the speech-model download from GitHub (F43, N3).
 - N3. Model files **named by release-asset id** (upstream can re-point an id, so our own pin is the check) and checked against
-      its own SHA-256 pin and byte size before use [2]. ADR-050: the pin is the rule for every model, built in the speech module and the registry (not compiled or run); upstream's checksum.txt is advisory and never fetched on install.
+      its own SHA-256 pin and byte size before use [2]. ADR-050: the pin is the rule for every model, built, unit-tested, not tried on a phone, in the speech module and the registry; upstream's checksum.txt is advisory and never fetched on install.
 - N4. Battery-friendly: sensor + overlay listeners idle when not dictating.
 - N5. Android 11+ (min SDK 30), arm64-v8a primary target.
 - N6. Audio never leaves the device in local/fallback mode (except user-initiated sync).
@@ -341,14 +341,14 @@ upstream Apache-2.0 — verified by Security Review; credited in NOTICE) [1].
 Security Review audit) — record per-model license in the registry [1]. S25 Ultra (16 GB):
 `small` default, `medium` possible. Download once -> verify against our SHA-256 pin -> preload [2].
 
-**Decided, not built (ADR-050):** two speech models. `small` is labelled Good (1 of 3 truck emoji). Parakeet TDT 0.6B v3 (sherpa-onnx int8, offline) is labelled Better (2 of 3 truck emoji). Parakeet is decoded once after the user stops, as `small` is today. The first-run step offers both and downloads the one the user picks. Settings lists both, with download, delete (never the model in use) and use-this-one. Each model has its own registry pin (our SHA-256, byte size and asset id). Upstream checksum.txt is advisory. The wake and send phrases run on the separate keyword model and do not read this choice. The registry entry, the pin and the offline recogniser for Parakeet are built in the registry and speech modules (not compiled or run; the recogniser's native binding has never been compiled against the library, and real-phone memory is not measured). Not built: the first-run second button, the settings section, the ratings display and the notices (the `android/ui` and settings modules). Today the app ships `small` only: no screen downloads, picks or deletes a model.
+**Decided (ADR-050), built, unit-tested, not tried on a phone:** two speech models. `small` is labelled Good (1 of 3 truck emoji). Parakeet TDT 0.6B v3 (sherpa-onnx int8, offline) is labelled Better (2 of 3 truck emoji). Parakeet is decoded once after the user stops, as `small` is today. The first-run step offers both and downloads the one the user picks. Settings lists both, with download, delete (never the model in use) and use-this-one. Each model has its own registry pin (our SHA-256, byte size and asset id). Upstream checksum.txt is advisory. The wake and send phrases run on the separate keyword model and do not read this choice. The registry entry, the pin and the offline recogniser for Parakeet are built, unit-tested, not tried on a phone, in the registry and speech modules (the native binding is compiled by the project's CI build against the sherpa-onnx library; real-phone memory is not measured). Built, unit-tested, not tried on a phone: the first-run second button, the settings section, the ratings display and the notices (the `android/ui` and settings modules). The app offers `small` and `parakeet`, and the screens download, pick and delete models.
 
 **Security Review's sherpa-onnx audit (2026):** safe to use with **three mitigations**
 [2]. Clean of malware/backdoors/phone-home; the vendored Kotlin bindings match
 upstream signatures exactly [2]. **Known bug:** GitHub issue #3983 — an OOB
 write in the offline transducer greedy-search decoder, reachable via a tampered
 .onnx (model metadata parses vocab_size with no upper bound) [2]. Mitigations,
-all adopted: (1) treat every .onnx as untrusted - name each model by release-asset id + verify against our own SHA-256 pin and byte size [2] (amended by ADR-050: upstream checksum.txt is advisory and never fetched on install; built, not compiled or run); (2) retain the
+all adopted: (1) treat every .onnx as untrusted - name each model by release-asset id + verify against our own SHA-256 pin and byte size [2] (amended by ADR-050: upstream checksum.txt is advisory and never fetched on install; built, unit-tested, not tried on a phone); (2) retain the
 transducer path but track #3983 and adopt the upstream decoder fix when it lands
 — revisit (beam-search / non-transducer models) only if the fix doesn't land in
 a reasonable window [2]; (3) sherpa-onnx stays OFF Local Server's network-exposed
@@ -853,7 +853,7 @@ in-app updater [1], (3) change package id [1], (4) pin Gradle SHA-256 [1].
 **Licensing:** NOTICE file crediting XIAOMI CORPORATION (vendored sherpa-onnx,
 upstream Apache-2.0) + upstream OpenWhispr authors; state modifications; keep
 Apache-2.0 — cannot relicense a derivative closed [1]. Runtime ASR models carry
-their own upstream terms [1]. Decided, not built (ADR-050): Parakeet TDT 0.6B v3 is CC BY 4.0, so its attribution text is in NOTICE item 11 and on the About screen, and no terms of use may restrict the model files.
+their own upstream terms [1]. Decided (ADR-050), built, unit-tested, not tried on a phone: Parakeet TDT 0.6B v3 is CC BY 4.0, so its attribution text is in NOTICE item 11 and on the About screen, and no terms of use may restrict the model files.
 
 **Caveat (Security Review):** code was never built or run — Phase 0 includes a build +
 smoke-test gate [1].
@@ -878,7 +878,7 @@ smoke-test gate [1].
 - T20. **SSRF via transcription service config** — admin-only config; URL
       validation on the connectivity test (F26).
 - T21. **Tampered model / transducer OOB write (#3983)** — models named by
-      release-asset id, with our own SHA-256 pin and byte size verified (ADR-050; upstream's list is advisory and never fetched on install; built, not compiled or run); track the
+      release-asset id, with our own SHA-256 pin and byte size verified (ADR-050; upstream's list is advisory and never fetched on install; built, unit-tested, not tried on a phone); track the
       upstream decoder fix [2].
 - T22. **Plaintext leakage via logs** — log policy: events only, per-user, never
       plaintext transcriptions (F32).

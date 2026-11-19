@@ -176,8 +176,11 @@ push to `module/<name>` directly (flow 1).
       intact (no silent cloud fallthrough; the base app's own updater stays
       deleted — Breaker's `android/modules/updater` replaces it, pointed at
       our server; package ID changed; Gradle distribution SHA-256 pinned);
-      model downloads pinned to immutable release-asset ids and verified
-      against upstream checksum.txt; sherpa-onnx kept off the server's
+      model downloads named by release-asset id (upstream can re-point an id,
+      so our own pin is the check) and verified against our own SHA-256 pin
+      and byte size — ADR-050: built, unit-tested, not tried on a phone, in the
+      speech module and the registry; upstream's checksum.txt is advisory and never
+      fetched on install; sherpa-onnx kept off the server's
       network-facing path. See the Security posture section of `README.md`.
 - [ ] Maintainer approves; merged into `main`; issue auto-closes via
       `Closes #NNN`.

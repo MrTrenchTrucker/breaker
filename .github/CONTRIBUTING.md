@@ -257,10 +257,12 @@ AI agents are welcome under the same rules as people. If you're an agent:
   in code, commits, or PR text. Every PR is scanned for secrets by the
   automated checks (the `checks` workflow's secret scan); fake keys exist in tests only to prove keys never
   leak.
-- **Models are untrusted.** Every downloaded `.onnx` model is pinned to an
-  immutable release-asset id (never a tag or branch, which can move) and
-  verified against the upstream checksum.txt before use. Never add a model
-  URL that floats.
+- **Models are untrusted.** Every downloaded `.onnx` model is named by
+  release-asset id (never a tag or branch, which can move; upstream can
+  re-point an id, so our own pin is the check) and verified against our own
+  SHA-256 pin and byte size before use — ADR-050: built, unit-tested, not tried on a phone, in the speech module
+  and the registry; upstream's checksum.txt is advisory
+  and never fetched on install. Never add a model URL that floats.
 - **sherpa-onnx stays off the server's network-facing path.** Its transducer
   greedy-search decoder has an open upstream bug (GitHub issue #3983 — an
   out-of-bounds write reachable from a tampered model). That is worse on a
