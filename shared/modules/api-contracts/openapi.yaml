@@ -3098,6 +3098,573 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+  /v1/training/samples/{kind}/{sample_id}:
+    put:
+      summary: Upload one training sample
+      description: >-
+        Stores one recorded sample (a WAV, 1 to 131072 bytes) of the signed-in
+        user for one phrase kind. The sample belongs to the authenticated user
+        and to nobody else: no user id is in the path or the body. The upload
+        is idempotent per sample_id: the same sample_id again answers 200 with
+        the same receipt and the server keeps one stored sample. At most 20
+        distinct samples are kept per kind (a job trains with fewer than 10 as
+        a failed job with too_few_samples, never as an HTTP error). An agent
+        token is refused.
+      operationId: uploadTrainingSample
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/TrainingKind"
+          description: Which phrase the sample is of, wake or send
+        - name: sample_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9_-]{1,64}$"
+          description: The sample id the phone's sample store made, 1 to 64 characters of letters, digits, underscore and hyphen
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              minLength: 1
+              maxLength: 131072
+              description: The WAV bytes of the sample, 1 to 131072 bytes
+      responses:
+        "200":
+          description: >-
+            The sample is stored, or the same sample_id was already stored (a
+            repeat is also 200 with the same receipt and one stored sample).
+            The phone's Ok.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SampleReceipt"
+              example:
+                sample_id: "sample-0001"
+                kind: "wake"
+                size_bytes: 64044
+                count: 1
+        "400":
+          description: >-
+            Bad request. The kind is not wake or send, the sample_id breaks its pattern, or the body is empty. The message names the rule and never echoes the input. The phone's Refused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "kind is not wake or send"
+        "401":
+          description: >-
+            Missing or invalid user session token. The phone's NotSignedIn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: >-
+            Forbidden - a valid token of the wrong kind. A phone never holds an agent token, so the phone's Refused is the safe typed answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "409":
+          description: >-
+            A 21st distinct sample of this kind is refused: at most 20 samples are kept per kind. A repeat of a stored sample_id is not this case: it answers 200 with the same receipt. The phone's Refused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "conflict"
+                message: "At most 20 samples per kind are kept"
+        "413":
+          description: >-
+            Request entity too large. The body is over the 131072 byte cap (an exact 131072 byte body is accepted; one byte more is refused). The phone's TooLarge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+        "429":
+          description: >-
+            Too many requests inside the fixed 60 second window. The body is fixed and holds no number, key or address; Retry-After says how long to wait. The phone's Unavailable.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1, at most 3600
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 3600
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "rate_limited"
+                message: "Too many requests."
+        "503":
+          description: >-
+            A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed. The phone's Unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
+  /v1/training/samples:
+    delete:
+      summary: Delete all of my training samples
+      description: >-
+        Deletes every training sample of the signed-in user, both kinds. It is
+        idempotent: nothing stored also answers 204. After a 204 no stored
+        sample of this user remains, and a job that was queued or running on
+        those samples produces no model (it ends failed, too_few_samples, or
+        is dropped; the status answer never reports done with a model built
+        from deleted samples). An agent token is refused.
+      operationId: deleteTrainingSamples
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: All of the user's samples are gone (also when none were stored); no content body. The phone's Ok.
+        "401":
+          description: >-
+            Missing or invalid user session token. The phone's NotSignedIn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: >-
+            Forbidden - a valid token of the wrong kind. A phone never holds an agent token, so the phone's Refused is the safe typed answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "429":
+          description: >-
+            Too many requests inside the fixed 60 second window. The body is fixed and holds no number, key or address; Retry-After says how long to wait. The phone's Unavailable.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1, at most 3600
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 3600
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "rate_limited"
+                message: "Too many requests."
+        "503":
+          description: >-
+            A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed. The phone's Unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
+  /v1/training/jobs:
+    post:
+      summary: Start a training job
+      description: >-
+        Starts a training job on the signed-in user's stored samples. It takes
+        no body. A job already queued or running answers 200 with that job; a
+        new job answers 202. A start after a finished job (done or failed)
+        creates a new job (a retrain). Too few samples is not an error here:
+        the job ends as failed with too_few_samples. An agent token is
+        refused.
+      operationId: startTrainingJob
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: A job of this user was already queued or running, and this is that job. The phone's Ok.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingJob"
+              example:
+                job_id: "job-7f3a9c21"
+                state: "running"
+        "202":
+          description: A new job is accepted and queued. The phone's Ok.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingJob"
+              example:
+                job_id: "job-7f3a9c21"
+                state: "queued"
+        "401":
+          description: >-
+            Missing or invalid user session token. The phone's NotSignedIn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: >-
+            Forbidden - a valid token of the wrong kind. A phone never holds an agent token, so the phone's Refused is the safe typed answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "429":
+          description: >-
+            Too many requests inside the fixed 60 second window. The body is fixed and holds no number, key or address; Retry-After says how long to wait. The phone's Unavailable.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1, at most 3600
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 3600
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "rate_limited"
+                message: "Too many requests."
+        "503":
+          description: >-
+            A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed. The phone's Unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
+  /v1/training/jobs/{job_id}:
+    get:
+      summary: Get a training job's status
+      description: >-
+        The state of one training job of the signed-in user: queued, running,
+        done or failed. failure is present only when the state is failed
+        (too_few_samples or training_error). Too few samples is the state
+        failed, never an HTTP error. An unknown job and another user's job
+        answer the same 404. An agent token is refused.
+      operationId: getTrainingJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9_-]{1,64}$"
+          description: The training job id, 1 to 64 characters of letters, digits, underscore and hyphen
+      responses:
+        "200":
+          description: The job's state. The phone's Ok.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingJobStatus"
+              example:
+                job_id: "job-7f3a9c21"
+                state: "failed"
+                failure: "too_few_samples"
+        "400":
+          description: >-
+            Bad request. The job_id breaks its pattern. The message names the rule and never echoes the input. The phone's Refused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "job_id is not 1 to 64 letters, digits, underscore or hyphen"
+        "401":
+          description: >-
+            Missing or invalid user session token. The phone's NotSignedIn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: >-
+            Forbidden - a valid token of the wrong kind. A phone never holds an agent token, so the phone's Refused is the safe typed answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "404":
+          description: >-
+            No such job for this user (an unknown job and another user's job get the same answer). The phone's Refused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "Training job not found"
+        "429":
+          description: >-
+            Too many requests inside the fixed 60 second window. The body is fixed and holds no number, key or address; Retry-After says how long to wait. The phone's Unavailable.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1, at most 3600
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 3600
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "rate_limited"
+                message: "Too many requests."
+        "503":
+          description: >-
+            A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed. The phone's Unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
+  /v1/training/jobs/{job_id}/model:
+    get:
+      summary: Download the trained model
+      description: >-
+        The trained model archive of a finished job of the signed-in user, as
+        one binary body (at most 33554432 bytes, 32 MiB). The answer carries
+        the archive's SHA-256 in X-Model-Sha256, its byte size in
+        X-Model-Size-Bytes (Content-Length is not trusted for the size) and
+        the number of samples it was trained on in X-Model-Samples-Used. The
+        server answers the same one combined model for both kinds: the
+        optional kind query is accepted (default wake) and today both kinds
+        return the same bytes and the same sha256. After the user's model is
+        deleted this answers 404 for that job. An agent token is refused.
+      operationId: downloadTrainingModel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9_-]{1,64}$"
+          description: The training job id, 1 to 64 characters of letters, digits, underscore and hyphen
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TrainingKind"
+          description: Which phrase the model is for, wake or send; the default is wake
+      responses:
+        "200":
+          description: The model archive. The phone's Ok.
+          headers:
+            X-Model-Sha256:
+              description: The SHA-256 of the archive bytes, 64 lowercase hex digits
+              required: true
+              schema:
+                type: string
+                pattern: "^[0-9a-f]{64}$"
+            X-Model-Size-Bytes:
+              description: The size of the archive in bytes, 1 to 33554432
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 33554432
+            X-Model-Samples-Used:
+              description: How many samples the model was trained on, at least 1
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: The model archive bytes, 1 to 33554432 bytes
+        "400":
+          description: >-
+            Bad request. The job_id breaks its pattern, or the kind is not wake or send. The message names the rule and never echoes the input. The phone's Refused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "kind is not wake or send"
+        "401":
+          description: >-
+            Missing or invalid user session token. The phone's NotSignedIn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: >-
+            Forbidden - a valid token of the wrong kind. A phone never holds an agent token, so the phone's Refused is the safe typed answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "404":
+          description: >-
+            No such job for this user (an unknown job and another user's job get the same answer), or the user's model was deleted. The phone's Refused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "Training job not found"
+        "409":
+          description: >-
+            The model is asked for before the job is done (the job is queued, running or failed). The phone's Refused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "conflict"
+                message: "The training job is not done"
+        "429":
+          description: >-
+            Too many requests inside the fixed 60 second window. The body is fixed and holds no number, key or address; Retry-After says how long to wait. The phone's Unavailable.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1, at most 3600
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 3600
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "rate_limited"
+                message: "Too many requests."
+        "503":
+          description: >-
+            A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed. The phone's Unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
+  /v1/training/model:
+    delete:
+      summary: Delete my trained model
+      description: >-
+        Deletes the trained model of the signed-in user. It is idempotent:
+        nothing stored also answers 204. After a 204 the model download
+        answers 404 for that job. An agent token is refused.
+      operationId: deleteTrainingModel
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: The user's model is gone (also when none was stored); no content body. The phone's Ok.
+        "401":
+          description: >-
+            Missing or invalid user session token. The phone's NotSignedIn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: >-
+            Forbidden - a valid token of the wrong kind. A phone never holds an agent token, so the phone's Refused is the safe typed answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "429":
+          description: >-
+            Too many requests inside the fixed 60 second window. The body is fixed and holds no number, key or address; Retry-After says how long to wait. The phone's Unavailable.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1, at most 3600
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 3600
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "rate_limited"
+                message: "Too many requests."
+        "503":
+          description: >-
+            A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed. The phone's Unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/updates/latest.json:
     get:
       summary: Get the latest update manifest
@@ -3711,6 +4278,82 @@ components:
         created_at:
           type: string
           description: When the box was sealed (RFC 3339)
+    TrainingKind:
+      type: string
+      enum:
+        - wake
+        - send
+      description: >-
+        Which phrase a training sample or model is for: the wake phrase or
+        the send phrase.
+    TrainingJobState:
+      type: string
+      enum:
+        - queued
+        - running
+        - done
+        - failed
+      description: The state of a training job.
+    TrainingJobFailure:
+      type: string
+      enum:
+        - too_few_samples
+        - training_error
+      description: >-
+        Why a job failed. `too_few_samples` means fewer than 10 samples of a
+        kind were stored; `training_error` is any other failure.
+    SampleReceipt:
+      type: object
+      required:
+        - sample_id
+        - kind
+        - size_bytes
+        - count
+      properties:
+        sample_id:
+          type: string
+          description: The sample id the upload carried (1 to 64 characters of letters, digits, underscore and hyphen)
+        kind:
+          $ref: "#/components/schemas/TrainingKind"
+        size_bytes:
+          type: integer
+          minimum: 1
+          maximum: 131072
+          description: The stored size of the sample in bytes
+        count:
+          type: integer
+          minimum: 1
+          maximum: 20
+          description: How many distinct samples of this kind are stored now
+    TrainingJob:
+      type: object
+      required:
+        - job_id
+        - state
+      properties:
+        job_id:
+          type: string
+          description: The training job id (1 to 64 characters of letters, digits, underscore and hyphen)
+        state:
+          $ref: "#/components/schemas/TrainingJobState"
+    TrainingJobStatus:
+      type: object
+      description: >-
+        The status of one training job. failure is present exactly when state
+        is failed (a failed job always names its reason, too_few_samples or
+        training_error); a queued, running or done job carries no failure.
+        A done job always has its model ready to download.
+      required:
+        - job_id
+        - state
+      properties:
+        job_id:
+          type: string
+          description: The training job id (1 to 64 characters of letters, digits, underscore and hyphen)
+        state:
+          $ref: "#/components/schemas/TrainingJobState"
+        failure:
+          $ref: "#/components/schemas/TrainingJobFailure"
 
     AgentTokenScope:
       type: string

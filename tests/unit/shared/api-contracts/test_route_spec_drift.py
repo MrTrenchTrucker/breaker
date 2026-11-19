@@ -93,6 +93,12 @@ ALLOW_LIST: dict[tuple[str, str], str] = {
     ("POST", "/v1/admin/test-service"): "UNBUILT: sync-api AGENTS.md:291-293 'POST /v1/admin/test-service ... Planned, not built: no such route is installed.'",
     ("GET", "/v1/admin/transcription-service"): "UNBUILT: sync-api AGENTS.md:289-290 'GET/PUT /v1/admin/transcription-service ... Planned, not built: no such route is installed.'",
     ("PUT", "/v1/admin/transcription-service"): "UNBUILT: sync-api AGENTS.md:289-290 (see GET entry above).",
+    ("PUT", "/v1/training/samples/{x}/{x}"): "UNBUILT: shared/modules/api-contracts AGENTS.md:247-249 training group 'no server and no client call it yet'.",
+    ("DELETE", "/v1/training/samples"): "UNBUILT: shared/modules/api-contracts AGENTS.md:247-249 (see PUT entry above).",
+    ("POST", "/v1/training/jobs"): "UNBUILT: shared/modules/api-contracts AGENTS.md:247-249 (see PUT entry above).",
+    ("GET", "/v1/training/jobs/{x}"): "UNBUILT: shared/modules/api-contracts AGENTS.md:247-249 (see PUT entry above).",
+    ("GET", "/v1/training/jobs/{x}/model"): "UNBUILT: shared/modules/api-contracts AGENTS.md:247-249 (see PUT entry above).",
+    ("DELETE", "/v1/training/model"): "UNBUILT: shared/modules/api-contracts AGENTS.md:247-249 (see PUT entry above).",
 }
 
 
