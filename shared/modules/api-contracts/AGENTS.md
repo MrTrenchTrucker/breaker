@@ -292,7 +292,7 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
 ## Test Locations
 - Unit (Python, the spec and its conformance checks): `tests/unit/shared/api-contracts/`, created with the module's first slice. Run: `python3 -m unittest discover -s tests/unit/shared/api-contracts`
 - Kotlin types (ADR-017): their tests run with `./gradlew :shared:modules:api-contracts:test` (the module applies the Kotlin plugin).
-- Training group (specified, unit-tested against the Kotlin types, no server and no client call it yet): `tests/unit/shared/api-contracts/test_training_contract.py`, `test_training_limits.py` and `test_training_conformance.py` read the spec and the Kotlin files; the Kotlin types have `TrainingContractTest`.
+- Training group (specified, unit-tested against the Kotlin types, no server and no client call it yet): `tests/unit/shared/api-contracts/test_training_contract.py`, `test_training_limits.py` and `test_training_conformance.py` read the spec and the Kotlin files; `test_training_response_pins.py` and `test_training_operation_pins.py` read the spec only; the Kotlin types have `TrainingContractTest`.
 - Sync body vectors: `examples/sync_body_vectors.json`. The Kotlin codec test under
   `src/test/kotlin/dev/breaker/shared/api/sync/` checks them, and the stdlib oracle
   `tests/unit/shared/api-contracts/test_sync_body_vectors.py` re-derives them. The
