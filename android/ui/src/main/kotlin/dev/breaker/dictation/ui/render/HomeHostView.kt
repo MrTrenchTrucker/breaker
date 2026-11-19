@@ -1,8 +1,6 @@
 package dev.breaker.dictation.ui.render
 
 import android.content.Context
-import android.os.SystemClock
-import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -151,7 +149,6 @@ internal class HomeHostView(
      * afterwards, and the platform limits it to the height of the new content.
      */
     fun show(screen: Screen) {
-        probeLogged("show ${screen.id} recording=true")
         val content = checkNotNull(page)
         val held = content.scrollY
         val split = screen.nodes.partition { it.id == HomeNodeIds.DRAWER_DIM || it.id == HomeNodeIds.DRAWER_PANEL }
@@ -208,7 +205,6 @@ internal class HomeHostView(
      */
     private fun draw(state: HomeState) {
         this.state = state
-        probeLogged("draw ${SystemClock.uptimeMillis()}")
         val screen = handler.show(state)
         drawn = screen
         show(screen)
@@ -253,12 +249,6 @@ internal class HomeHostView(
         draw(merged(handled))
     }
 
-    /** Logs a probe line, only while the big mic records. DIAGNOSTIC kit; removed with the probe before release. */
-    private fun probeLogged(line: String) {
-        if (!recording) return
-        Log.d("BreakerMicProbe", line)
-    }
-
     /**
      * The app's own actions. The drawer and its items are the handler's to act on;
      * the switch and the copy and the six destinations are the app's.
@@ -296,7 +286,6 @@ internal class HomeHostView(
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
         super.onWindowFocusChanged(hasWindowFocus)
-        probeLogged("windowFocus ${SystemClock.uptimeMillis()} ${if (hasWindowFocus) "focused" else "unfocused"}")
         if (hasWindowFocus) {
             // Drawn again on focus: the switch, the model and the transcript may
             // have changed while the view was off screen.
@@ -374,7 +363,6 @@ internal class HomeHostView(
      * the window height left after the system bars (ADR-026).
      */
     private fun attachMicSlot(root: View) {
-        probeLogged("attachMicSlot re-parent ${SystemClock.uptimeMillis()} recording=true")
         val slot = findTagged(root, HomeNodeIds.MIC) ?: return
         val parent = slot.parent as? ViewGroup ?: return
         val index = parent.indexOfChild(slot)
