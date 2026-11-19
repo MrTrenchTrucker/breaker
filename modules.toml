@@ -23,7 +23,7 @@ path = "android/ui"
 owns = "Screens: home, history, settings, how it works, about, auth, sign-in start, and the first-run flow for the permissions (accessibility service, overlay). Consumes ui-tokens."
 does_not_own = "Business logic (core); platform adapters (modules/*)."
 depends_on = ["android", "android_core", "shared_ui_tokens"]
-public = "createSettingsView, createFirstRunView, createHistoryView, BreakerSwitch, createHomeView, HomeControl, createHowItWorksView, createAboutView, AboutControl, DownloadControl, ModelStepControl, ServerAddressStatus, createSignInStartView, SignInStartControl, createAuthView, AuthControl"
+public = "createSettingsView, createFirstRunView, createHistoryView, BreakerSwitch, createHomeView, HomeControl, createHowItWorksView, createAboutView, AboutControl, DownloadControl, ModelStepControl, ServerAddressStatus, createSignInStartView, SignInStartControl, createAuthView, AuthControl, SpeechModelChoice"
 card = "android/ui/AGENTS.md"
 
 [module.android_core]

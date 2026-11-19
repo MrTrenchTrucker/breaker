@@ -63,15 +63,14 @@ class ModelIntegrityEdgeCasesTest {
     fun `verify reports DIGEST_UNREADABLE when a file that passes the early checks cannot be opened`() {
         val content = "data".toByteArray()
         val digest = Fixtures.independentSha256(content)
-        val checksums = Fixtures.checksumsOf("model" to digest)
 
         // Control: a real file with the same size and digest is verified.
         val real = Fixtures.writeBytes(File(tmp.root, "real.bin"), content)
-        assertEquals(digest, (ModelIntegrity.verify(real, digest, checksums) as ModelIntegrity.Verdict.Verified).digest)
+        assertEquals(digest, (ModelIntegrity.verify(real, digest, 4L) as ModelIntegrity.Verdict.Verified).digest)
 
         val phantom = phantomFile(readable = true)
         assertTrue("fixture: the phantom path must not exist on disk", !File(tmp.root, "phantom.bin").exists())
-        val result = refused(ModelIntegrity.verify(phantom, digest, checksums))
+        val result = refused(ModelIntegrity.verify(phantom, digest, 4L))
         assertEquals(ModelIntegrity.Refusal.DIGEST_UNREADABLE, result.refusal)
         assertEquals("could not compute digest for: ${phantom.absolutePath}", result.detail)
     }
@@ -79,18 +78,17 @@ class ModelIntegrityEdgeCasesTest {
     @Test
     fun `verify refuses a file that cannot be read before it looks at the pin`() {
         val digest = Fixtures.independentSha256("data".toByteArray())
-        val checksums = Fixtures.checksumsOf("model" to digest)
 
         // Control: the same phantom marked readable gets past this check.
-        val readable = refused(ModelIntegrity.verify(phantomFile(readable = true), digest, checksums))
+        val readable = refused(ModelIntegrity.verify(phantomFile(readable = true), digest, 4L))
         assertEquals(ModelIntegrity.Refusal.DIGEST_UNREADABLE, readable.refusal)
 
         val unreadable = phantomFile(readable = false)
-        val withValidPin = refused(ModelIntegrity.verify(unreadable, digest, checksums))
+        val withValidPin = refused(ModelIntegrity.verify(unreadable, digest, 4L))
         assertEquals(ModelIntegrity.Refusal.NOT_A_READABLE_FILE, withValidPin.refusal)
         assertEquals("not a readable file: ${unreadable.absolutePath}", withValidPin.detail)
 
-        val withBadPin = refused(ModelIntegrity.verify(unreadable, "badpin", checksums))
+        val withBadPin = refused(ModelIntegrity.verify(unreadable, "badpin", 4L))
         assertEquals(ModelIntegrity.Refusal.NOT_A_READABLE_FILE, withBadPin.refusal)
     }
 
@@ -101,13 +99,13 @@ class ModelIntegrityEdgeCasesTest {
         val content = "case test bytes".toByteArray()
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), content)
         val digest = Fixtures.independentSha256(content)
-        val checksums = Fixtures.checksumsOf("model" to digest)
+        val size = content.size.toLong()
 
         // Control: a lower-case pin gives the same digest text.
-        val lowerPin = ModelIntegrity.verify(file, digest, checksums)
+        val lowerPin = ModelIntegrity.verify(file, digest, size)
         assertEquals(digest, (lowerPin as ModelIntegrity.Verdict.Verified).digest)
 
-        val upperPin = ModelIntegrity.verify(file, digest.uppercase(), checksums)
+        val upperPin = ModelIntegrity.verify(file, digest.uppercase(), size)
         assertTrue("an upper-case pin that matches must verify: $upperPin", upperPin is ModelIntegrity.Verdict.Verified)
         assertEquals(digest, (upperPin as ModelIntegrity.Verdict.Verified).digest)
     }
@@ -115,20 +113,18 @@ class ModelIntegrityEdgeCasesTest {
     // --- technical text of two refusals ---
 
     @Test
-    fun `verify names the lowercase pin when it is not in the upstream list`() {
+    fun `verify names the pinned and the found size on a size mismatch`() {
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), "data".toByteArray())
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.OTHER_PIN)
-        val result = refused(ModelIntegrity.verify(file, Fixtures.VALID_PIN.uppercase(), checksums))
-        assertEquals(ModelIntegrity.Refusal.PIN_NOT_IN_UPSTREAM, result.refusal)
-        assertEquals("pin ${Fixtures.VALID_PIN} not found in upstream checksums", result.detail)
+        val result = refused(ModelIntegrity.verify(file, Fixtures.VALID_PIN, 99L))
+        assertEquals(ModelIntegrity.Refusal.SIZE_MISMATCH, result.refusal)
+        assertEquals("expected 99 bytes, found 4", result.detail)
     }
 
     @Test
     fun `verify names the lowercase pin and the computed digest on a mismatch`() {
         val content = "actual content".toByteArray()
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), content)
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val result = refused(ModelIntegrity.verify(file, Fixtures.VALID_PIN.uppercase(), checksums))
+        val result = refused(ModelIntegrity.verify(file, Fixtures.VALID_PIN.uppercase(), content.size.toLong()))
         assertEquals(ModelIntegrity.Refusal.PIN_MISMATCH, result.refusal)
         assertEquals(
             "expected ${Fixtures.VALID_PIN}, found ${Fixtures.independentSha256(content)}",

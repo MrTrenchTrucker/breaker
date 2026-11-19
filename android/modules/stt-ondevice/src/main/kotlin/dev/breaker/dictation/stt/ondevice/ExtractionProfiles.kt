@@ -1,5 +1,8 @@
 package dev.breaker.dictation.stt.ondevice
 
+import dev.breaker.shared.models.ModelEntry
+import dev.breaker.shared.models.ModelRegistry
+
 /**
  * The bounds one unpack works within.
  *
@@ -50,40 +53,15 @@ internal data class ExtractionProfile(
 /**
  * The unpack profile of each model the module can install.
  *
- * A model with no profile cannot be unpacked and is refused before any download.
+ * A speech model's profile is built from its registry entry (its four file names and its limits); no model id is
+ * written here. The keyword model keeps its own profile below. A model with no profile cannot be unpacked and is
+ * refused before any download. This code is written but not compiled or run.
  */
 internal object ExtractionProfiles {
     private const val MIB = 1_048_576L
 
-    private val SMALL = ExtractionProfile(
-        encoder = "encoder-epoch-99-avg-1.int8.onnx",
-        decoder = "decoder-epoch-99-avg-1.onnx",
-        joiner = "joiner-epoch-99-avg-1.int8.onnx",
-        tokens = "tokens.txt",
-        limits = ExtractionLimits(
-            maxEntries = 32,
-            maxEntryBytes = 300L * MIB,
-            maxWrittenBytes = 160L * MIB,
-            maxStreamBytes = 448L * MIB,
-            maxPathLength = 128,
-            maxDepth = 4,
-        ),
-    )
-
-    private val TINY = ExtractionProfile(
-        encoder = "encoder-epoch-99-avg-1.int8.onnx",
-        decoder = "decoder-epoch-99-avg-1.onnx",
-        joiner = "joiner-epoch-99-avg-1.onnx",
-        tokens = "tokens.txt",
-        limits = ExtractionLimits(
-            maxEntries = 32,
-            maxEntryBytes = 128L * MIB,
-            maxWrittenBytes = 80L * MIB,
-            maxStreamBytes = 160L * MIB,
-            maxPathLength = 128,
-            maxDepth = 4,
-        ),
-    )
+    /** The longest entry name allowed, in characters; the registry holds no path length, so one figure serves every speech model. */
+    private const val MAX_PATH_LENGTH = 128
 
     /**
      * The keyword spotting model. Only the int8 encoder, the plain decoder, the int8
@@ -106,19 +84,40 @@ internal object ExtractionProfiles {
             maxEntryBytes = 16L * MIB,
             maxWrittenBytes = 8L * MIB,
             maxStreamBytes = 32L * MIB,
-            maxPathLength = 128,
+            maxPathLength = MAX_PATH_LENGTH,
             maxDepth = 4,
         ),
     )
 
     /**
-     * The profile for [modelId]: "small" or "tiny" (speech) or [KEYWORD_MODEL_ID]
-     * (keyword spotting), or null for every other id.
+     * The profile for [entry]: the keyword profile for the keyword model, the profile its own file names and
+     * limits give for a supported speech entry, or null for an entry that is not supported or lacks either.
      */
-    fun forModel(modelId: String): ExtractionProfile? = when (modelId) {
-        "small" -> SMALL
-        "tiny" -> TINY
-        KEYWORD_MODEL_ID -> KEYWORD
-        else -> null
+    fun forEntry(entry: ModelEntry): ExtractionProfile? {
+        if (entry.id == KEYWORD_MODEL_ID) return KEYWORD
+        val files = entry.files ?: return null
+        val limits = entry.limits ?: return null
+        if (!entry.isSupported) return null
+        return ExtractionProfile(
+            encoder = files.encoder,
+            decoder = files.decoder,
+            joiner = files.joiner,
+            tokens = files.tokens,
+            limits = ExtractionLimits(
+                maxEntries = limits.maxEntries,
+                maxEntryBytes = limits.maxEntryBytes,
+                maxWrittenBytes = limits.maxWrittenBytes,
+                maxStreamBytes = limits.maxStreamBytes,
+                maxPathLength = MAX_PATH_LENGTH,
+                maxDepth = limits.maxDepth,
+            ),
+        )
     }
+
+    /**
+     * The profile for [modelId]: [KEYWORD_MODEL_ID] gets the keyword profile; every other id is looked up in
+     * [lookup] (the real registry by default) and gets the profile of its entry, or null when it has none.
+     */
+    fun forModel(modelId: String, lookup: (String) -> ModelEntry? = ModelRegistry::byId): ExtractionProfile? =
+        if (modelId == KEYWORD_MODEL_ID) KEYWORD else lookup(modelId)?.let(::forEntry)
 }

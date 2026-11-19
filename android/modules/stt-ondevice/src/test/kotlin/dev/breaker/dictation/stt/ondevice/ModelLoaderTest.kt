@@ -6,6 +6,7 @@ import dev.breaker.shared.models.ModelFamily
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -56,7 +57,7 @@ class ModelLoaderTest {
         dir.mkdirs()
         File(dir, LocalModelStore.ARCHIVE_NAME).writeBytes(bytes)
         store.markVerified(id, digest)
-        store.storeChecksums(id, "model.archive\t$digest")
+        Fixtures.writeLegacyChecksums(store, id, "model.archive\t$digest")
         Fixtures.seedExtracted(store, id)
     }
 
@@ -90,43 +91,45 @@ class ModelLoaderTest {
     }
 
     @Test
-    fun `load refuses with CHECKSUMS_UNREADABLE when no checksums are stored`() {
+    fun `load returns Ready when no checksums are stored`() {
         val bytes = "test".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
         val dir = store.directoryFor("tiny")
         dir.mkdirs()
         File(dir, LocalModelStore.ARCHIVE_NAME).writeBytes(bytes)
         store.markVerified("tiny", digest)
+        Fixtures.seedExtracted(store, "tiny")
         val loader = ModelLoader(store, FakeFactory(StubRecognizer()), { id -> if (id == "tiny") entry else null })
         val result = loader.load("tiny")
-        assertFalse(result.isReady)
-        val refused = result as ModelLoader.LoadResult.Refused
-        assertEquals(ModelLoader.Refusal.CHECKSUMS_UNREADABLE, refused.refusal)
+        assertTrue("a model with no stored checksums must load but got $result", result.isReady)
+        assertEquals(digest, (result as ModelLoader.LoadResult.Ready).model.digest)
+        assertNull("the load must not create a checksums file", Fixtures.legacyChecksums(store, "tiny"))
     }
 
     @Test
-    fun `load refuses with CHECKSUMS_UNREADABLE when stored checksums are unparseable`() {
+    fun `load returns Ready when stored checksums are unparseable`() {
         val bytes = "test".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
         val dir = store.directoryFor("tiny")
         dir.mkdirs()
         File(dir, LocalModelStore.ARCHIVE_NAME).writeBytes(bytes)
         store.markVerified("tiny", digest)
-        store.storeChecksums("tiny", "not valid checksums")
+        Fixtures.writeLegacyChecksums(store, "tiny", "not valid checksums")
+        Fixtures.seedExtracted(store, "tiny")
         val loader = ModelLoader(store, FakeFactory(StubRecognizer()), { id -> if (id == "tiny") entry else null })
         val result = loader.load("tiny")
-        assertFalse(result.isReady)
-        val refused = result as ModelLoader.LoadResult.Refused
-        assertEquals(ModelLoader.Refusal.CHECKSUMS_UNREADABLE, refused.refusal)
+        assertTrue("unparseable stored checksums must not stop a load but got $result", result.isReady)
+        assertEquals(digest, (result as ModelLoader.LoadResult.Ready).model.digest)
+        assertEquals("the load must leave the stored text alone", "not valid checksums", Fixtures.legacyChecksums(store, "tiny"))
     }
 
     @Test
     fun `load refuses with VERIFICATION_REFUSED and deletes model when archive is tampered`() {
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
         seedInstalledModel("tiny", bytes, digest)
         File(store.directoryFor("tiny"), LocalModelStore.ARCHIVE_NAME).writeBytes("tampered".toByteArray())
         val loader = ModelLoader(store, FakeFactory(StubRecognizer()), { id -> if (id == "tiny") entry else null })
@@ -141,7 +144,7 @@ class ModelLoaderTest {
     fun `load refuses with ENGINE_UNUSABLE when factory throws`() {
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
         seedInstalledModel("tiny", bytes, digest)
         val loader = ModelLoader(store, FakeFactory(null, throwOnCreate = true), { id -> if (id == "tiny") entry else null })
         val result = loader.load("tiny")
@@ -158,7 +161,7 @@ class ModelLoaderTest {
     private fun loaderWhoseFactoryThrows(failure: Throwable): ModelLoader {
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
         seedInstalledModel("tiny", bytes, digest)
         return ModelLoader(store, ThrowingFactory(failure), { id -> if (id == "tiny") entry else null })
     }
@@ -209,7 +212,7 @@ class ModelLoaderTest {
     fun `load returns Ready when model is installed and verified`() {
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
         seedInstalledModel("tiny", bytes, digest)
         val recognizer = StubRecognizer()
         val loader = ModelLoader(store, FakeFactory(recognizer), { id -> if (id == "tiny") entry else null })

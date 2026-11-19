@@ -1,6 +1,6 @@
 """Source pins for the sherpa-onnx compile route of `android/modules/stt-ondevice`.
 
-The tests of the two binding files (the library name in exactly two files, the keyword binding pin) are in
+The tests of the three binding files (the library name in exactly three files, the keyword and offline binding pins) are in
 `stt_ondevice_aar_binding_pins.py`, mixed into the class below.
 
 Not a `test_*.py` file on purpose: the contract-file bijection counts every
@@ -43,7 +43,6 @@ from stt_ondevice_aar_checks import (
     check_task,
     check_versions_equal,
     check_wired,
-    code_of
 )
 from stt_ondevice_aar_binding_pins import BindingPins
 from stt_ondevice_aar_rules import check_jdk_simple_names_have_imports, check_task_messages

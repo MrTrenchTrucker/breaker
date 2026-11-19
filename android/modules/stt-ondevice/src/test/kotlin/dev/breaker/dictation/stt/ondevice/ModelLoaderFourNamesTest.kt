@@ -25,7 +25,7 @@ class ModelLoaderFourNamesTest {
     private val modelId = "tiny"
     private val bytes = "test model bytes".toByteArray()
     private val digest = Fixtures.independentSha256(bytes)
-    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
     private val names = TarFixtures.TINY_FILES
 
     private object IdleRecognizer : SherpaRecognizer {
@@ -45,7 +45,6 @@ class ModelLoaderFourNamesTest {
         val loader = ModelLoader(store, factory, { if (it == modelId) entry else null }, ModelDebugSink { sink.add(it) })
         Fixtures.writeBytes(store.archiveFile(modelId), bytes)
         store.markVerified(modelId, digest)
-        store.storeChecksums(modelId, "model.archive\t$digest")
         for (name in names) Fixtures.writeBytes(File(store.extractedDirectory(modelId), name), name.toByteArray())
         if (damage != null) damage(File(store.extractedDirectory(modelId), damaged!!))
         return Rig(store, loader, sink, asked)
@@ -80,7 +79,6 @@ class ModelLoaderFourNamesTest {
 
                 assertArrayEquals("$what: the archive must stay unchanged", bytes, r.store.archiveFile(modelId).readBytes())
                 assertEquals("$what: verified marker", digest, r.store.lastVerifiedDigest(modelId))
-                assertEquals("$what: checksums", "model.archive\t$digest", r.store.storedChecksums(modelId))
                 for (other in names.filter { it != name }) {
                     assertTrue("$what: $other must stay", File(r.store.extractedDirectory(modelId), other).isFile)
                 }

@@ -14,10 +14,8 @@ import java.net.URI
  * @property totalTimeoutMillis longest time for one whole fetch, so a body
  *   that trickles in cannot outlast the per-read timeout forever.
  * @property maxRedirects most redirects followed for one fetch.
- * @property checksumsMaxBytes largest checksum list accepted.
  * @property firstHopHosts hosts the first request may go to.
  * @property redirectHosts hosts a redirect may go to.
- * @property checksumsUrl address of the upstream checksum list.
  * @property progressStepBytes bytes received between two progress reports (4 MiB).
  */
 data class DownloadLimits(
@@ -25,10 +23,8 @@ data class DownloadLimits(
     val readTimeoutMillis: Int = 30_000,
     val totalTimeoutMillis: Long = 3_600_000L,
     val maxRedirects: Int = 5,
-    val checksumsMaxBytes: Long = 1_048_576L,
     val firstHopHosts: Set<String> = setOf("api.github.com"),
     val redirectHosts: Set<String> = setOf("release-assets.githubusercontent.com"),
-    val checksumsUrl: String = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/761425283",
     val progressStepBytes: Long = 4_194_304L,
 ) {
     /**

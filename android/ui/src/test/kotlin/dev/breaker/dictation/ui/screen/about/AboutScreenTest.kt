@@ -26,7 +26,7 @@ class AboutScreenTest {
     }
 
     @Test
-    fun `the screen shows exactly the two ruled lines`() {
+    fun `the screen shows the two ruled lines and no notices line by default`() {
         val rendered = screen.render()
         val labels = rendered.nodes.filterIsInstance<dev.breaker.dictation.ui.screen.Label>()
         val bodyLabels = labels.filter { it.role == TypeRole.BODY }
@@ -56,8 +56,9 @@ class AboutScreenTest {
     fun `the screen has no version line`() {
         val rendered = screen.render()
         val labels = rendered.nodes.filterIsInstance<dev.breaker.dictation.ui.screen.Label>()
-        val texts = labels.map { it.text }
+        val texts = labels.filter { it.id != AboutNodeIds.NOTICES }.map { it.text }
         assertTrue(texts.none { it.contains("version", ignoreCase = true) })
         assertTrue(texts.none { it.contains("v\\d".toRegex()) })
+        assertTrue(labels.none { it.id == AboutNodeIds.NOTICES })
     }
 }

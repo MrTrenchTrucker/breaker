@@ -36,8 +36,6 @@ class HttpModelFetcherFailureTest {
     private fun model(step: Step, outputs: RecordingOutputs = RecordingOutputs()): Attempt =
         attemptModel(fetcherOf(FakeOpener(step), openOutput = outputs::open), testEntry(), staging)
 
-    private fun checksums(step: Step): Attempt = attemptChecksums(fetcherOf(FakeOpener(step)), staging)
-
     private fun noPartial() = assertEquals("no file is left in staging", emptyList<String>(), stagedNames(staging))
 
     @Test
@@ -48,7 +46,6 @@ class HttpModelFetcherFailureTest {
             val reason = attemptModel(fetcherOf(opener), testEntry(), staging).failedReason("model status $status")
             assertEquals("http $status", reason)
             assertEquals("no second request after status $status", 1, opener.requests.size)
-            assertEquals("http $status", checksums(serve(reply(status))).failedReason("checksum status $status"))
         }
         noPartial()
     }
@@ -69,9 +66,7 @@ class HttpModelFetcherFailureTest {
         for ((error, expected) in cases) {
             val name = error.javaClass.simpleName
             val fromModel = model(failWith(error)).failedReason("$name from a model request")
-            val fromList = checksums(failWith(error)).failedReason("$name from a checksum request")
             assertEquals("$name from a model request", expected, fromModel)
-            assertEquals("$name from a checksum request", expected, fromList)
             assertFalse("$name: the message leaked into the reason", fromModel.contains(HttpFixtures.SECRET) || fromModel.contains("://"))
         }
         noPartial()
@@ -113,20 +108,11 @@ class HttpModelFetcherFailureTest {
     }
 
     @Test
-    fun `a write that fails while staging the checksum list is thrown and leaves no file`() {
-        val opener = FakeOpener(serve(okBytes(ByteArray(5000) { 1 })))
-        val open: (File) -> java.io.OutputStream = { file -> FailingOutput(file, 100, OutputFault.WRITE) }
-        attemptChecksums(fetcherOf(opener, openOutput = open), staging).thrownIo("a write failure on the checksum list")
-        noPartial()
-    }
-
-    @Test
     fun `an unexpected runtime exception is a failure result and never a throw`() {
         val errors = listOf(RuntimeException("surprise"), IllegalStateException("odd"), IllegalArgumentException("bad"), SecurityException("no"))
         for (error in errors) {
             val name = error.javaClass.simpleName
             assertEquals("unexpected", model(failWith(error)).failedReason("$name from the opener"))
-            assertEquals("unexpected", checksums(failWith(error)).failedReason("$name from the opener"))
         }
         val outputs = RecordingOutputs()
         val body = FailingStream(afterBytes = 3000, error = IllegalStateException("odd read"))

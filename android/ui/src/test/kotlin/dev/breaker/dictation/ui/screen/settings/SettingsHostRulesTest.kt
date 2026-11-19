@@ -44,7 +44,7 @@ class SettingsHostRulesTest {
         val body = focusBody(text)
         return listOfNotNull(
             "the focus call does not answer false when the button is not drawn".takeUnless {
-                "if (findTagged(this, SettingsIds.DOWNLOAD_ID) == null) return false" in body
+                "if (findTagged(this, id) == null) return false" in body
             },
             "the focus call does not end on its true answer, or answers true more than once".takeUnless {
                 body.endsWith("return true }") && returnsTrue.findAll(body).count() == 1

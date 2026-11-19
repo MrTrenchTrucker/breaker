@@ -3,7 +3,8 @@ package dev.breaker.dictation.stt.ondevice
 import java.io.File
 
 /**
- * Picks the four files of a streaming transducer model out of an unpacked directory.
+ * Picks the four files of the keyword model out of an unpacked directory. The speech models do not use it: their
+ * registry entries name their files (see [SpeechModels.locate]).
  *
  * The choice goes by which files are present, not by a fixed list of names:
  * - the encoder takes the int8 file when there is one, else the plain one;

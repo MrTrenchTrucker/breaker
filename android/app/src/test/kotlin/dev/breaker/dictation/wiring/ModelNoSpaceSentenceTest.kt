@@ -58,6 +58,6 @@ internal class ModelNoSpaceSentenceTest {
             checked += 1
         }
         assertEquals("app: every refusal but no space was checked", ModelInstaller.Refusal.values().size - 1, checked)
-        assertTrue("app: at least nine other refusals were checked", checked >= 9)
+        assertTrue("app: at least seven other refusals were checked", checked >= 7)
     }
 }

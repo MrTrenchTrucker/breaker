@@ -72,7 +72,7 @@ internal class FirstRunHostView(
         } else {
             val builder = PageBuilder(context, theme)
             val content: View = if (shown.page == FirstRunPage.DOWNLOAD) {
-                val page = builder.downloadPage(shown, this::downloadTap)
+                val page = builder.downloadPage(shown, this::downloadTap, this::downloadModelTap)
                 if (page.hasBar) download = page
                 page.root
             } else {
@@ -116,6 +116,12 @@ internal class FirstRunHostView(
     /** Asks the controller to start the download, then draws the page again. */
     private fun downloadTap() {
         controller.tapDownload()
+        draw()
+    }
+
+    /** Asks the controller to start the download of the speech model [id], then draws the page again. */
+    private fun downloadModelTap(id: String) {
+        controller.tapModel(id)
         draw()
     }
 

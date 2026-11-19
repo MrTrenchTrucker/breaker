@@ -40,7 +40,7 @@ class SherpaOnnxRecognizerWiringTest {
     private val modelId = "tiny"
     private val archiveBytes = "wiring test archive bytes".toByteArray()
     private val digest = Fixtures.independentSha256(archiveBytes)
-    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = archiveBytes.size.toLong())
 
     // Text the failing openers carry. It must never reach a user-facing value.
     private val secret = "secret-native-detail"
@@ -61,7 +61,6 @@ class SherpaOnnxRecognizerWiringTest {
         val store = LocalModelStore(tmp.newFolder())
         Fixtures.writeBytes(store.archiveFile(modelId), archiveBytes)
         store.markVerified(modelId, digest)
-        store.storeChecksums(modelId, "model.archive\t$digest")
         Fixtures.seedExtracted(store, modelId)
         assertTrue("fixture: the model must be installed", store.isInstalled(modelId))
         assertTrue("fixture: the four unpacked files must be in place", store.isExtracted(modelId))

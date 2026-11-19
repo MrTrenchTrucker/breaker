@@ -13,13 +13,11 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 
-/** A fetcher that serves one archive and a checksum list, counts its calls, and can wrap the staged file. */
+/** A fetcher that serves one archive, counts its calls, and can wrap the staged file. */
 internal class ArchiveFetcher(
     private val archive: ByteArray,
-    private val checksumsText: String,
     private val wrap: (File) -> File = { it },
 ) : ModelFetcher {
-    var checksumFetches = 0
     var modelFetches = 0
 
     override fun fetchModel(entry: ModelEntry, stagingDir: File): ModelFetcher.Result {
@@ -27,13 +25,6 @@ internal class ArchiveFetcher(
         val file = File(stagingDir, "model.archive")
         file.writeBytes(archive)
         return ModelFetcher.Result.Fetched(wrap(file))
-    }
-
-    override fun fetchChecksums(stagingDir: File): ModelFetcher.Result {
-        checksumFetches++
-        val file = File(stagingDir, "checksums.txt")
-        file.writeText(checksumsText)
-        return ModelFetcher.Result.Fetched(file)
     }
 }
 
@@ -68,8 +59,8 @@ abstract class ModelInstallerUnpackFixture {
     internal val tinyBytes = TarFixtures.tinyArchive()
     internal val tinyPin = Fixtures.independentSha256(tinyBytes)
 
-    internal fun entry(id: String = "tiny", pin: String = tinyPin) =
-        ModelEntry(id, ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false)
+    internal fun entry(id: String = "tiny", pin: String = tinyPin, sizeBytes: Long = tinyBytes.size.toLong()) =
+        ModelEntry(id, ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false, sizeBytes = sizeBytes)
 
     internal fun newStore() = LocalModelStore(tmp.newFolder())
 
@@ -83,8 +74,8 @@ abstract class ModelInstallerUnpackFixture {
         id: String = "tiny",
     ): ModelInstaller.InstallResult {
         val pin = Fixtures.independentSha256(archive)
-        val fetcher = ArchiveFetcher(archive, "model.archive\t$pin", wrap)
-        return ModelInstaller(store, fetcher, ModelDebugSink { sink.add(it) }, seams.extractor()).install(entry(id, pin))
+        val fetcher = ArchiveFetcher(archive, wrap)
+        return ModelInstaller(store, fetcher, ModelDebugSink { sink.add(it) }, seams.extractor(), usableSpace = { Long.MAX_VALUE }).install(entry(id, pin, archive.size.toLong()))
     }
 
     internal fun installedOf(result: ModelInstaller.InstallResult): ModelInstaller.InstallResult.Installed {
@@ -197,7 +188,6 @@ class ModelInstallerUnpackReinstallTest : ModelInstallerUnpackFixture() {
         val store = newStore()
         Fixtures.writeBytes(store.archiveFile("tiny"), tinyBytes)
         store.markVerified("tiny", tinyPin)
-        store.storeChecksums("tiny", "model.archive\t$tinyPin")
         val created = ArrayList<SherpaModel>()
         val factory = SherpaRecognizerFactory { model -> created.add(model); IdleRecognizer }
         val loader = ModelLoader(store, factory, { if (it == "tiny") entry() else null })

@@ -40,7 +40,7 @@ class ErrorMappingTextTest {
             "tampered (deleted form) must return its exact failure",
             SttResult.Failure(
                 SttError.LOCAL_MODEL_MISSING,
-                "The model for 'tiny' did not match its published checksum and was deleted. Download it again.",
+                "The model for 'tiny' did not match what this app expects and was deleted. Download it again.",
             ),
             ErrorMapping.tampered("tiny"),
         )
@@ -52,7 +52,7 @@ class ErrorMappingTextTest {
             "tampered (left on disk form) must return its exact failure",
             SttResult.Failure(
                 SttError.LOCAL_MODEL_MISSING,
-                "The model for 'tiny' did not match its published checksum and could not be deleted. " +
+                "The model for 'tiny' did not match what this app expects and could not be deleted. " +
                     "It will not be used.",
             ),
             ErrorMapping.tampered("tiny", true),
@@ -65,21 +65,9 @@ class ErrorMappingTextTest {
             "wrongFamily must return its exact failure",
             SttResult.Failure(
                 SttError.LOCAL_MODEL_MISSING,
-                "'tiny' is a WHISPER model; this app can only run the streaming Zipformer models today.",
+                "'tiny' is a WHISPER model; this app cannot run that kind of model yet.",
             ),
             ErrorMapping.wrongFamily("tiny", "WHISPER"),
-        )
-    }
-
-    @Test
-    fun `checksumsUnreadable returns exactly its sentence`() {
-        assertEquals(
-            "checksumsUnreadable must return its exact failure",
-            SttResult.Failure(
-                SttError.LOCAL_MODEL_MISSING,
-                "Upstream's checksum list could not be read, so 'tiny' could not be verified.",
-            ),
-            ErrorMapping.checksumsUnreadable("tiny"),
         )
     }
 

@@ -46,8 +46,18 @@ internal interface NativeStreamingRecognizer {
 /** What a stream has decoded: the text, the pieces in order, and the start of each piece in seconds from the stream start. */
 internal class NativeResult(val text: String, val tokens: List<String>, val timestampsSeconds: List<Float>)
 
-/** The four files a streaming transducer model needs, each already checked to exist. */
-internal class TransducerFiles(val encoder: File, val decoder: File, val joiner: File, val tokens: File)
+/**
+ * The four files a transducer model needs, each already checked to exist, and the sherpa model-type string the
+ * engine is opened with (from the registry entry; the empty string lets the library read it from the files, and
+ * is what the keyword path passes).
+ */
+internal class TransducerFiles(
+    val encoder: File,
+    val decoder: File,
+    val joiner: File,
+    val tokens: File,
+    val modelType: String = "",
+)
 
 /** Opens a native recognizer over [TransducerFiles]. */
 internal fun interface NativeStreamingOpener {

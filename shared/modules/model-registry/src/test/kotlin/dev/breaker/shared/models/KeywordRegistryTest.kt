@@ -20,7 +20,7 @@ import org.junit.Test
  */
 class KeywordRegistryTest {
 
-    private val speechIds = listOf("small", "tiny", "base", "medium")
+    private val speechIds = listOf("small", "tiny", "base", "medium", "parakeet")
     private val keywordId = "kws-gigaspeech-3m"
 
     /** The ids of the sequence items under the top-level key [key], in file order. */
@@ -35,9 +35,9 @@ class KeywordRegistryTest {
     }
 
     @Test
-    fun theSpeechListIsExactlySmallTinyBaseMedium() {
+    fun theSpeechListIsExactlySmallTinyBaseMediumParakeet() {
         assertEquals(
-            "model-registry: the speech list must stay exactly the four speech ids, in order",
+            "model-registry: the speech list must stay exactly the five speech ids, in order",
             speechIds,
             ModelRegistry.ALL.map { it.id },
         )

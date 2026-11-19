@@ -11,6 +11,7 @@ import dev.breaker.dictation.host.buildSettingsColumn
 import dev.breaker.dictation.host.buildSettingsRebuilt
 import dev.breaker.dictation.host.createHomeMic
 import dev.breaker.dictation.host.downloadControlOf
+import dev.breaker.dictation.host.firstRunDownloadById
 import dev.breaker.dictation.host.redrawSettingsAfterProbe
 import dev.breaker.dictation.host.selectedModelMb
 import dev.breaker.dictation.service.NotificationRoute
@@ -128,6 +129,9 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             onDownloadModel = app.tileHost::requestDownload,
             settings = app.settingsStore,
             onFinished = { done.markDone(); recreate() },
+            offeredModels = { dev.breaker.dictation.wiring.offeredSpeechModels() },
+            modelReadyFor = { id -> modelReady.isReadyFor(id) },
+            onDownloadModelId = firstRunDownloadById(app),
         )
         firstRunView = view
         firstRunShown = true
@@ -154,6 +158,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         super.onResume()
         val app = applicationContext as BreakerApp
         app.tileHost.setDownloadListener(this)
+        app.tileHost.setDeleteListener(dev.breaker.dictation.host.redrawOnDelete { settingsView as? dev.breaker.dictation.ui.DownloadControl })
         app.serviceStatusHome().onResume(homeView as? dev.breaker.dictation.ui.HomeControl)
         when {
             firstRunShown -> downloadControlOf(true, firstRunView, settingsView)?.refresh()
@@ -172,6 +177,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         super.onPause()
         val app = applicationContext as BreakerApp
         app.tileHost.setDownloadListener(null)
+        app.tileHost.setDeleteListener(null)
         app.serviceStatusHome().onPause()
     }
     override fun onDestroy() {

@@ -50,14 +50,14 @@ class ModelInstallerUnpackTest : ModelInstallerUnpackFixture() {
             usableSpace = { Long.MAX_VALUE },
             rename = { from, to ->
                 seen.add("digest=${store.lastVerifiedDigest("tiny")}")
-                seen.add("checksums=${store.storedChecksums("tiny") != null}")
+                seen.add("checksums=${File(store.directoryFor("tiny"), LocalModelStore.CHECKSUMS_FILE).exists()}")
                 seen.add("extracted=${store.isExtracted("tiny")}")
                 renames++
                 from.renameTo(to)
             },
         )
-        val fetcher = ArchiveFetcher(tinyBytes, "model.archive\t$tinyPin")
-        val result = ModelInstaller(store, fetcher, extractor = observing).install(entry())
+        val fetcher = ArchiveFetcher(tinyBytes)
+        val result = ModelInstaller(store, fetcher, extractor = observing, usableSpace = { Long.MAX_VALUE }).install(entry())
         assertEquals(ModelInstaller.InstallResult.Installed("tiny", tinyPin), result)
         // The stamp is expected here: a successful install records it last, after the unpack.
         assertFilesHold(store, TarFixtures.TINY_FILES, withStamp = true) { TarFixtures.contentOf(it, 48) }
@@ -66,8 +66,8 @@ class ModelInstallerUnpackTest : ModelInstallerUnpackFixture() {
         assertFalse("the work directory is gone", store.extractionWorkDirectory("tiny").exists())
         assertEquals("one move into place", 1, renames)
         assertEquals(
-            "at the move the metadata is written and the files are not yet visible",
-            listOf("digest=$tinyPin", "checksums=true", "extracted=false"),
+            "at the move the verified digest is written, no checksum record exists, and the files are not yet visible",
+            listOf("digest=$tinyPin", "checksums=false", "extracted=false"),
             seen,
         )
     }
@@ -76,8 +76,8 @@ class ModelInstallerUnpackTest : ModelInstallerUnpackFixture() {
     fun `an installer built with no extractor unpacks a real archive`() {
         // The default extractor asks the real free space of the temporary folder (80 MiB for this model).
         val store = newStore()
-        val fetcher = ArchiveFetcher(tinyBytes, "model.archive\t$tinyPin")
-        val result = ModelInstaller(store, fetcher).install(entry())
+        val fetcher = ArchiveFetcher(tinyBytes)
+        val result = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE }).install(entry())
         assertEquals(ModelInstaller.InstallResult.Installed("tiny", tinyPin), result)
         // The stamp is expected here: a successful install records it last, after the unpack.
         assertFilesHold(store, TarFixtures.TINY_FILES, withStamp = true) { TarFixtures.contentOf(it, 48) }
@@ -197,20 +197,18 @@ class ModelInstallerUnpackTest : ModelInstallerUnpackFixture() {
         val store = newStore()
         val seams = Seams()
         val sink = ArrayList<String>()
-        val fetcher = ArchiveFetcher(tinyBytes, "model.archive\t$tinyPin")
-        val refused = refusedOf(ModelInstaller(store, fetcher, ModelDebugSink { sink.add(it) }, seams.extractor()).install(whisper))
+        val fetcher = ArchiveFetcher(tinyBytes)
+        val refused = refusedOf(ModelInstaller(store, fetcher, ModelDebugSink { sink.add(it) }, seams.extractor(), usableSpace = { Long.MAX_VALUE }).install(whisper))
         assertEquals(ModelInstaller.Refusal.UNSUPPORTED_MODEL, refused.refusal)
         assertEquals(ModelMessages.MODEL_WRONG_FAMILY, refused.detail)
         assertFalse(refused.leftOnDisk)
-        assertEquals("no checksum fetch may start", 0, fetcher.checksumFetches)
         assertEquals("no model fetch may start", 0, fetcher.modelFetches)
         assertEquals(0, seams.opens)
         assertFalse(store.directoryFor("base").exists())
         assertEquals(listOf("install refused (UNSUPPORTED_MODEL): no unpack profile for 'base'"), sink)
 
         // Control: a model with a profile, on the same fetcher, does fetch.
-        installedOf(ModelInstaller(newStore(), fetcher, extractor = Seams().extractor()).install(entry()))
-        assertEquals(1, fetcher.checksumFetches)
+        installedOf(ModelInstaller(newStore(), fetcher, extractor = Seams().extractor(), usableSpace = { Long.MAX_VALUE }).install(entry()))
         assertEquals(1, fetcher.modelFetches)
     }
 
@@ -219,14 +217,16 @@ class ModelInstallerUnpackTest : ModelInstallerUnpackFixture() {
         var refusedBefore = 0
         var fetched = 0
         for (model in ModelRegistry.ALL) {
-            val fetcher = ArchiveFetcher(tinyBytes, "model.archive\t$tinyPin")
-            val result = refusedOf(ModelInstaller(newStore(), fetcher, extractor = Seams().extractor()).install(model))
-            if (model.id in setOf("small", "tiny")) {
+            val fetcher = ArchiveFetcher(tinyBytes)
+            // Plenty of room, so the answer does not depend on the free space of the machine that runs the test.
+            val installer = ModelInstaller(newStore(), fetcher, extractor = Seams().extractor(), usableSpace = { Long.MAX_VALUE })
+            val result = refusedOf(installer.install(model))
+            if (model.id in setOf("small", "tiny", "parakeet")) {
                 assertEquals("${model.id}: a model with a profile is fetched", 1, fetcher.modelFetches)
                 fetched++
             } else {
                 assertEquals("${model.id}: refusal", ModelInstaller.Refusal.UNSUPPORTED_MODEL, result.refusal)
-                assertEquals("${model.id}: no fetch", 0, fetcher.checksumFetches + fetcher.modelFetches)
+                assertEquals("${model.id}: no fetch", 0, fetcher.modelFetches)
                 refusedBefore++
             }
         }

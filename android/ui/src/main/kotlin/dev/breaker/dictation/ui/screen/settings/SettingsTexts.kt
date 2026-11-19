@@ -66,6 +66,11 @@ internal object SettingsTexts {
     /** The signed-out block: the notice and the way to sign in. */
     const val SIGNED_OUT = "You are signed out."
     const val SIGN_IN = "Sign in"
+
+    /** The three actions a speech model row offers: download it, delete it, or use it. Owner words. */
+    const val MODEL_DOWNLOAD = "Download"
+    const val MODEL_DELETE = "Delete"
+    const val MODEL_USE = "Use this one"
 }
 
 /** The name shown for a language code: English for "en", and any other code as it is stored. */

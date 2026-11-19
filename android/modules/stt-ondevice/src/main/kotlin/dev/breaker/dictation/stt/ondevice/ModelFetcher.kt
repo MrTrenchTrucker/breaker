@@ -52,13 +52,6 @@ interface ModelFetcher {
         stagingDir: File,
         onProgress: (received: Long, total: Long) -> Unit,
     ): Result = fetchModel(entry, stagingDir)
-
-    /**
-     * Fetch the upstream checksum file into [stagingDir].
-     *
-     * @return [Result.Fetched] with the staged checksum file, or [Result.Failed].
-     */
-    fun fetchChecksums(stagingDir: File): Result
 }
 
 /**

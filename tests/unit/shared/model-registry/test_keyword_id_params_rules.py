@@ -82,7 +82,10 @@ class KeywordParamsRuleTest(unittest.TestCase):
 
 
 class KeywordUpstreamCommitRuleTest(unittest.TestCase):
-    ANCHOR = "    tamper_verified: false\n"
+    # two lines: the keyword entry is the only one whose `tamper_verified: false`
+    # is followed by Apache-2.0 (the parakeet entry has the same flag, then CC-BY-4.0)
+    LICENSE_LINE = "    license: Apache-2.0\n"
+    ANCHOR = "    tamper_verified: false\n" + LICENSE_LINE
 
     def test_the_committed_keyword_entry_carries_no_commit(self):
         self.assertEqual([], [l for l in ts.entry_block(KW_ID)

@@ -31,9 +31,6 @@ object ModelMessages {
     /** No archive is stored for the model. */
     const val MODEL_NOT_INSTALLED = "The model is not installed. Download it first."
 
-    /** The checksum list needed for the check was unavailable, so nothing was judged. */
-    const val NOT_VERIFIED_YET = "The model could not be checked right now."
-
     /** The archive failed its check and was removed. */
     const val CHECK_FAILED_DELETED = "The model file failed its check and was deleted. Download it again."
 
@@ -45,12 +42,6 @@ object ModelMessages {
 
     /** The verified archive could not be written to the phone's storage. */
     const val SAVE_FAILED = "The model could not be saved on the phone."
-
-    /** The upstream checksum list could not be fetched. */
-    const val CHECKSUMS_DOWNLOAD_FAILED = "The checksum list could not be downloaded."
-
-    /** The checksum list arrived but could not be parsed. */
-    const val CHECKSUMS_UNREADABLE_DOWNLOADED = "The downloaded checksum list could not be read."
 
     /** The model archive could not be fetched. */
     const val MODEL_DOWNLOAD_FAILED = "The model could not be downloaded."

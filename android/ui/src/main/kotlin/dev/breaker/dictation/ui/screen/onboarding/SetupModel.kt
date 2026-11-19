@@ -138,6 +138,8 @@ internal data class SetupState(
     val modelReady: Boolean = false,
     val downloadLine: String? = null,
     val modelDownloadMb: Int = 0,
+    /** The speech models the step offers, one button each in this order; empty keeps the one existing button. */
+    val models: List<FirstRunModel> = emptyList(),
 ) {
     /** Whether the phone has given Breaker what [step] needs. */
     fun statusOf(step: SetupStep): StepStatus =

@@ -265,7 +265,7 @@ def check_jdk_names_are_imported(code):
 
 # --- sources and files ---------------------------------------------------------------------------
 
-# The scope rule for the library name (two binding files) lives in stt_ondevice_aar_binding.py.
+# The scope rule for the library name (three binding files) lives in stt_ondevice_aar_binding.py.
 
 def check_no_native_load(main):
     probs = [f"{n} loads a native library; the library's own classes do that" for n, c in sorted(main.items())
@@ -282,7 +282,7 @@ def check_binding(code):
         probs.append("SherpaOnnxBinding must be an internal object implementing NativeStreamingOpener")
     for what, rx in (("feature size 80", r"\bconst\s+val\s+FEATURE_DIM\s*=\s*80\b"), ("no asset manager", r"\bassetManager\s*=\s*null\b"), ("cpu", r'\bprovider\s*=\s*"cpu"'),
                      ("no endpoint detection", r"\benableEndpoint\s*=\s*false\b"), ("greedy decoding", r'\bdecodingMethod\s*=\s*"greedy_search"'),
-                     ("model type read from the files", r'\bmodelType\s*=\s*""'), ("feature size", r"\bfeatureDim\s*=\s*FEATURE_DIM\b"),
+                     ("model type read from the files", r"\bmodelType\s*=\s*files\.modelType\b"), ("feature size", r"\bfeatureDim\s*=\s*FEATURE_DIM\b"),
                      ("16 kHz", r"\bsampleRate\s*=\s*SherpaOnnxRecognizer\.SAMPLE_RATE_HZ\b"), ("thread count", r"\bnumThreads\s*=\s*numThreads\b")):
         if len(re.findall(rx, code)) != 1:
             probs.append(f"the binding config needs exactly one: {what}")

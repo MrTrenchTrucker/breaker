@@ -45,8 +45,11 @@ internal class DownloadPage(
     }
 }
 
-/** The download page for [shown]. [onDownload] is what the download button does. */
-internal fun PageBuilder.downloadPage(shown: FirstRunShown, onDownload: () -> Unit): DownloadPage {
+/**
+ * The download page for [shown]. [onDownload] is what the one download button does. When [onModel] is given and the
+ * shown state offers models, the page draws one button per model instead, and each button hands its id to [onModel].
+ */
+internal fun PageBuilder.downloadPage(shown: FirstRunShown, onDownload: () -> Unit, onModel: ((String) -> Unit)? = null): DownloadPage {
     val page = column()
     shown.notice?.let { page.addView(dangerText(it)) }
     page.addView(bodyText(FirstRunWords.modelWhy()))
@@ -54,10 +57,21 @@ internal fun PageBuilder.downloadPage(shown: FirstRunShown, onDownload: () -> Un
     return when (download.phase) {
         DownloadPhase.IDLE, DownloadPhase.FAILED -> {
             if (download.phase == DownloadPhase.FAILED) download.line?.let { page.addView(dangerText(it)) }
-            page.addView(mutedText(FirstRunWords.modelSource(shown.state.modelDownloadMb)))
-            val button = fullButton(FirstRunWords.modelButton(), onDownload)
-            button.tag = FirstRunLayout.DOWNLOAD_BUTTON_TAG
-            page.addView(button)
+            val models = shown.models.takeIf { onModel != null }.orEmpty()
+            if (models.isEmpty()) {
+                page.addView(mutedText(FirstRunWords.modelSource(shown.state.modelDownloadMb)))
+                val button = fullButton(FirstRunWords.modelButton(), onDownload)
+                button.tag = FirstRunLayout.DOWNLOAD_BUTTON_TAG
+                page.addView(button)
+            } else {
+                val toDownload = FirstRunWords.modelsToDownload(models)
+                if (toDownload.isEmpty()) page.addView(mutedText(FirstRunWords.modelsReady()))
+                toDownload.forEachIndexed { index, model ->
+                    val button = fullButton(FirstRunWords.modelButtonText(model)) { onModel?.invoke(model.id) }
+                    if (index == 0) button.tag = FirstRunLayout.DOWNLOAD_BUTTON_TAG
+                    page.addView(button)
+                }
+            }
             DownloadPage(page, null, null, null)
         }
         DownloadPhase.RUNNING -> {

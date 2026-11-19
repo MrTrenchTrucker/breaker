@@ -159,7 +159,7 @@ class SherpaOnnxWordStreamFactoryTest {
             ),
         )
         val opener = RecordingOpener(fake)
-        val stream = SherpaOnnxWordStreamFactory(opener, 3).create(model("tiny", dir))
+        val stream = SherpaOnnxWordStreamFactory(opener, 3).create(model("small", dir))
         val sink = UpdateSink(1)
         stream.start { sink.record(it) }
         stream.feed(timedChunk())

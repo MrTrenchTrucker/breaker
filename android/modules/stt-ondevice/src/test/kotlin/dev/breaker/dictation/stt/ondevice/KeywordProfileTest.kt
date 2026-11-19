@@ -1,5 +1,7 @@
 package dev.breaker.dictation.stt.ondevice
 
+import dev.breaker.shared.models.ModelKind
+import dev.breaker.shared.models.ModelRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -167,10 +169,31 @@ class KeywordProfileTest {
 
     @Test
     fun `the streaming table still holds only the two speech ids while the unpack table also knows the keyword id`() {
+        // The registry's STREAMING entries are small and tiny, and each has a streaming profile; the whisper
+        // entries base and medium are OFFLINE and have none, as before.
+        val streaming = ModelRegistry.ALL.filter { it.kind == ModelKind.STREAMING }.map { it.id }
+        assertEquals(listOf("small", "tiny"), streaming)
+        assertEquals(setOf("small", "tiny"), streaming.filter { StreamingProfiles.forModel(it) != null }.toSet())
+        for (id in listOf("base", "medium")) {
+            assertEquals("kind of $id", ModelKind.OFFLINE, ModelRegistry.byId(id)!!.kind)
+            assertNull("whisper $id has no streaming profile", StreamingProfiles.forModel(id))
+        }
         assertEquals(setOf("small", "tiny"), StreamingProfiles.ids)
         assertNull("stt-ondevice keyword profile: no streaming profile for the keyword id", StreamingProfiles.forModel(KEYWORD_MODEL_ID))
         assertNotNull(ExtractionProfiles.forModel("small"))
         assertNotNull(ExtractionProfiles.forModel("tiny"))
+    }
+
+    @Test
+    fun `parakeet is offline and is neither a streaming model nor a keyword model`() {
+        val parakeet = ModelRegistry.byId("parakeet")
+        assertNotNull("parakeet is in the registry", parakeet)
+        assertEquals(ModelKind.OFFLINE, parakeet!!.kind)
+        assertNull("stt-ondevice keyword profile: parakeet has no streaming profile", StreamingProfiles.forModel("parakeet"))
+        assertFalse("parakeet" in StreamingProfiles.ids)
+        assertNull("stt-ondevice keyword profile: parakeet is not a keyword model", ModelRegistry.byKeywordId("parakeet"))
+        assertFalse("parakeet" in ModelRegistry.KEYWORD_MODELS.map { it.id })
+        assertNull("stt-ondevice keyword profile: the keyword id is not an offline speech entry", ModelRegistry.byId(KEYWORD_MODEL_ID))
     }
 
     @Test

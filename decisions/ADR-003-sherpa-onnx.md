@@ -3,7 +3,7 @@
 **Status:** accepted, amended 2026-11-18 (the pin is our own sha256 per model; the upstream checksum.txt is advisory, not required)
 **Date:** 2026-09-29
 
-**Amendment 2026-11-18 (ADR-050, decided, not built).** Mitigation (1) below says to verify against upstream checksum.txt. That was the rule when this ADR was written, and today's code still requires the pin to appear in that file. The amended rule: every model is pinned by our own sha256, byte size and release-asset id, and the download is verified against that pin. Upstream checksum.txt is advisory. The reason is that the second model, Parakeet TDT 0.6B v3, has no checksum.txt line, and an upstream re-upload broke installs on 2026-11-18. The original text below is kept as written.
+**Amendment 2026-11-18 (ADR-050, built in the speech module and the registry, not compiled or run).** Mitigation (1) below says to verify against upstream checksum.txt. That was the rule when this ADR was written. The amended rule, now in the code: every model is pinned by our own sha256, byte size and release-asset id, and the download is verified against that pin. Upstream checksum.txt is advisory. The reason is that the second model, Parakeet TDT 0.6B v3, has no checksum.txt line, and an upstream re-upload broke installs on 2026-11-18. The word "immutable" in the text below is not true: upstream can re-point an asset id, and our own size and sha256 pin catches that (hand-traced only, not run). The original text below is kept as written.
 
 ## Context
 The swept base vendors sherpa-onnx (XIAOMI CORPORATION, Apache-2.0). Security Review's

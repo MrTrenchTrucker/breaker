@@ -7,7 +7,9 @@ internal const val FIRST_RUN_FILE = "FirstRunEntry.kt"
 internal const val SETTLED_FIRST_RUN = "fun createFirstRunView(context: android.content.Context, " +
     "accessibilityServiceComponent: String, modelReady: () -> Boolean, downloadLine: () -> String?, " +
     "modelDownloadMb: () -> Int, onDownloadModel: () -> Unit, " +
-    "settings: dev.breaker.dictation.core.port.SettingsStore, onFinished: () -> Unit): android.view.View"
+    "settings: dev.breaker.dictation.core.port.SettingsStore, onFinished: () -> Unit, " +
+    "offeredModels: (() -> List<dev.breaker.dictation.ui.SpeechModelChoice>)? = null, " +
+    "modelReadyFor: ((String) -> Boolean)? = null, onDownloadModelId: ((String) -> Unit)? = null): android.view.View"
 
 /** The file of the first-run entry, which hands its view to the app and may name the framework. */
 internal const val FIRST_RUN_ENTRY_FILE = "FirstRunEntry.kt"

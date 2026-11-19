@@ -27,6 +27,7 @@ private val DRAW_HEADER = Regex("""private\s+fun\s+draw\(\s*\)\s*\{""")
 private val GRANT_HEADER = Regex("""private\s+fun\s+grant\(\s*action\s*:\s*OpenAction\s*\)\s*\{""")
 private val NEXT_HEADER = Regex("""private\s+fun\s+next\(\s*\)\s*\{""")
 private val DOWNLOAD_TAP_HEADER = Regex("""private\s+fun\s+downloadTap\(\s*\)\s*\{""")
+private val DOWNLOAD_MODEL_TAP_HEADER = Regex("""private\s+fun\s+downloadModelTap\(\s*id\s*:\s*String\s*\)\s*\{""")
 private val HELD_READ = Regex(
     """val\s+held\s*=\s*if\s*\(\s*shown\.page\s*==\s*drawnPage\s*&&\s*shown\.notice\s*==\s*null\s*\)\s*scroller\?\.scrollY\s*\?:\s*0\s+else\s+0""",
 )
@@ -103,7 +104,7 @@ private fun tapProblemsIn(text: String): List<String> {
     val code = flatCode(text)
     val problems = mutableListOf<String>()
     val draw = blockOf(code, DRAW_HEADER).orEmpty()
-    if (!draw.contains("downloadPage(shown, this::downloadTap)")) problems.add("the download closure is not handed to the download page")
+    if (!draw.contains("downloadPage(shown, this::downloadTap, this::downloadModelTap)")) problems.add("the download closure is not handed to the download page")
     if (!draw.contains("permissionPage(shown, dark, this::grant, this::next)")) {
         problems.add("the grant and next closures are not handed to the permission page")
     }
@@ -111,6 +112,7 @@ private fun tapProblemsIn(text: String): List<String> {
         Triple("grant", GRANT_HEADER, "controller.tap(SetupActions.stringFor(action))"),
         Triple("next", NEXT_HEADER, "controller.advance()"),
         Triple("download", DOWNLOAD_TAP_HEADER, "controller.tapDownload()"),
+        Triple("downloadModel", DOWNLOAD_MODEL_TAP_HEADER, "controller.tapModel(id)"),
     )
     for ((name, header, call) in closures) {
         val body = blockOf(code, header)
@@ -212,7 +214,9 @@ class FirstRunHostRulesTest {
         assertEquals("the closures of the real host", emptyList<String>(), tapProblemsIn(host))
         assertFires(
             "the download closure not wired",
-            tapProblemsIn(editOnce(host, "downloadPage(shown, this::downloadTap)", "downloadPage(shown, this::next)")),
+            tapProblemsIn(
+                editOnce(host, "downloadPage(shown, this::downloadTap, this::downloadModelTap)", "downloadPage(shown, this::next, this::downloadModelTap)"),
+            ),
             "not handed to the download page",
         )
         assertFires(

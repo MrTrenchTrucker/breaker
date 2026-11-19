@@ -12,6 +12,7 @@ import dev.breaker.dictation.ui.screen.history.LocalizedTimestampFormat
 import dev.breaker.dictation.ui.screen.howitworks.HowItWorksHostView
 import dev.breaker.dictation.ui.screen.howitworks.HowItWorksScreen
 import dev.breaker.dictation.ui.screen.settings.SettingsIntentHandler
+import dev.breaker.dictation.ui.screen.settings.ModelRowItem
 import dev.breaker.dictation.ui.screen.settings.SettingsScreen
 import dev.breaker.dictation.ui.theme.ThemeController
 import dev.breaker.dictation.core.port.SettingsStore
@@ -60,6 +61,12 @@ import java.time.ZoneId
  * @param sessionLive answers whether the session is live, or null for always live; the signed-out block shows when it is not.
  * @param onSignIn asks the app to start signing in, or null for nothing; called when that block's Sign in is tapped.
  * @param serverAddressStatus answers the app's reading of the stored server addresses, or null for no status line; read once per drawing.
+ * @param offeredModels answers the speech models offered, each with its id, label, rating and size; empty keeps the one Download button.
+ * @param installedModel answers whether the model with that id is on the phone.
+ * @param downloadingModelId answers the id of the model downloading now, or null.
+ * @param onDownloadModelId asks the app to download the model with that id.
+ * @param onDeleteModel asks the app to delete the model with that id; the model in use is never passed.
+ * @param onUseModel asks the app to save the model with that id as the model in use.
  * @return a view that shows the settings and can be put in a layout as it stands.
  */
 // The parameter types are written out in full: this is the one line of this
@@ -75,12 +82,35 @@ fun createSettingsView(
     sessionLive: (() -> Boolean)? = null,
     onSignIn: (() -> Unit)? = null,
     serverAddressStatus: (() -> dev.breaker.dictation.ui.screen.settings.ServerAddressStatus)? = null,
+    offeredModels: (() -> List<dev.breaker.dictation.ui.SpeechModelChoice>)? = null,
+    installedModel: ((String) -> Boolean)? = null,
+    downloadingModelId: (() -> String?)? = null,
+    onDownloadModelId: ((String) -> Unit)? = null,
+    onDeleteModel: ((String) -> Unit)? = null,
+    onUseModel: ((String) -> Unit)? = null,
 ): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
     val themes = ThemeController(settings, phoneIsDark)
     bindThemeChanges(themes, onThemeChanged)
     val handler = SettingsIntentHandler(settings, themes, SettingsScreen())
-    return SettingsHostView(context, handler, themes, ScreenRenderer(context), modelReady, downloadLine, onDownloadModel, sessionLive ?: ALWAYS_LIVE, onSignIn ?: NO_SIGN_IN, serverAddressStatus)
+    // The model fallbacks are written in the body, after the view's first lines, so no brace sits in the signature.
+    val offeredFn: () -> List<SpeechModelChoice> = offeredModels ?: { emptyList() }
+    val installedFn: (String) -> Boolean = installedModel ?: { false }
+    val downloadingFn: () -> String? = downloadingModelId ?: { null }
+    val downloadIdFn: (String) -> Unit = onDownloadModelId ?: {}
+    val deleteFn: (String) -> Unit = onDeleteModel ?: {}
+    val useFn: (String) -> Unit = onUseModel ?: {}
+    return SettingsHostView(
+        context, handler, themes, ScreenRenderer(context), modelReady, downloadLine, onDownloadModel,
+        sessionLive ?: ALWAYS_LIVE, onSignIn ?: NO_SIGN_IN, serverAddressStatus,
+        offeredModels = { rowItemsOf(offeredFn()) },
+        installedModel = installedFn,
+        heldModelId = { settings.load().modelSize },
+        downloadingModelId = downloadingFn,
+        onDownloadModelId = downloadIdFn,
+        onDeleteModel = deleteFn,
+        onUseModel = useFn,
+    )
 }
 
 /**
@@ -145,8 +175,8 @@ fun createHowItWorksView(
 /**
  * Builds the About screen as a view for [context].
  *
- * The screen shows exactly two lines: what Breaker does and the license.
- * No version line unless one already exists on main.
+ * The screen shows two lines, what Breaker does and the license, then one line for each
+ * model notice the app passes in, in order. No version line unless one already exists on main.
  *
  * The colours this screen draws in come from the shared reader [storedTheme], so it
  * stays with the stored choice; its phone's own light or dark mode is resolved there.
@@ -154,6 +184,8 @@ fun createHowItWorksView(
  *
  * @param context the context the views are built with, normally an activity's.
  * @param settings the store the app owns, through which the stored theme is read.
+ * @param modelNotices the notices the app passes in, one per model whose licence asks for one, in order;
+ *   null or empty shows no notice line. The text is shown exactly as given.
  * @return a view that shows the About screen and can be put in a layout as it
  *   stands.
  */
@@ -161,11 +193,17 @@ fun createHowItWorksView(
 fun createAboutView(
     context: android.content.Context,
     settings: dev.breaker.dictation.core.port.SettingsStore,
+    modelNotices: List<String>? = null,
 ): android.view.View {
     val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
-    return AboutHostView(context, AboutScreen(), theme, ScreenRenderer(context))
+    val notices: List<String> = modelNotices ?: emptyList()
+    return AboutHostView(context, AboutScreen(notices), theme, ScreenRenderer(context))
 }
 
 // What the entry uses when the app gives no session check or no sign-in callback: signed in, and nothing to start.
 private val ALWAYS_LIVE: () -> Boolean = { true }
 private val NO_SIGN_IN: () -> Unit = {}
+
+/** The rows the settings section starts from: one per offered model, with nothing yet known about the phone; the host fills in whether it is on the phone, in use and downloading. */
+internal fun rowItemsOf(offered: List<SpeechModelChoice>): List<ModelRowItem> =
+    offered.map { ModelRowItem(id = it.id, label = it.label, rating = it.rating, sizeMb = it.sizeMb, installed = false, inUse = false, line = null) }

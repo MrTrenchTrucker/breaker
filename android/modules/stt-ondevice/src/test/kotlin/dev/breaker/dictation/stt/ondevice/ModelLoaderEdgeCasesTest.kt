@@ -42,7 +42,7 @@ class ModelLoaderEdgeCasesTest {
     }
 
     private fun entryFor(family: ModelFamily = ModelFamily.SHERPA_ONNX, pin: String = digest) =
-        ModelEntry(modelId, family, "https://example.com/model", pin, 1, "Apache-2.0", false)
+        ModelEntry(modelId, family, "https://example.com/model", pin, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
 
     private fun lookupOf(entry: ModelEntry?): (String) -> ModelEntry? =
         { requested -> if (requested == modelId) entry else null }
@@ -54,7 +54,7 @@ class ModelLoaderEdgeCasesTest {
     private fun seed(store: LocalModelStore, archiveBytes: ByteArray = bytes, checksums: String? = null) {
         Fixtures.writeBytes(File(store.directoryFor(modelId), LocalModelStore.ARCHIVE_NAME), archiveBytes)
         store.markVerified(modelId, digest)
-        if (checksums != null) store.storeChecksums(modelId, checksums)
+        if (checksums != null) Fixtures.writeLegacyChecksums(store, modelId, checksums)
         Fixtures.seedExtracted(store, modelId)
     }
 
@@ -81,17 +81,13 @@ class ModelLoaderEdgeCasesTest {
         cases.add("unknown model" to refusedOf(load(ModelLoader(newStore(), StubFactory(), lookupOf(null)))))
         cases.add("not installed" to refusedOf(load(ModelLoader(newStore(), StubFactory(), lookupOf(entryFor())))))
 
-        val missing = newStore()
-        seed(missing)
-        cases.add("no checksums" to refusedOf(load(ModelLoader(missing, StubFactory(), lookupOf(entryFor())))))
-
-        val garbage = newStore()
-        seed(garbage, checksums = "not valid checksums")
-        cases.add("unparseable checksums" to refusedOf(load(ModelLoader(garbage, StubFactory(), lookupOf(entryFor())))))
-
         val tampered = newStore()
         seed(tampered, "tampered".toByteArray(), "model.archive\t$digest")
         cases.add("failed check" to refusedOf(load(ModelLoader(tampered, StubFactory(), lookupOf(entryFor())))))
+
+        val wrongSize = newStore()
+        seed(wrongSize, bytes + byteArrayOf(0), "model.archive\t$digest")
+        cases.add("wrong size" to refusedOf(load(ModelLoader(wrongSize, StubFactory(), lookupOf(entryFor())))))
 
         val engine = newStore()
         seed(engine, checksums = "model.archive\t$digest")
@@ -103,13 +99,13 @@ class ModelLoaderEdgeCasesTest {
     @Test
     fun `a refusal that is not a wrong family carries no family`() {
         val cases = refusalsWithoutFamily()
-        assertEquals("every refusal kind must be built", 6, cases.size)
+        assertEquals("every refusal kind must be built", 5, cases.size)
         var checked = 0
         for ((label, refused) in cases) {
             assertNull("$label: a refusal other than a wrong family must carry no family", refused.family)
             checked++
         }
-        assertEquals(6, checked)
+        assertEquals(5, checked)
 
         // Control: the wrong family refusal does carry the family, so the field is read and set.
         val wrong = refusedOf(load(ModelLoader(newStore(), StubFactory(), lookupOf(entryFor(ModelFamily.WHISPER)))))
@@ -120,13 +116,13 @@ class ModelLoaderEdgeCasesTest {
     @Test
     fun `a refusal that deleted nothing says nothing is left on disk`() {
         val cases = refusalsWithoutFamily()
-        assertEquals("every refusal kind must be built", 6, cases.size)
+        assertEquals("every refusal kind must be built", 5, cases.size)
         var checked = 0
         for ((label, refused) in cases) {
             assertFalse("$label: nothing failed to delete, so nothing is left on disk", refused.leftOnDisk)
             checked++
         }
-        assertEquals(6, checked)
+        assertEquals(5, checked)
 
         val wrong = refusedOf(load(ModelLoader(newStore(), StubFactory(), lookupOf(entryFor(ModelFamily.WHISPER)))))
         assertFalse("wrong family: nothing to delete", wrong.leftOnDisk)

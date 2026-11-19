@@ -78,7 +78,8 @@ private fun handlerProblemsIn(text: String): List<String> {
     val body = entryOf(text)?.body ?: return listOf(MISSING)
     val build = Regex(
         """\bval\s+handler\s*=\s*SetupIntentHandler\(\s*platform\s*,\s*NoSwitch\s*,\s*modelReady\s*,\s*downloadLine\s*,""" +
-            """\s*modelDownloadMb\s*,\s*onDownloadModel\s*,\s*SetupScreen\(\)\s*,\s*settings\s*\)""" + LINE_END,
+            """\s*modelDownloadMb\s*,\s*onDownloadModel\s*,\s*SetupScreen\(\)\s*,\s*settings\s*,""" +
+            """\s*onDownloadModelId\s*=\s*downloadIdFn\s*,\s*models\s*=\s*models\s*\)""" + LINE_END,
     )
     val once = build.findAll(body).count() == 1 && times(body, "SetupIntentHandler(") == 1 && times(body, "SetupScreen(") == 1
     return if (once) emptyList() else listOf("the handler is not built from the platform, the no-switch stand-in, the providers, a new screen and the settings store")
@@ -87,7 +88,7 @@ private fun handlerProblemsIn(text: String): List<String> {
 private fun controllerProblemsIn(text: String): List<String> {
     val body = entryOf(text)?.body ?: return listOf(MISSING)
     val build = Regex(
-        """\bval\s+controller\s*=\s*FirstRunController\(\s*handler\s*,\s*modelReady\s*,\s*downloadLine\s*,\s*onDownloadModel\s*,\s*onFinished\s*\)""" + LINE_END,
+        """\bval\s+controller\s*=\s*FirstRunController\(\s*handler\s*,\s*modelReady\s*,\s*downloadLine\s*,\s*onDownloadModel\s*,\s*onFinished\s*,\s*onDownloadModelId\s*=\s*downloadIdFn\s*,\s*models\s*=\s*models\s*\)""" + LINE_END,
     )
     val once = build.findAll(body).count() == 1 && times(body, "FirstRunController(") == 1
     return if (once) emptyList() else listOf("the controller is not built from the handler and the providers")
@@ -125,14 +126,14 @@ class FirstRunWiringTest {
         assertEquals("the handler of the real entry", emptyList<String>(), handlerProblemsIn(entry))
         val build = "NoSwitch, modelReady"
         assertFires("another switch", handlerProblemsIn(editEntry(entry, build, "Any, modelReady")), "the handler")
-        assertFires("the settings store dropped", handlerProblemsIn(editEntry(entry, "SetupScreen(), settings)", "SetupScreen())")), "the handler")
+        assertFires("the settings store dropped", handlerProblemsIn(editEntry(entry, "SetupScreen(), settings, onDownloadModelId", "SetupScreen(), onDownloadModelId")), "the handler")
     }
 
     @Test
     fun `the first-run entry builds the controller from the handler and the providers`() {
         assertEquals("the controller of the real entry", emptyList<String>(), controllerProblemsIn(entry))
         assertFires("another handler", controllerProblemsIn(editEntry(entry, "FirstRunController(handler,", "FirstRunController(platform,")), "the controller")
-        assertFires("the finish callback replaced", controllerProblemsIn(editEntry(entry, "onDownloadModel, onFinished)", "onDownloadModel, onDone)")), "the controller")
+        assertFires("the finish callback replaced", controllerProblemsIn(editEntry(entry, "onFinished, onDownloadModelId", "onDone, onDownloadModelId")), "the controller")
     }
 
     @Test

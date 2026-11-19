@@ -67,7 +67,6 @@ class LocalModelStoreEdgeCasesTest {
     fun `writing calls create nothing for an id with a disallowed character`() {
         val store = LocalModelStore(tmp.root)
         store.markVerified("a b", Fixtures.VALID_PIN)
-        store.storeChecksums("a;b", "text")
         assertEquals("nothing may be created for an unsafe id", emptyList<String>(), rootNames())
     }
 

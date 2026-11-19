@@ -1,5 +1,6 @@
 package dev.breaker.dictation.ui.screen.firstrun
 
+import dev.breaker.dictation.ui.screen.onboarding.FirstRunModel
 import dev.breaker.dictation.ui.screen.onboarding.SetupState
 
 /*
@@ -25,4 +26,6 @@ internal data class FirstRunShown(
     val notice: String?,
     val missing: List<MissingItem>,
     val download: DownloadShown,
+    /** The speech models the download page offers, one button each; empty keeps the one download button. */
+    val models: List<FirstRunModel> = emptyList(),
 )

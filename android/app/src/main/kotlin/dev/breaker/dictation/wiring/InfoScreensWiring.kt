@@ -8,6 +8,7 @@ import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.UpdateChecker
 import dev.breaker.dictation.host.MainLooperPost
 import dev.breaker.dictation.host.OneShotBackground
+import dev.breaker.dictation.settings.ModelCatalog
 import dev.breaker.dictation.ui.AboutControl
 import dev.breaker.dictation.ui.createAboutView
 import dev.breaker.dictation.ui.createHowItWorksView
@@ -53,7 +54,7 @@ internal class InfoScreensWiring(
     fun openAbout() {
         if (aboutShown) return
         aboutShown = true
-        val view = createAboutView(activity, settings)
+        val view = createAboutView(activity, settings, ModelCatalog.all().mapNotNull { it.notice })
         (view as? AboutControl)?.let { control ->
             aboutRows = AboutControlWiring(control, aboutBackground, aboutMain, aboutChecker, aboutIsAdmin, aboutInstallAnswers)
                 .also { it.bind() }

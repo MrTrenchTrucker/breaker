@@ -7,20 +7,21 @@ import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 
 /**
- * Verifies a model archive against a compiled pin and the upstream checksum file.
+ * Verifies a model archive against the registry's own pin: its sha256 and its byte length.
  *
  * The rule this file keeps: a downloaded archive is trusted only when its
- * computed digest equals our compiled pin AND that pin appears as a digest
- * in the upstream checksum file. When the archive's name is known, the digest
- * listed for that exact name must be the pin, so a pin listed only on another
- * archive's line is refused. A null or blank name skips that per-archive check.
- * The pin is the digest of the downloaded archive itself - it is not a version
- * number, a size, or a filename.
+ * length equals the byte size pinned in the registry entry AND its computed
+ * digest equals the sha256 pinned in the same entry. Nothing here reads
+ * upstream's checksum list; that list is not part of the decision and is
+ * never fetched at install time. A pinned size of zero or less can never
+ * match, so an entry built without a size is refused (the safe direction).
+ * The pin is the digest of the downloaded archive itself - it is not a
+ * version number or a filename.
  *
  * Verification is deliberately strict and ordered. Each step has its own
  * refusal category so the caller can distinguish a missing file from a
- * malformed pin from a digest mismatch. The order is part of the contract:
- * tests assert the FIRST failure, not any failure.
+ * malformed pin from a size or digest mismatch. The order is part of the
+ * contract: tests assert the FIRST failure, not any failure.
  */
 object ModelIntegrity {
 
@@ -63,15 +64,15 @@ object ModelIntegrity {
         /** The pin is not a 64-character hex string. */
         PIN_MALFORMED,
 
-        /** The pin does not appear as a digest in the upstream checksum file. */
-        PIN_NOT_IN_UPSTREAM,
+        /** The file's byte length is not the pinned size (a pinned size of zero or less never matches). */
+        SIZE_MISMATCH,
 
         /** The computed digest does not match the pin. */
         PIN_MISMATCH,
     }
 
     /**
-     * Verify [file] against [pin] and [checksums].
+     * Verify [file] against [pin] and [expectedBytes].
      *
      * The order of checks is part of the contract - each step is evaluated
      * before the next, and the first failure is the one reported:
@@ -81,26 +82,21 @@ object ModelIntegrity {
      * 3. `file.length() == 0L` -> [Refusal.FILE_EMPTY]
      * 4. pin does not match `^[0-9a-fA-F]{64}$` -> [Refusal.PIN_MALFORMED]
      *    (checked before any bytes are read - a malformed pin can never match)
-     * 5. `!checksums.containsDigest(pin)` -> [Refusal.PIN_NOT_IN_UPSTREAM]
-     *    Also under step 5: with a non-blank [archiveName], the digest listed for
-     *    that name must equal the pin (case-insensitive), otherwise ->
-     *    [Refusal.PIN_NOT_IN_UPSTREAM]
+     * 5. `file.length() != expectedBytes` (so also any [expectedBytes] of zero or
+     *    less) -> [Refusal.SIZE_MISMATCH]. This is checked before the file is hashed,
+     *    so a wrong-sized file is refused without reading it.
      * 6. `sha256(file) == null` -> [Refusal.DIGEST_UNREADABLE]
      * 7. computed digest != pin (case-insensitive) -> [Refusal.PIN_MISMATCH]
      * 8. otherwise -> [Verdict.Verified]
      *
-     * [archiveName] is the archive's upstream file name. When it is null or
-     * blank, the per-archive part of step 5 is skipped and only the set match applies.
-     *
-     * @param archiveName the archive's upstream file name; null or blank skips the per-archive part of step 5.
+     * @param expectedBytes the byte size pinned in the registry entry.
      * @return [Verdict.Verified] with the computed digest on success,
      *   [Verdict.Refused] otherwise.
      */
     fun verify(
         file: File,
         pin: String,
-        checksums: UpstreamChecksums.Checksums,
-        archiveName: String? = null,
+        expectedBytes: Long,
     ): Verdict {
         if (!file.exists()) {
             return Verdict.Refused(Refusal.FILE_MISSING, "file not found: ${file.absolutePath}")
@@ -110,7 +106,8 @@ object ModelIntegrity {
             return Verdict.Refused(Refusal.NOT_A_READABLE_FILE, "not a readable file: ${file.absolutePath}")
         }
 
-        if (file.length() == 0L) {
+        val length = file.length()
+        if (length == 0L) {
             return Verdict.Refused(Refusal.FILE_EMPTY, "file is empty: ${file.absolutePath}")
         }
 
@@ -118,22 +115,11 @@ object ModelIntegrity {
             return Verdict.Refused(Refusal.PIN_MALFORMED, "pin is not a 64-character hex string")
         }
 
-        if (!checksums.containsDigest(pin)) {
+        if (expectedBytes <= 0L || length != expectedBytes) {
             return Verdict.Refused(
-                Refusal.PIN_NOT_IN_UPSTREAM,
-                "pin ${pin.lowercase()} not found in upstream checksums"
+                Refusal.SIZE_MISMATCH,
+                "expected $expectedBytes bytes, found $length"
             )
-        }
-
-        val name = archiveName?.takeIf { it.isNotBlank() }
-        if (name != null) {
-            val listedForArchive = checksums[name]
-            if (listedForArchive == null || !listedForArchive.equals(pin, ignoreCase = true)) {
-                return Verdict.Refused(
-                    Refusal.PIN_NOT_IN_UPSTREAM,
-                    "pin ${pin.lowercase()} is not the digest listed for archive $name"
-                )
-            }
         }
 
         val computed = sha256(file)

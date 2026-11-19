@@ -1,6 +1,6 @@
 # ADR-050: Two speech models, the user chooses between them; each model pinned by our own sha256
 
-**Status:** accepted (decided, not built: see Build status below)
+**Status:** accepted (the first build change is built, not compiled or run; the second is not built: see Build status below)
 **Date:** 2026-11-18
 **Approved by:** project owner (typed approval, 2026-11-18)
 
@@ -24,7 +24,7 @@ Licence conditions for Parakeet, from its CC BY 4.0 terms and the owner's instru
 
 ## Decision
 
-Everything below is the target. None of it is in the code yet.
+Everything below is the target. The first build change has put A, E and G and the registry side of B into the code (not compiled or run); the screens in B, C and D and the notices in H belong to the second build change and are not built.
 
 A. **The second model.** The second model is Parakeet TDT 0.6B v3, packaged by the sherpa-onnx project as the release asset `sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8` (487,211,443 bytes). Its registry id is `parakeet`. The existing id `small` does not change.
 
@@ -64,7 +64,7 @@ I. **Not decided here.** These are left open:
 1. `android/modules/stt-ondevice` and the shared model-registry entry: the offline recognizer, the extraction profile and the pin.
 2. `android/ui` and the settings module: the first-run second button, the settings section, the ratings, and the notices.
 
-**Build status.** Until those changes land, the app ships `small` only. It has no second model, no delete, no switch, and it still requires the upstream checksum.txt line.
+**Build status.** The first build change (`android/modules/stt-ondevice` and the registry) is built, not compiled or run: the registry holds the `parakeet` entry and, for every entry, its own byte size, asset id, kind, label, rating and offered flag; the speech module installs and loads each model against that pin (upstream's checksum.txt is no longer fetched), has an unpack profile and an offline recogniser for `parakeet`, and chooses the recogniser by model id. Not built: the offline native binding has never been compiled against the sherpa-onnx library, so its library names are unverified; the real-phone memory check is pending; the first-run second button, the settings section, the ratings display, the About notice entry and the NOTICE text belong to the second build change (the `android/ui` and settings modules). Nothing downloads a model from a screen yet, and the app still offers `small` only.
 
 ## Reasons
 

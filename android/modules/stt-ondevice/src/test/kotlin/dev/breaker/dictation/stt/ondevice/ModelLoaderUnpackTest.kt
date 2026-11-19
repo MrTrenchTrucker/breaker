@@ -28,7 +28,8 @@ class ModelLoaderUnpackTest {
     private val fourFiles = TarFixtures.TINY_FILES.toTypedArray()
     private val bytes = "test model bytes".toByteArray()
     private val digest = Fixtures.independentSha256(bytes)
-    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+    private val tampered = bytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
+    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
 
     private object IdleRecognizer : SherpaRecognizer {
         override fun decode(pcm: FloatArray, sampleRateHz: Int): SherpaTranscript = SherpaTranscript("", emptyList(), "en")
@@ -61,7 +62,6 @@ class ModelLoaderUnpackTest {
     private fun seed(rig: Rig, archive: ByteArray = bytes, vararg files: String) {
         Fixtures.writeBytes(rig.store.archiveFile(modelId), archive)
         rig.store.markVerified(modelId, digest)
-        rig.store.storeChecksums(modelId, "model.archive\t$digest")
         for (name in files) Fixtures.writeBytes(File(rig.store.extractedDirectory(modelId), name), name.toByteArray())
     }
 
@@ -80,7 +80,6 @@ class ModelLoaderUnpackTest {
         assertTrue("the archive must stay", rig.store.archiveFile(modelId).isFile)
         assertArrayEquals("the archive must stay unchanged", bytes, rig.store.archiveFile(modelId).readBytes())
         assertEquals(digest, rig.store.lastVerifiedDigest(modelId))
-        assertEquals("model.archive\t$digest", rig.store.storedChecksums(modelId))
     }
 
     private fun assertMissingFilesRefusal(label: String, rig: Rig) {
@@ -132,7 +131,6 @@ class ModelLoaderUnpackTest {
 
     @Test
     fun `a tampered archive without files still gets VERIFICATION_REFUSED and the delete`() {
-        val tampered = "tampered".toByteArray()
         val worked = rig()
         seed(worked, tampered)
         val deleted = refusedOf(worked.loader.load(modelId))
@@ -151,13 +149,18 @@ class ModelLoaderUnpackTest {
     }
 
     @Test
-    fun `unreadable checksums are reported before the files are looked at`() {
+    fun `a verified archive with no stored checksums and no files is refused for the missing files`() {
         val r = rig()
         Fixtures.writeBytes(r.store.archiveFile(modelId), bytes)
         r.store.markVerified(modelId, digest)
         val refused = refusedOf(r.loader.load(modelId))
-        assertEquals(ModelLoader.Refusal.CHECKSUMS_UNREADABLE, refused.refusal)
-        assertEquals(ModelMessages.NOT_VERIFIED_YET, refused.detail)
+        assertEquals(ModelLoader.Refusal.NOT_INSTALLED, refused.refusal)
+        assertEquals(ModelMessages.MODEL_NOT_INSTALLED, refused.detail)
+        assertEquals(
+            listOf("NOT_INSTALLED: model 'tiny' is verified but has no unpacked files"),
+            r.sink,
+        )
+        assertEquals(0, r.factory.models.size)
     }
 
     @Test

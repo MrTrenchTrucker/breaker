@@ -6,6 +6,7 @@ import dev.breaker.dictation.stt.ondevice.ModelFetcher
 import dev.breaker.dictation.stt.ondevice.ModelInstaller
 import dev.breaker.shared.models.ModelEntry
 import dev.breaker.shared.models.ModelRegistry
+import java.io.File
 import kotlin.math.roundToInt
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -51,25 +52,6 @@ object ModelSentences {
 
     /** The total in megabytes, to the nearest whole megabyte. MB means 1,000,000 bytes, the unit Android shows. */
     fun totalMb(bytes: Long): Int = ((bytes + 500_000L) / 1_000_000L).toInt()
-}
-
-/**
- * Tells whether the speech model the settings select is ready to use: installed and unpacked.
- *
- * The id is read each time it is asked, so a changed setting is seen at once. It never throws; a
- * store or a setting that cannot be read answers false.
- */
-class StoreModelReady(
-    private val store: LocalModelStore,
-    private val selectedId: () -> String,
-) : ModelReady {
-    override fun isReady(): Boolean =
-        try {
-            val id = selectedId()
-            store.isInstalled(id) && store.isExtracted(id)
-        } catch (e: Exception) {
-            false
-        }
 }
 
 /** What an install attempt came to. */
@@ -126,9 +108,15 @@ class InstallerPort(
 /**
  * The real install port over [store]: the speech engine module's installer, fetching through [fetcher]
  * (the module's network fetcher unless another is handed in). It reports the fetch progress too.
+ * [usableSpace] is the installer's free-space reader; the default asks the file system, and a test may
+ * hand in another so that the result does not depend on the disk of the machine it runs on.
  */
-fun modelInstallPortFor(store: LocalModelStore, fetcher: ModelFetcher = HttpModelFetcher()): ModelInstallPort {
-    val modelInstaller = ModelInstaller(store, fetcher)
+fun modelInstallPortFor(
+    store: LocalModelStore,
+    fetcher: ModelFetcher = HttpModelFetcher(),
+    usableSpace: (File) -> Long = { it.usableSpace },
+): ModelInstallPort {
+    val modelInstaller = ModelInstaller(store, fetcher, usableSpace = usableSpace)
     return InstallerPort(
         installerWithProgress = { entry, progress -> modelInstaller.install(entry, progress) },
         installer = { modelInstaller.install(it) },
@@ -199,14 +187,34 @@ class ModelDownloader(
      * when a download is already running.
      */
     fun requestDownload(onFinished: (DownloadOutcome) -> Unit = {}) {
+        start(null, onFinished)
+    }
+
+    /**
+     * Starts the download of the model [id], from the main thread, and returns at once. It answers as
+     * [requestDownload] does, and it is refused in the same way while another download runs.
+     */
+    fun requestDownload(id: String, onFinished: (DownloadOutcome) -> Unit = {}) {
+        start(id, onFinished)
+    }
+
+    /**
+     * The id of the model being downloaded now, or null when no download runs. This is a read of the download
+     * in flight: it starts nothing and changes nothing, so it is not a way in.
+     */
+    fun downloadingId(): String? = (active.get() as? Download)?.id
+
+    private class Download(val id: String)
+
+    private fun start(id: String?, onFinished: (DownloadOutcome) -> Unit) {
         if (!running.compareAndSet(false, true)) {
             tell(onFinished, DownloadOutcome.AlreadyRunning)
             return
         }
-        val token = Any()
+        val token = Download(try { id ?: selectedId() } catch (e: Exception) { "" })
         active.set(token)
         val entry = try {
-            lookup(selectedId())
+            lookup(token.id)
         } catch (e: Exception) {
             null
         }
@@ -264,6 +272,10 @@ class ModelDownloader(
     private fun finish(outcome: DownloadOutcome, onFinished: (DownloadOutcome) -> Unit) {
         active.set(null)
         running.set(false)
+        // A finished install is answered first, so the model it installed is saved as the model in use before
+        // the done notice makes the screen read it again. A failure is answered after its notice, as before.
+        val answerFirst = outcome is DownloadOutcome.Done
+        if (answerFirst) tell(onFinished, outcome)
         try {
             when (outcome) {
                 is DownloadOutcome.Done -> notice.done()
@@ -271,9 +283,9 @@ class ModelDownloader(
                 DownloadOutcome.AlreadyRunning -> Unit
             }
         } catch (e: Exception) {
-            // The notice could not be shown; the answer below is still given.
+            // The notice could not be shown; the answer is still given.
         }
-        tell(onFinished, outcome)
+        if (!answerFirst) tell(onFinished, outcome)
     }
 
     private fun tell(onFinished: (DownloadOutcome) -> Unit, outcome: DownloadOutcome) {

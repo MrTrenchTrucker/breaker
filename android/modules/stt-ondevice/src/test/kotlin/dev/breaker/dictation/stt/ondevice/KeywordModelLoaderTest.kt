@@ -24,7 +24,7 @@ class KeywordModelLoaderTest {
 
     private val bytes = "keyword model bytes".toByteArray()
     private val digest = Fixtures.independentSha256(bytes)
-    private val entry = ModelEntry(KEYWORD_MODEL_ID, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+    private val entry = ModelEntry(KEYWORD_MODEL_ID, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
 
     @Before
     fun setUp() {
@@ -38,9 +38,9 @@ class KeywordModelLoaderTest {
             store,
             lookupOf(found),
             NoDebugSink,
-            { file, pin, checksums, archiveName ->
+            { file, pin, expectedBytes ->
                 verifyCalls[0]++
-                ModelIntegrity.verify(file, pin, checksums, archiveName)
+                ModelIntegrity.verify(file, pin, expectedBytes)
             },
         )
 
@@ -49,7 +49,7 @@ class KeywordModelLoaderTest {
         dir.mkdirs()
         File(dir, LocalModelStore.ARCHIVE_NAME).writeBytes(bytes)
         store.markVerified(KEYWORD_MODEL_ID, digest)
-        if (withChecksums) store.storeChecksums(KEYWORD_MODEL_ID, "model.archive\t$digest")
+        if (withChecksums) Fixtures.writeLegacyChecksums(store, KEYWORD_MODEL_ID, "model.archive\t$digest")
         if (withFiles) Fixtures.seedExtracted(store, KEYWORD_MODEL_ID)
     }
 
@@ -81,20 +81,21 @@ class KeywordModelLoaderTest {
     }
 
     @Test
-    fun `missing stored checksums are refused as unreadable and the archive is kept`() {
+    fun `missing stored checksums do not stop the load and the archive is kept`() {
         seedArchive(withChecksums = false)
-        val result = refused(loader().load())
-        assertEquals("stt-ondevice keyword loader: no checksums", ModelLoader.Refusal.CHECKSUMS_UNREADABLE, result.refusal)
-        assertEquals(ModelMessages.NOT_VERIFIED_YET, result.detail)
+        val result = loader().load()
+        assertTrue("stt-ondevice keyword loader: no checksums must still load but got $result", result is KeywordLoad.Ready)
+        assertEquals(digest, (result as KeywordLoad.Ready).model.digest)
         assertTrue(store.isInstalled(KEYWORD_MODEL_ID))
     }
 
     @Test
-    fun `stored checksums that cannot be parsed are refused as unreadable`() {
+    fun `stored checksums that cannot be parsed do not stop the load`() {
         seedArchive()
-        store.storeChecksums(KEYWORD_MODEL_ID, "not valid checksums")
-        val result = refused(loader().load())
-        assertEquals("stt-ondevice keyword loader: bad checksums", ModelLoader.Refusal.CHECKSUMS_UNREADABLE, result.refusal)
+        Fixtures.writeLegacyChecksums(store, KEYWORD_MODEL_ID, "not valid checksums")
+        val result = loader().load()
+        assertTrue("stt-ondevice keyword loader: bad checksums must still load but got $result", result is KeywordLoad.Ready)
+        assertEquals(digest, (result as KeywordLoad.Ready).model.digest)
         assertTrue(store.isInstalled(KEYWORD_MODEL_ID))
     }
 
@@ -167,12 +168,12 @@ class KeywordModelLoaderTest {
     @Test
     fun `speech loading is unchanged for small and tiny`() {
         for (id in listOf("small", "tiny")) {
-            val speechEntry = ModelEntry(id, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+            val speechEntry = ModelEntry(id, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
             val dir = store.directoryFor(id)
             dir.mkdirs()
             File(dir, LocalModelStore.ARCHIVE_NAME).writeBytes(bytes)
             store.markVerified(id, digest)
-            store.storeChecksums(id, "model.archive\t$digest")
+            Fixtures.writeLegacyChecksums(store, id, "model.archive\t$digest")
             Fixtures.seedExtracted(store, id)
             val recognizer = object : SherpaRecognizer {
                 override fun decode(pcm: FloatArray, sampleRateHz: Int): SherpaTranscript = SherpaTranscript("", emptyList(), "en")

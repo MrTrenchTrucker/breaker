@@ -5,7 +5,7 @@ What these tests hold:
 
 * the keyword entry parses and generates, and carries the pinned id, url,
   sha256 and size, as the one and only entry of its list;
-* the speech list is still exactly small, tiny, base, medium, in that order
+* the speech list is exactly small, tiny, base, medium, parakeet, in that order
   (each half of the pin has a planted mutant that must make it fail);
 * a keyword id equal to a speech id is refused, so `byId` (speech) and
   `byKeywordId` (keyword) can never answer for the same name;
@@ -35,7 +35,7 @@ from keyword_support import (KW_ID, KW_NAME, KW_SHA, KW_SIZE_MB, KW_URL,
 
 
 def speech_ids_pin(text):
-    """The pin: the speech list of `text` is exactly the four ids, in order.
+    """The pin: the speech list of `text` is exactly the five ids, in order.
     Raises AssertionError when it is not."""
     speech, _ = gmr.check_registry(text)
     got = [e["id"] for e in speech]
@@ -95,9 +95,9 @@ class RenderedListsTest(unittest.TestCase):
         speech, kw = gmr.check_registry(ts.models_text())
         self.text = gmr.render_kotlin(speech, kw)
 
-    def test_all_stays_exactly_the_four_speech_constants(self):
+    def test_all_stays_exactly_the_five_speech_constants(self):
         self.assertIn(
-            "    val ALL: List<ModelEntry> = listOf(SMALL, TINY, BASE, MEDIUM)",
+            "    val ALL: List<ModelEntry> = listOf(SMALL, TINY, BASE, MEDIUM, PARAKEET)",
             self.text.splitlines())
 
     def test_keyword_models_names_exactly_the_keyword_constant(self):
@@ -124,28 +124,29 @@ class RenderedListsTest(unittest.TestCase):
 
     def test_every_entry_block_closes_with_a_bare_paren(self):
         closers = sum(1 for l in self.text.splitlines() if l == "    )")
-        self.assertEqual(5, closers)
+        self.assertEqual(6, closers)
         self.assertEqual([], [l for l in self.text.splitlines()
                               if l.strip() == "),"])
 
 
 class SpeechListPinTest(unittest.TestCase):
-    """The speech list is exactly small, tiny, base, medium. The pin has its
+    """The speech list is exactly small, tiny, base, medium, parakeet. The pin has its
     own planted mutants: a pin that cannot go red is not a pin."""
 
-    def test_the_committed_speech_list_is_exactly_the_four_ids(self):
+    def test_the_committed_speech_list_is_exactly_the_five_ids(self):
         speech_ids_pin(ts.models_text())
 
-    def test_the_rendered_all_names_exactly_those_four_constants(self):
+    def test_the_rendered_all_names_exactly_those_five_constants(self):
         speech, kw = gmr.check_registry(ts.models_text())
         m = re.search(r"val ALL: List<ModelEntry> = listOf\((.*?)\)",
                       gmr.render_kotlin(speech, kw))
         names = [n.strip() for n in m.group(1).split(",")]
-        self.assertEqual(["SMALL", "TINY", "BASE", "MEDIUM"], names)
+        self.assertEqual(["SMALL", "TINY", "BASE", "MEDIUM", "PARAKEET"], names)
 
-    def test_a_fifth_speech_entry_makes_the_pin_fail(self):
+    def test_an_extra_speech_entry_makes_the_pin_fail(self):
         extra = "\n".join(ts.entry_block("small")).replace(
-            "id: small", "id: extra")
+            "id: small", "id: extra").replace(
+                "default: true", "default: false")
         text = ts.models_text().replace(
             "keyword_models:\n", extra + "\nkeyword_models:\n", 1)
         self.assertEqual(1, text.count("id: extra"))
@@ -239,7 +240,7 @@ class KeywordListShapeTest(unittest.TestCase):
         text = ts.models_text()
         head = text[:text.index("\nkeyword_models:\n") + 1]
         speech, kw = gmr.check_registry(head)
-        self.assertEqual(4, len(speech))
+        self.assertEqual(5, len(speech))
         self.assertEqual([], kw)
 
     def test_a_sequence_item_count_mismatch_in_the_keyword_list_is_refused(self):
@@ -252,8 +253,8 @@ class KeywordListShapeTest(unittest.TestCase):
     def test_the_speech_span_count_ignores_the_keyword_items(self):
         text = ts.models_text()
         head = text[:text.index("\nkeyword_models:\n") + 1]
-        self.assertEqual(4, len(gmr.check_models(text)))
-        self.assertEqual(4, len(gmr.check_models(head)))
+        self.assertEqual(5, len(gmr.check_models(text)))
+        self.assertEqual(5, len(gmr.check_models(head)))
 
 
 

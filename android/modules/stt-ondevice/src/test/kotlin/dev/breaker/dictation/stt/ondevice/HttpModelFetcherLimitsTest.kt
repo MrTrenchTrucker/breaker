@@ -88,8 +88,6 @@ class HttpModelFetcherLimitsTest {
         val opener = FakeOpener(emptyList<Step>())
         val model = attemptModel(fetcherOf(opener, cancelled = cancel.check), testEntry(), staging)
         assertEquals("cancelled", model.failedReason("cancel before a model fetch"))
-        val list = attemptChecksums(fetcherOf(opener, cancelled = cancel.check), staging)
-        assertEquals("cancelled", list.failedReason("cancel before a checksum fetch"))
         assertEquals("no request was made", 0, opener.requests.size)
         noPartial()
     }
@@ -116,10 +114,6 @@ class HttpModelFetcherLimitsTest {
             assertEquals("connect timeout", 1234, request.connectTimeoutMillis)
             assertEquals("read timeout", 5678, request.readTimeoutMillis)
         }
-        val listOpener = FakeOpener(serve(okBytes(ByteArray(10) { 1 })))
-        attemptChecksums(fetcherOf(listOpener, limits), staging).fetchedFile("checksum fetch")
-        assertEquals(1234, listOpener.requests[0].connectTimeoutMillis)
-        assertEquals(5678, listOpener.requests[0].readTimeoutMillis)
     }
 
     @Test

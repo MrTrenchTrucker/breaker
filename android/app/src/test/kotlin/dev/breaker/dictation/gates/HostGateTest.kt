@@ -142,7 +142,7 @@ internal class HostGateTest {
         Sample("TILE_NIGHT_MODE_IS_THE_PHONES", "and Configuration.UI_MODE_NIGHT_MASK", "and Configuration.UI_MODE_NIGHT_YES"),
         Sample("DOWNLOAD_AND_TILE_SHARE_ONE_MODEL_STORE", "installer = modelInstallPortFor(root.modelStore),", "installer = modelInstallPortFor(LocalModelStore(java.io.File(\"x\"))),"),
         Sample("DOWNLOAD_AND_TILE_SHARE_ONE_MODEL_STORE", "StoreModelReady(root.modelStore, selectedId)", "StoreModelReady(other, selectedId)"),
-        Sample("TWO_BACKGROUNDS", "background = SerialBackground(\"breaker-model-download\"),", "background = main,"),
+        Sample("TWO_BACKGROUNDS", "private val modelBackground = SerialBackground(\"breaker-model-download\")", "private val modelBackground = main"),
         Sample("TWO_BACKGROUNDS", "            main,\n            takeWorker,", "            main,\n            takeWorker,\n            SerialBackground(\"breaker-extra\"),"),
         Sample("LAUNCHER_OPENS_AS_A_NEW_TASK", "Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP", "Intent.FLAG_ACTIVITY_CLEAR_TOP"),
         Sample("LAUNCHER_OPENS_AS_A_NEW_TASK", "SettingsLauncherActivity::class.java", "OtherActivity::class.java"),

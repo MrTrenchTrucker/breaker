@@ -43,14 +43,6 @@ class ErrorMappingTest {
     }
 
     @Test
-    fun `checksumsUnreadable returns LOCAL_MODEL_MISSING with model id in detail`() {
-        val result = ErrorMapping.checksumsUnreadable("tiny")
-        assertEquals(SttError.LOCAL_MODEL_MISSING, result.error)
-        assertNotNull(result.detail)
-        assertTrue(result.detail!!.contains("tiny"))
-    }
-
-    @Test
     fun `audioWrongRate returns OTHER with rate in detail`() {
         val result = ErrorMapping.audioWrongRate(44100)
         assertEquals(SttError.OTHER, result.error)

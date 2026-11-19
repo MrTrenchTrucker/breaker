@@ -67,17 +67,6 @@ class DownloadPolicyContractTest {
     }
 
     @Test
-    fun `the checksum list address is https on a first-hop allowed host`() {
-        val uri = parse(limits.checksumsUrl, "checksum list address")
-        assertEquals("checksum list address: scheme", "https", uri.scheme?.lowercase())
-        assertTrue(
-            "checksum list address: host '${uri.host}' is not in the first-hop hosts ${limits.firstHopHosts}",
-            (uri.host ?: "").lowercase() in limits.firstHopHosts,
-        )
-        assertTrue("checksum list address: the policy refuses it as a first request", limits.isAllowed(uri, 0))
-    }
-
-    @Test
     fun `a model address is accepted as the first request and refused as a redirect target`() {
         for (entry in ModelRegistry.ALL) {
             val uri = parse(entry)

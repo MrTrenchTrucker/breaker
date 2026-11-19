@@ -1,5 +1,7 @@
 package dev.breaker.dictation.ui.screen.firstrun
 
+import dev.breaker.dictation.ui.screen.model.ModelRatingText
+import dev.breaker.dictation.ui.screen.onboarding.FirstRunModel
 import dev.breaker.dictation.ui.screen.onboarding.OpenAction
 import dev.breaker.dictation.ui.screen.onboarding.SetupState
 import dev.breaker.dictation.ui.screen.onboarding.SetupStep
@@ -84,6 +86,26 @@ internal object FirstRunWords {
 
     /** The source line under the model button, with the size in decimal megabytes put in place of its placeholder. */
     fun modelSource(sizeMb: Int): String = SetupTexts.MODEL_STEP_LINE.replace("{size}", sizeMb.toString())
+
+    /**
+     * The text of a speech model's button: its spoken rating, its trucks and its size, in that order.
+     * A model with no label or no rating has nothing to speak, so it gets the one download sentence.
+     */
+    fun modelButtonText(model: FirstRunModel): String {
+        val spoken = model.label?.let { ModelRatingText.spoken(it, model.rating) }
+        val trucks = ModelRatingText.trucks(model.rating)
+        if (spoken == null || trucks == null) return SetupTexts.BUTTON_DOWNLOAD_MODEL
+        return "$spoken $trucks, ${model.sizeMb} ${SetupTexts.MODEL_SIZE_UNIT}"
+    }
+
+    /**
+     * The models the model page draws a download button for: the offered ones not on the phone yet, in their
+     * offered order. A model already on the phone gets no button.
+     */
+    fun modelsToDownload(models: List<FirstRunModel>): List<FirstRunModel> = models.filter { !it.ready }
+
+    /** The line the model page shows in place of the buttons when every offered model is already on the phone. */
+    fun modelsReady(): String = SetupTexts.STATUS_GRANTED
 
     /** The text of the model page's download button. */
     fun modelButton(): String = SetupTexts.BUTTON_DOWNLOAD_MODEL

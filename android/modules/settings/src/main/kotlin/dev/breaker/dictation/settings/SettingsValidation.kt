@@ -143,7 +143,7 @@ internal object SettingsValidation {
      * The file exists to survive hand edits, so the value is trimmed before it
      * is asked of the registry — the same trim every other string key gets —
      * and a value that is nothing but whitespace is absent, like a blank one.
-     * What the value is NOT trimmed into is a fold: `Small` is not `small`.
+     * What the value is NOT trimmed into is a fold: an id with a capital letter is not the same id in lowercase.
      * The registry's own lookup is exact, and its ids are lowercase
      * alphanumerics, so a reader that folded case here would honour a file the
      * writer refused; the match is exact, with no [String.equals] call asked to

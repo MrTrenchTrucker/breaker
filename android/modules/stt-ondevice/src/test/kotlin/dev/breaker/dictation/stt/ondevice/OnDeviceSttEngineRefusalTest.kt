@@ -104,15 +104,6 @@ class OnDeviceSttEngineRefusalTest {
     }
 
     @Test
-    fun `unreadable checksums are reported for the requested id`() {
-        assertArm(
-            "CHECKSUMS_UNREADABLE",
-            refused(ModelLoader.Refusal.CHECKSUMS_UNREADABLE),
-            ErrorMapping.checksumsUnreadable(modelId),
-        )
-    }
-
-    @Test
     fun `a model that failed verification and was deleted is reported as deleted for the requested id`() {
         assertArm(
             "VERIFICATION_REFUSED with the model deleted",

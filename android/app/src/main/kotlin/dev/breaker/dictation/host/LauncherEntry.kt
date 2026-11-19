@@ -14,6 +14,9 @@ import dev.breaker.dictation.wiring.ProbeRefreshingSettingsStore
 import dev.breaker.dictation.wiring.Rebuilt
 import dev.breaker.dictation.wiring.StoreModelReady
 import dev.breaker.dictation.wiring.formatTime
+import dev.breaker.dictation.wiring.modelSelectWriterFor
+import dev.breaker.dictation.wiring.offeredSpeechModels
+import dev.breaker.dictation.wiring.selectOnDone
 import dev.breaker.dictation.wiring.signOutAction
 
 /**
@@ -96,8 +99,19 @@ internal fun buildSettingsRebuilt(
             sessionLive = { app.compositionRoot.sessionLive.liveNow() },
             onSignIn = onSignIn,
             serverAddressStatus = { app.compositionRoot.serverAddressStatus() },
+            offeredModels = { offeredSpeechModels() },
+            installedModel = { id -> app.compositionRoot.modelStore.isInstalled(id) },
+            downloadingModelId = { app.tileHost.downloadingModelId() },
+            onDownloadModelId = { id -> app.tileHost.requestDownload(id) },
+            onDeleteModel = { id -> app.tileHost.deleteModel(id) },
+            onUseModel = { id -> app.tileHost.useModel(id) },
         )
     }
+}
+
+/** The first run's download by id: the download makes the model it installed the model in use. */
+internal fun firstRunDownloadById(app: BreakerApp): (String) -> Unit = { id ->
+    app.tileHost.requestDownload(id, selectOnDone(modelSelectWriterFor(app.settingsStore, app.compositionRoot.modelStore)))
 }
 
 internal fun buildSettingsColumn(
@@ -123,3 +137,10 @@ internal fun buildSettingsColumn(
 internal fun redrawSettingsAfterProbe(app: BreakerApp, stillShown: () -> Boolean, redraw: () -> Unit) {
     app.probeStatusRefresh.start { MainLooperPost().post { if (stillShown()) redraw() } }
 }
+
+/**
+ * The answer to a model delete, once it has come back on the main thread: the settings control is drawn again,
+ * whether the delete removed the files or was refused, so the rows show what is on the phone now. [control]
+ * reads the settings control at the time of the answer; nothing is drawn when there is none.
+ */
+internal fun redrawOnDelete(control: () -> dev.breaker.dictation.ui.DownloadControl?): (Boolean) -> Unit = { _ -> control()?.refresh() }

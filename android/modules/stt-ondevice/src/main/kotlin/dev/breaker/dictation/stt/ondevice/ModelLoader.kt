@@ -9,9 +9,8 @@ import java.io.IOException
 /**
  * The port the engine depends on: load a model by id.
  *
- * A `fun interface` so tests can implement it directly without subclassing.
- * The engine only needs `load(modelId)`, and this is the smallest surface
- * that expresses that contract.
+ * A `fun interface` so tests can implement it directly without subclassing;
+ * the engine only needs `load(modelId)`.
  */
 fun interface ModelLoaderPort {
     fun load(modelId: String): ModelLoader.LoadResult
@@ -20,12 +19,16 @@ fun interface ModelLoaderPort {
 /**
  * Loads a verified model from the local store and creates a recognizer.
  *
- * A load trusts the unpacked files through the install stamp (see
- * [UnpackedStamp]) when one exists for the pinned model: sizes and modified
- * times decide, and the four files are hashed only when a modified time
- * differs. A changed file is deleted and refused before the engine opens.
- * Without a stamp the archive is verified once, and the stamp is written from
- * the files as they are.
+ * A load trusts the unpacked files through the install stamp (see [UnpackedStamp])
+ * when one exists for the pinned model: sizes and modified times decide, and the
+ * four files are hashed only when a modified time differs. A changed file is
+ * deleted and refused before the engine opens.
+ * Without a stamp the archive is verified once, and the stamp is written from the files.
+ *
+ * The trust decision uses the registry entry's own pin (sha256 and byte size).
+ * A `.checksums` file left in an installed model's folder by an earlier version
+ * is never read and never blocks a load, so an update keeps installed models
+ * working; the file is ignored, not deleted.
  *
  * The family check lives here - there is no separate catalogue type. Only
  * [ModelFamily.SHERPA_ONNX] models are accepted; other families are refused.
@@ -50,10 +53,12 @@ class ModelLoader(
      */
     private val debug: ModelDebugSink = NoDebugSink,
     /** The archive check. The default is the real one; a test may replace it to count calls. */
-    private val verify: (File, String, UpstreamChecksums.Checksums, String?) -> ModelIntegrity.Verdict =
-        { file, pin, checksums, archiveName -> ModelIntegrity.verify(file, pin, checksums, archiveName) },
+    private val verify: (File, String, Long) -> ModelIntegrity.Verdict =
+        { file, pin, expectedBytes -> ModelIntegrity.verify(file, pin, expectedBytes) },
     /** Digests one unpacked file. The default is the real hash; a test may replace it. */
     private val digestOf: (File) -> String? = ModelIntegrity::sha256,
+    /** Gives the entry an unpack profile comes from; the real registry, whatever [lookup] returns. */
+    private val profileLookup: (String) -> ModelEntry? = ModelRegistry::byId,
 ) : ModelLoaderPort {
 
     /**
@@ -95,13 +100,6 @@ class ModelLoader(
         NOT_INSTALLED,
 
         /**
-         * The stored checksums are missing or could not be parsed, so the
-         * archive could not be checked. The model is kept and checked again
-         * on the next load.
-         */
-        CHECKSUMS_UNREADABLE,
-
-        /**
          * The archive failed integrity verification and was deleted; when the
          * delete failed, [LoadResult.Refused.leftOnDisk] is true.
          */
@@ -115,20 +113,15 @@ class ModelLoader(
      * Load the model with [modelId] from the local store.
      *
      * The load order is: registry lookup, family check, install check,
-     * checksum parse, archive verification, unpacked-files check, engine creation. Each step has
+     * archive verification, unpacked-files check, engine creation. Each step has
      * its own refusal category, and each refusal carries a fixed sentence from
      * [ModelMessages]; the technical text goes to the debug sink.
      *
-     * Two cases look alike and are kept apart:
-     * - Unreadable checksums (none stored, or stored text that cannot be
-     *   parsed): nothing was judged. The archive and its markers are kept, no
-     *   recognizer is created, and the result is
-     *   [Refusal.CHECKSUMS_UNREADABLE]. The next call checks again.
-     * - A failed check (the archive does not match its pin or the upstream
-     *   list): the model is deleted at once and the result is
-     *   [Refusal.VERIFICATION_REFUSED]. When the delete fails the refusal stays,
-     *   its sentence says the file could not be deleted, and
-     *   [LoadResult.Refused.leftOnDisk] is true.
+     * A failed check (the archive's size or sha256 is not the registry pin):
+     * the model is deleted at once and the result is
+     * [Refusal.VERIFICATION_REFUSED]. When the delete fails the refusal stays,
+     * its sentence says the file could not be deleted, and
+     * [LoadResult.Refused.leftOnDisk] is true.
      *
      * A verified archive whose unpacked files are missing is refused as
      * [Refusal.NOT_INSTALLED] and kept: nothing about it was judged wrong, and
@@ -164,30 +157,11 @@ class ModelLoader(
             )
         }
 
-        // Step 4: checksum parse. Unreadable checksums mean the archive was not
-        // judged: keep it, create nothing, refuse, and check again next load.
-        val checksumsText = store.storedChecksums(modelId)
-            ?: return refuse(
-                Refusal.CHECKSUMS_UNREADABLE,
-                ModelMessages.NOT_VERIFIED_YET,
-                "no stored checksums for '$modelId'",
-            )
-
-        val checksums: UpstreamChecksums.Checksums = try {
-            UpstreamChecksums.parse(checksumsText)
-        } catch (e: Exception) {
-            return refuse(
-                Refusal.CHECKSUMS_UNREADABLE,
-                ModelMessages.NOT_VERIFIED_YET,
-                "stored checksums unparseable: ${e.message}",
-            )
-        }
-
-        // Step 5: the unpacked files and the archive digest. An install stamp for
+        // Step 4: the unpacked files and the archive digest. An install stamp for
         // this pin decides by sizes and modified times, so the archive is not
         // hashed. Without one, the archive is verified here, once, and the stamp
-        // is written in step 5b after the unpacked files were found.
-        val profile = ExtractionProfiles.forModel(modelId)
+        // is written in step 4b after the unpacked files were found.
+        val profile = ExtractionProfiles.forModel(modelId, profileLookup)
         val stamp = store.readStamp(modelId)?.takeIf { profile != null && it.isFor(entry.sha256, profile.files) }
         val digest: String
         if (stamp != null) {
@@ -201,7 +175,7 @@ class ModelLoader(
             stampRefusal(modelId, stamp)?.let { return it }
             digest = stamp.archiveDigest
         } else {
-            val verdict = verifyArchive(modelId, entry, checksums)
+            val verdict = verifyArchive(modelId, entry)
             if (verdict is ModelIntegrity.Verdict.Refused) {
                 val removed = store.delete(modelId)
                 return refuse(
@@ -213,7 +187,7 @@ class ModelLoader(
             }
             digest = (verdict as ModelIntegrity.Verdict.Verified).digest
 
-            // Step 5b: the engine opens the unpacked files, not the archive. A
+            // Step 4b: the engine opens the unpacked files, not the archive. A
             // verified archive without them (an install that stopped before the
             // unpack) is kept, because nothing about it was wrong; installing again
             // unpacks it. This comes after the archive check, so a tampered archive
@@ -229,7 +203,7 @@ class ModelLoader(
             writeFirstStamp(modelId, profile, digest)
         }
 
-        // Step 6: engine creation. Any Exception from the factory (checked or
+        // Step 5: engine creation. Any Exception from the factory (checked or
         // not, including SherpaTranscriptionException) is a refusal. The real
         // factory turns a native library that fails to link into a
         // SherpaTranscriptionException, so that case arrives here as a
@@ -274,7 +248,7 @@ class ModelLoader(
     }
 
     /**
-     * Verify the installed archive for [modelId] against [entry]'s pin and [checksums].
+     * Verify the installed archive for [modelId] against [entry]'s pinned sha256 and byte size.
      *
      * This is deliberately the single place the trust decision is made, so a
      * later change to that decision is one deliberate edit rather than a drift.
@@ -285,14 +259,13 @@ class ModelLoader(
     private fun verifyArchive(
         modelId: String,
         entry: ModelEntry,
-        checksums: UpstreamChecksums.Checksums,
     ): ModelIntegrity.Verdict {
         val archive = store.archiveFile(modelId)
-        return verify(archive, entry.sha256, checksums, entry.archiveName)
+        return verify(archive, entry.sha256, entry.sizeBytes)
     }
 
     /**
-     * The stamp path of step 5: null when the unpacked files pass, else the
+     * The stamp path of step 4: null when the unpacked files pass, else the
      * refusal. Sizes and modified times decide without hashing. When only the
      * modified times differ, the four files are hashed against the recorded
      * digests (never the archive), and a stamp that still matches is refreshed.

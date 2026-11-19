@@ -34,38 +34,27 @@ class ModelInstallerTest {
     }
 
     private class FakeFetcher(
-        private val modelBytes: ByteArray?,
-        private val checksumsText: String?,
+        private val modelBytes: ByteArray,
         private val failModel: Boolean = false,
-        private val failChecksums: Boolean = false,
         private val throwModel: Boolean = false,
-        private val throwChecksums: Boolean = false,
     ) : ModelFetcher {
         override fun fetchModel(entry: ModelEntry, stagingDir: File): ModelFetcher.Result {
             if (throwModel) throw IOException("staging unwritable")
             if (failModel) return ModelFetcher.Result.Failed("network error")
             val file = File(stagingDir, "model.archive")
-            file.writeBytes(modelBytes!!)
-            return ModelFetcher.Result.Fetched(file)
-        }
-        override fun fetchChecksums(stagingDir: File): ModelFetcher.Result {
-            if (throwChecksums) throw IOException("staging unwritable")
-            if (failChecksums) return ModelFetcher.Result.Failed("network error")
-            val file = File(stagingDir, "checksums.txt")
-            file.writeText(checksumsText!!)
+            file.writeBytes(modelBytes)
             return ModelFetcher.Result.Fetched(file)
         }
     }
 
     @Test
-    fun `install succeeds when bytes match pin and checksums contain pin`() {
+    fun `install succeeds when bytes match the pinned digest and size`() {
         // A real archive: a successful install unpacks what it fetched.
         val bytes = TarFixtures.tinyArchive()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val checksumsText = "model.archive\t$digest"
-        val fetcher = FakeFetcher(bytes, checksumsText)
-        val installer = ModelInstaller(store, fetcher)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
         val result = installer.install(entry)
         assertTrue(result.isInstalled)
         val installed = result as ModelInstaller.InstallResult.Installed
@@ -77,9 +66,9 @@ class ModelInstallerTest {
     fun `install refuses with FETCH_FAILED when model fetch fails`() {
         val bytes = "test".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val fetcher = FakeFetcher(bytes, "model.archive\t$digest", failModel = true)
-        val installer = ModelInstaller(store, fetcher)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes, failModel = true)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
         val result = installer.install(entry)
         assertFalse(result.isInstalled)
         val refused = result as ModelInstaller.InstallResult.Refused
@@ -87,39 +76,12 @@ class ModelInstallerTest {
     }
 
     @Test
-    fun `install refuses with CHECKSUMS_FAILED when checksums fetch fails`() {
-        val bytes = "test".toByteArray()
-        val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val fetcher = FakeFetcher(bytes, "model.archive\t$digest", failChecksums = true)
-        val installer = ModelInstaller(store, fetcher)
-        val result = installer.install(entry)
-        assertFalse(result.isInstalled)
-        val refused = result as ModelInstaller.InstallResult.Refused
-        assertEquals(ModelInstaller.Refusal.CHECKSUMS_FAILED, refused.refusal)
-    }
-
-    @Test
-    fun `install refuses with CHECKSUMS_UNREADABLE when checksums are unparseable`() {
-        val bytes = "test".toByteArray()
-        val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val fetcher = FakeFetcher(bytes, "not a valid checksums file")
-        val installer = ModelInstaller(store, fetcher)
-        val result = installer.install(entry)
-        assertFalse(result.isInstalled)
-        val refused = result as ModelInstaller.InstallResult.Refused
-        assertEquals(ModelInstaller.Refusal.CHECKSUMS_UNREADABLE, refused.refusal)
-    }
-
-    @Test
     fun `install refuses with DIGEST_REFUSED when bytes do not match pin`() {
         val bytes = "test model bytes".toByteArray()
         val wrongDigest = "0".repeat(64)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", wrongDigest, 1, "Apache-2.0", false)
-        val checksumsText = "model.archive\t$wrongDigest"
-        val fetcher = FakeFetcher(bytes, checksumsText)
-        val installer = ModelInstaller(store, fetcher)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", wrongDigest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
         val result = installer.install(entry)
         assertFalse(result.isInstalled)
         val refused = result as ModelInstaller.InstallResult.Refused
@@ -130,10 +92,9 @@ class ModelInstallerTest {
     fun `install deletes staged file and leaves no model directory when verification fails`() {
         val bytes = "test model bytes".toByteArray()
         val wrongDigest = "0".repeat(64)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", wrongDigest, 1, "Apache-2.0", false)
-        val checksumsText = "model.archive\t$wrongDigest"
-        val fetcher = FakeFetcher(bytes, checksumsText)
-        val installer = ModelInstaller(store, fetcher)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", wrongDigest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
         installer.install(entry)
         val stagedFiles = store.stagingDirectory().listFiles() ?: emptyArray()
         assertTrue(stagedFiles.none { it.name == "model.archive" })
@@ -144,10 +105,9 @@ class ModelInstallerTest {
     fun `install refuses with STAGING_FAILED when staging directory cannot be created`() {
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val checksumsText = "model.archive\t$digest"
-        val fetcher = FakeFetcher(bytes, checksumsText)
-        val installer = ModelInstaller(store, fetcher)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
         File(store.stagingDirectory().path).writeText("blocker")
         val result = installer.install(entry)
         assertFalse(result.isInstalled)
@@ -159,10 +119,9 @@ class ModelInstallerTest {
     fun `install refuses with STAGING_FAILED when model directory cannot be created`() {
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val checksumsText = "model.archive\t$digest"
-        val fetcher = FakeFetcher(bytes, checksumsText)
-        val installer = ModelInstaller(store, fetcher)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
         File(store.directoryFor("tiny").path).writeText("blocker")
         val result = installer.install(entry)
         assertFalse(result.isInstalled)
@@ -174,10 +133,9 @@ class ModelInstallerTest {
     fun `install refuses with MOVE_FAILED when archive destination is a directory`() {
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val checksumsText = "model.archive\t$digest"
-        val fetcher = FakeFetcher(bytes, checksumsText)
-        val installer = ModelInstaller(store, fetcher)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
         store.archiveFile("tiny").mkdirs()
         val result = installer.install(entry)
         assertFalse(result.isInstalled)
@@ -192,10 +150,9 @@ class ModelInstallerTest {
         // from delete() happening to fail.
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val checksumsText = "model.archive\t$digest"
-        val fetcher = FakeFetcher(bytes, checksumsText)
-        val installer = ModelInstaller(store, fetcher)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
         val dest = store.archiveFile("tiny")
         dest.mkdirs()
         File(dest, "occupied").writeText("not empty")
@@ -206,35 +163,19 @@ class ModelInstallerTest {
     }
 
     @Test
-    fun `install refuses with STAGING_FAILED when checksums fetch throws IOException`() {
-        // The fetcher writes into staging, so an IOException from the write is
-        // a staging failure and must be returned, never escape install().
-        val bytes = "test model bytes".toByteArray()
-        val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val fetcher = FakeFetcher(bytes, null, throwChecksums = true)
-        val installer = ModelInstaller(store, fetcher)
-        val result = installer.install(entry)
-        assertFalse(result.isInstalled)
-        val refused = result as ModelInstaller.InstallResult.Refused
-        assertEquals(ModelInstaller.Refusal.STAGING_FAILED, refused.refusal)
-    }
-
-    @Test
     fun `install refuses with STAGING_FAILED when model metadata cannot be recorded`() {
-        // The step-7 metadata writes go into the model directory, so an
-        // IOException there is the same staging-write shape as the fetches.
+        // The step-7 metadata write goes into the model directory, so an
+        // IOException there is the same staging-write shape as the fetch.
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val checksumsText = "model.archive\t$digest"
-        val fetcher = FakeFetcher(bytes, checksumsText)
-        val installer = ModelInstaller(store, fetcher)
-        // A DIRECTORY where the .checksums file must go makes the step-7 write
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
+        // A DIRECTORY where the .verified marker must go makes the step-7 write
         // fail with an IOException.
         val modelDir = store.directoryFor("tiny")
         modelDir.mkdirs()
-        File(modelDir, LocalModelStore.CHECKSUMS_FILE).mkdirs()
+        File(modelDir, LocalModelStore.VERIFIED_FILE).mkdirs()
         val result = installer.install(entry)
         assertFalse(result.isInstalled)
         val refused = result as ModelInstaller.InstallResult.Refused
@@ -243,14 +184,13 @@ class ModelInstallerTest {
 
     @Test
     fun `install refuses with STAGING_FAILED when model fetch throws IOException`() {
-        // The second fetch also writes into staging; its IOException is a
-        // staging failure too and must not escape install().
+        // The fetch writes into staging; its IOException is a
+        // staging failure and must not escape install().
         val bytes = "test model bytes".toByteArray()
         val digest = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
-        val checksumsText = "model.archive\t$digest"
-        val fetcher = FakeFetcher(bytes, checksumsText, throwModel = true)
-        val installer = ModelInstaller(store, fetcher)
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
+        val fetcher = FakeFetcher(bytes, throwModel = true)
+        val installer = ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE })
         val result = installer.install(entry)
         assertFalse(result.isInstalled)
         val refused = result as ModelInstaller.InstallResult.Refused
@@ -264,25 +204,22 @@ class ModelInstallerTest {
         // installed and verified.
         // The good bytes are a real archive: a successful install unpacks what it fetched.
         val goodBytes = TarFixtures.tinyArchive()
-        val badBytes = "different model bytes".toByteArray()
+        // Same length as the pinned archive, one byte changed: the size check passes, so the
+        // refusal below comes from the digest check.
+        val badBytes = goodBytes.copyOf().also { it[it.size - 1] = (it[it.size - 1] + 1).toByte() }
         val pin = sha256Hex(goodBytes)
+        assertEquals("the bad bytes must have the pinned length", goodBytes.size, badBytes.size)
         assertNotEquals("the bad bytes must not match the pin", pin, sha256Hex(badBytes))
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false)
-        // Both lists name the pin. The second also names another archive, so a
-        // checksum record rewritten by the second install would differ from the
-        // one the first install stored.
-        val firstChecksums = "model.archive\t$pin"
-        val secondChecksums = "model.archive\t$pin\nother.archive\t${sha256Hex("other".toByteArray())}"
+        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false, sizeBytes = goodBytes.size.toLong())
 
-        val first = ModelInstaller(store, FakeFetcher(goodBytes, firstChecksums)).install(entry)
+        val first = ModelInstaller(store, FakeFetcher(goodBytes), usableSpace = { Long.MAX_VALUE }).install(entry)
         assertTrue(first.isInstalled)
         val archive = store.archiveFile("tiny")
         val archiveBefore = archive.readBytes()
         assertArrayEquals(goodBytes, archiveBefore)
-        assertEquals(firstChecksums, store.storedChecksums("tiny"))
         assertEquals(pin, store.lastVerifiedDigest("tiny"))
 
-        val second = ModelInstaller(store, FakeFetcher(badBytes, secondChecksums)).install(entry)
+        val second = ModelInstaller(store, FakeFetcher(badBytes), usableSpace = { Long.MAX_VALUE }).install(entry)
         assertFalse(second.isInstalled)
         val refused = second as ModelInstaller.InstallResult.Refused
         assertEquals(ModelInstaller.Refusal.DIGEST_REFUSED, refused.refusal)
@@ -291,40 +228,20 @@ class ModelInstallerTest {
         assertTrue("the earlier install must still be installed", store.isInstalled("tiny"))
         assertTrue("the earlier archive must still be a file", archive.isFile)
         assertArrayEquals(archiveBefore, archive.readBytes())
-        assertEquals(firstChecksums, store.storedChecksums("tiny"))
         assertEquals(pin, store.lastVerifiedDigest("tiny"))
 
-        // Control: the same re-download with the good bytes is accepted and
-        // does rewrite the checksum record, so the unchanged record above is
+        // Control: a re-download of a different archive with its own pin is accepted and
+        // does replace the archive and the verified digest, so the unchanged state above is
         // a result of the refusal and not of a fixture that cannot change it.
-        val third = ModelInstaller(store, FakeFetcher(goodBytes, secondChecksums)).install(entry)
+        val otherBytes = TarFixtures.tinyArchive { name -> TarFixtures.contentOf("v2-$name", 48) }
+        val otherPin = sha256Hex(otherBytes)
+        assertNotEquals("fixture: the second archive differs", pin, otherPin)
+        val otherEntry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", otherPin, 1, "Apache-2.0", false, sizeBytes = otherBytes.size.toLong())
+        val third = ModelInstaller(store, FakeFetcher(otherBytes), usableSpace = { Long.MAX_VALUE }).install(otherEntry)
         assertTrue(third.isInstalled)
-        assertEquals(pin, (third as ModelInstaller.InstallResult.Installed).digest)
+        assertEquals(otherPin, (third as ModelInstaller.InstallResult.Installed).digest)
         assertTrue(store.isInstalled("tiny"))
-        assertArrayEquals(goodBytes, archive.readBytes())
-        assertEquals(secondChecksums, store.storedChecksums("tiny"))
-        assertEquals(pin, store.lastVerifiedDigest("tiny"))
-    }
-
-    @Test
-    fun `install refuses bytes that match the pin when the fetched upstream list does not name the pin`() {
-        // A real archive: the control arm below installs it and so unpacks it.
-        val bytes = TarFixtures.tinyArchive()
-        val pin = sha256Hex(bytes)
-        val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false)
-        val unrelated = sha256Hex("other".toByteArray())
-        assertNotEquals(pin, unrelated)
-
-        val refusedResult = ModelInstaller(store, FakeFetcher(bytes, "model.archive\t$unrelated")).install(entry)
-        assertFalse("bytes that match the pin must not install when upstream does not name it", refusedResult.isInstalled)
-        val refused = refusedResult as ModelInstaller.InstallResult.Refused
-        assertEquals(ModelInstaller.Refusal.DIGEST_REFUSED, refused.refusal)
-        assertFalse(store.isInstalled("tiny"))
-        assertFalse(store.directoryFor("tiny").exists())
-
-        // Control: the same bytes with an upstream list that names the pin.
-        val accepted = ModelInstaller(store, FakeFetcher(bytes, "model.archive\t$pin")).install(entry)
-        assertTrue(accepted.isInstalled)
-        assertTrue(store.isInstalled("tiny"))
+        assertArrayEquals(otherBytes, archive.readBytes())
+        assertEquals(otherPin, store.lastVerifiedDigest("tiny"))
     }
 }

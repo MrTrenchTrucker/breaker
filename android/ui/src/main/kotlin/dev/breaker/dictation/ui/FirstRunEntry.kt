@@ -4,6 +4,7 @@ import dev.breaker.dictation.ui.render.AndroidSetupPlatform
 import dev.breaker.dictation.ui.render.FirstRunHostView
 import dev.breaker.dictation.ui.screen.firstrun.FirstRunController
 import dev.breaker.dictation.ui.screen.firstrun.NoSwitch
+import dev.breaker.dictation.ui.screen.onboarding.FirstRunModel
 import dev.breaker.dictation.ui.screen.onboarding.SetupIntentHandler
 import dev.breaker.dictation.ui.screen.onboarding.SetupScreen
 import dev.breaker.dictation.ui.theme.isNightMode
@@ -28,6 +29,9 @@ import dev.breaker.dictation.ui.theme.storedTheme
  * @param onDownloadModel asks the app to start the download.
  * @param settings the app's settings store, through which the microphone prompt is recorded.
  * @param onFinished called once, when the first run is over.
+ * @param offeredModels answers the speech models the download page offers, each with its id, label, rating and size; empty keeps the one download button.
+ * @param modelReadyFor answers whether the model with that id is on the phone right now.
+ * @param onDownloadModelId asks the app to download the model with that id.
  * @return a view that shows the first run and can be put in a layout as it stands.
  */
 // The parameter types are written out in full, for the same reason as in the other entries.
@@ -40,11 +44,23 @@ fun createFirstRunView(
     onDownloadModel: () -> Unit,
     settings: dev.breaker.dictation.core.port.SettingsStore,
     onFinished: () -> Unit,
+    offeredModels: (() -> List<dev.breaker.dictation.ui.SpeechModelChoice>)? = null,
+    modelReadyFor: ((String) -> Boolean)? = null,
+    onDownloadModelId: ((String) -> Unit)? = null,
 ): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
     val theme = storedTheme(settings, phoneIsDark)
     val platform = AndroidSetupPlatform(context, accessibilityServiceComponent)
-    val handler = SetupIntentHandler(platform, NoSwitch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen(), settings)
-    val controller = FirstRunController(handler, modelReady, downloadLine, onDownloadModel, onFinished)
+    // The model fallbacks follow the theme line, so no brace sits in the signature and the theme line stays first.
+    val offeredFn: () -> List<SpeechModelChoice> = offeredModels ?: { emptyList() }
+    val readyFn: (String) -> Boolean = modelReadyFor ?: { false }
+    val downloadIdFn: (String) -> Unit = onDownloadModelId ?: {}
+    val models: () -> List<FirstRunModel> = { firstRunModelsOf(offeredFn(), readyFn) }
+    val handler = SetupIntentHandler(platform, NoSwitch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen(), settings, onDownloadModelId = downloadIdFn, models = models)
+    val controller = FirstRunController(handler, modelReady, downloadLine, onDownloadModel, onFinished, onDownloadModelId = downloadIdFn, models = models)
     return FirstRunHostView(context, controller, theme, phoneIsDark)
 }
+
+/** The models the download page offers: one per offered model, its readiness read from the app each time it is asked. */
+internal fun firstRunModelsOf(offered: List<SpeechModelChoice>, modelReadyFor: (String) -> Boolean): List<FirstRunModel> =
+    offered.map { FirstRunModel(id = it.id, label = it.label, rating = it.rating, sizeMb = it.sizeMb, ready = modelReadyFor(it.id)) }

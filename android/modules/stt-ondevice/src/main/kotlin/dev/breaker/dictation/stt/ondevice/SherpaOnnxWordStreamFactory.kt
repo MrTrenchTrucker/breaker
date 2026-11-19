@@ -1,12 +1,15 @@
 package dev.breaker.dictation.stt.ondevice
 
+import dev.breaker.shared.models.ModelEntry
+import dev.breaker.shared.models.ModelKind
+import dev.breaker.shared.models.ModelRegistry
 import java.io.File
 
 /**
  * Makes the word stream for a verified, unpacked model.
  *
- * [create] checks everything it can before anything is opened: the model has a
- * streaming profile, its directory holds the four files, and the install stamp
+ * [create] checks everything it can before anything is opened: the model is a
+ * usable streaming entry of the registry, its directory holds the four files it names, and the install stamp
  * covers those files with the same sizes and modified times. A refusal is a
  * [SherpaTranscriptionException] with a fixed message that carries no path, file
  * name or model id, and it leaves nothing behind, because nothing was opened.
@@ -24,6 +27,7 @@ import java.io.File
 class SherpaOnnxWordStreamFactory internal constructor(
     private val opener: NativeStreamingOpener,
     private val numThreads: Int,
+    private val lookup: (String) -> ModelEntry? = ModelRegistry::byId,
 ) {
 
     /** The factory that opens the real engine with [numThreads] threads. */
@@ -43,15 +47,14 @@ class SherpaOnnxWordStreamFactory internal constructor(
      * files, with every size and modified time still equal to the stamp. Nothing
      * is hashed here and nothing is deleted.
      *
-     * @throws SherpaTranscriptionException if the model has no streaming profile, its
+     * @throws SherpaTranscriptionException if the model is not a usable streaming entry, its
      *   directory lacks one of the files, or the install stamp is missing or does not
      *   match. The messages are fixed and carry no path, file name or model id.
      */
     fun create(model: SherpaModel): FedWordStream {
-        if (StreamingProfiles.forModel(model.modelId) == null) {
-            throw SherpaTranscriptionException("no streaming profile for this model")
-        }
-        val files = TransducerFileLocator.locate(model.directory)
+        val entry = SpeechModels.usable(model.modelId, lookup, ModelKind.STREAMING)
+            ?: throw SherpaTranscriptionException("no streaming profile for this model")
+        val files = SpeechModels.locate(model.directory, entry)
             ?: throw SherpaTranscriptionException("the model files are missing or empty")
         if (!stampMatches(model.directory, files)) {
             throw SherpaTranscriptionException("the model files are missing or empty")

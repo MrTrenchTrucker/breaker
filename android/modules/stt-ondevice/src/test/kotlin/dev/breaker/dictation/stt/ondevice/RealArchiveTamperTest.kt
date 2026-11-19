@@ -19,7 +19,7 @@ import org.junit.rules.TemporaryFolder
  *
  * The real archives are large and are not in the repository. The folder that holds them is named by
  * the environment variable [DIR_VARIABLE]; each archive is `<folder>/<archive name of its entry>`.
- * With the variable unset (the normal case) both tests are SKIPPED. With it set, a missing folder or
+ * With the variable unset (the normal case) all three tests are SKIPPED. With it set, a missing folder or
  * a missing archive is a FAILURE, never a skip, so a wrong path cannot pass for a green run.
  */
 class RealArchiveTamperTest {
@@ -42,7 +42,7 @@ class RealArchiveTamperTest {
     }
 
     private fun verify(file: File, entry: ModelEntry): ModelIntegrity.Verdict =
-        ModelIntegrity.verify(file, entry.sha256, Fixtures.checksumsOf(entry.archiveName to entry.sha256), entry.archiveName)
+        ModelIntegrity.verify(file, entry.sha256, entry.sizeBytes)
 
     @Test
     fun `every real archive is accepted by the integrity check`() {
@@ -79,6 +79,25 @@ class RealArchiveTamperTest {
             )
             assertTrue("entry '${entry.id}': the original archive was touched", verify(real, entry).isVerified)
             copy.delete()
+        }
+    }
+
+    @Test
+    fun `a real archive cut by one byte is refused by its size`() {
+        val folder = realFolder()
+        for (entry in ModelRegistry.ALL) {
+            val real = realArchive(folder, entry)
+            val copy = File(tmp.newFolder(), entry.archiveName)
+            Files.copy(real.toPath(), copy.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            RandomAccessFile(copy, "rw").use { file -> file.setLength(file.length() - 1) }
+            val verdict = verify(copy, entry)
+            val refused = verdict as? ModelIntegrity.Verdict.Refused
+            assertTrue("entry '${entry.id}': the copy cut by one byte was accepted: $verdict", refused != null)
+            assertEquals(
+                "entry '${entry.id}': a cut archive is a size mismatch",
+                ModelIntegrity.Refusal.SIZE_MISMATCH,
+                refused?.refusal,
+            )
         }
     }
 

@@ -146,20 +146,15 @@ internal class SetupScreen {
                 add(Label("$prefix.why", SetupTexts.WHY_MODEL, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
                 add(statusLabel("$prefix.status", state.modelReady))
                 if (!state.modelReady) {
-                    add(
-                        Action(
-                            id = MODEL_STEP_BUTTON_ID,
-                            text = SetupTexts.BUTTON_DOWNLOAD_MODEL,
-                            emphasis = Emphasis.PRIMARY,
-                            intent = ScreenIntent.Setup(SetupActions.DOWNLOAD_MODEL),
-                        ),
-                    )
-                    add(
-                        note(
-                            "$prefix.source",
-                            SetupTexts.MODEL_STEP_LINE.replace("{size}", state.modelDownloadMb.toString()),
-                        ),
-                    )
+                    addAll(modelStepButtons(state, MODEL_STEP_BUTTON_ID))
+                    if (state.models.isEmpty()) {
+                        add(
+                            note(
+                                "$prefix.source",
+                                SetupTexts.MODEL_STEP_LINE.replace("{size}", state.modelDownloadMb.toString()),
+                            ),
+                        )
+                    }
                     state.downloadLine?.let { add(note("$prefix.line", it)) }
                 }
             },

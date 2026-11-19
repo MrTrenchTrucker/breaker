@@ -41,19 +41,16 @@ class ModelMessagesUnpackTextTest {
             ModelMessages.MODEL_UNKNOWN,
             ModelMessages.MODEL_WRONG_FAMILY,
             ModelMessages.MODEL_NOT_INSTALLED,
-            ModelMessages.NOT_VERIFIED_YET,
             ModelMessages.CHECK_FAILED_DELETED,
             ModelMessages.CHECK_FAILED_NOT_DELETED,
             ModelMessages.ENGINE_COULD_NOT_START,
             ModelMessages.SAVE_FAILED,
-            ModelMessages.CHECKSUMS_DOWNLOAD_FAILED,
-            ModelMessages.CHECKSUMS_UNREADABLE_DOWNLOADED,
             ModelMessages.MODEL_DOWNLOAD_FAILED,
             ModelMessages.DOWNLOAD_FAILED_CHECK,
             ModelMessages.DOWNLOAD_FAILED_CHECK_NOT_DELETED,
             ModelMessages.COULD_NOT_DELETE,
         )
-        assertEquals("every earlier sentence must be listed", 14, before.size)
+        assertEquals("every earlier sentence must be listed", 11, before.size)
         assertEquals("every sentence must be listed", 3, unpack.size)
         val all = before + unpack
         assertEquals("two sentences have the same text: $all", all.size, all.toSet().size)

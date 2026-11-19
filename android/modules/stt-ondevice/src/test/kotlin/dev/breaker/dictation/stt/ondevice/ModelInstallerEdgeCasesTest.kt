@@ -19,9 +19,9 @@ import java.nio.file.Files
 /**
  * Installer behaviour the other installer tests do not look at: a pin written
  * in capitals, a destination that already holds a file on a filesystem whose
- * rename will not replace it, an upstream list that does not name the pin when
- * a model is already installed, the order of the two metadata writes, and a
- * metadata write that fails with an IOException that is not a missing file.
+ * rename will not replace it, bytes that fail the pin when a model is already
+ * installed, a marker write that fails, and a metadata write that fails with an
+ * IOException that is not a missing file.
  */
 class ModelInstallerEdgeCasesTest {
 
@@ -31,15 +31,12 @@ class ModelInstallerEdgeCasesTest {
     // A real archive: a successful install unpacks what it fetched.
     private val goodBytes = TarFixtures.tinyArchive()
     private val pin = Fixtures.independentSha256(goodBytes)
-    private val listNamingPin = "model.archive\t$pin"
 
     /** A fetcher that counts its calls and can hand back a wrapped model file. */
     private class StubFetcher(
         private val modelBytes: ByteArray,
-        private val checksumsText: String,
         private val wrapModel: (File) -> File = { it },
     ) : ModelFetcher {
-        var checksumFetches = 0
         var modelFetches = 0
 
         override fun fetchModel(entry: ModelEntry, stagingDir: File): ModelFetcher.Result {
@@ -48,24 +45,17 @@ class ModelInstallerEdgeCasesTest {
             file.writeBytes(modelBytes)
             return ModelFetcher.Result.Fetched(wrapModel(file))
         }
-
-        override fun fetchChecksums(stagingDir: File): ModelFetcher.Result {
-            checksumFetches++
-            val file = File(stagingDir, "checksums.txt")
-            file.writeText(checksumsText)
-            return ModelFetcher.Result.Fetched(file)
-        }
     }
 
     private fun entryWithPin(value: String) =
-        ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", value, 1, "Apache-2.0", false)
+        ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", value, 1, "Apache-2.0", false, sizeBytes = goodBytes.size.toLong())
 
     private fun newStore(removalWorks: Boolean = true): LocalModelStore =
         if (removalWorks) LocalModelStore(tmp.newFolder()) else LocalModelStore(tmp.newFolder(), remove = { false })
 
     private fun install(store: LocalModelStore, fetcher: ModelFetcher, entry: ModelEntry): ModelInstaller.InstallResult =
         try {
-            ModelInstaller(store, fetcher).install(entry)
+            ModelInstaller(store, fetcher, usableSpace = { Long.MAX_VALUE }).install(entry)
         } catch (t: Throwable) {
             throw AssertionError("install let ${t.javaClass.name} escape instead of returning a result: $t", t)
         }
@@ -92,13 +82,13 @@ class ModelInstallerEdgeCasesTest {
         val capitals = pin.uppercase()
         assertNotEquals("fixture: the pin must contain letters", pin, capitals)
         val store = newStore()
-        val installed = installedOf(install(store, StubFetcher(goodBytes, listNamingPin), entryWithPin(capitals)))
+        val installed = installedOf(install(store, StubFetcher(goodBytes), entryWithPin(capitals)))
         assertEquals(pin, installed.digest)
         assertEquals(pin, store.lastVerifiedDigest("tiny"))
 
         // Control: a lowercase pin gives the same digest and the same record.
         val otherStore = newStore()
-        val control = installedOf(install(otherStore, StubFetcher(goodBytes, listNamingPin), entryWithPin(pin)))
+        val control = installedOf(install(otherStore, StubFetcher(goodBytes), entryWithPin(pin)))
         assertEquals(pin, control.digest)
         assertEquals(pin, otherStore.lastVerifiedDigest("tiny"))
     }
@@ -113,94 +103,83 @@ class ModelInstallerEdgeCasesTest {
 
         val store = newStore()
         Fixtures.writeBytes(store.archiveFile("tiny"), "stale bytes".toByteArray())
-        val result = install(store, StubFetcher(goodBytes, listNamingPin, noReplaceMove), entryWithPin(pin))
+        val result = install(store, StubFetcher(goodBytes, noReplaceMove), entryWithPin(pin))
         assertEquals(pin, installedOf(result).digest)
         assertArrayEquals(goodBytes, store.archiveFile("tiny").readBytes())
 
         // Control: with no file at the destination the same fetcher installs.
         val fresh = newStore()
-        installedOf(install(fresh, StubFetcher(goodBytes, listNamingPin, noReplaceMove), entryWithPin(pin)))
+        installedOf(install(fresh, StubFetcher(goodBytes, noReplaceMove), entryWithPin(pin)))
         assertArrayEquals(goodBytes, fresh.archiveFile("tiny").readBytes())
     }
 
     @Test
-    fun `an upstream list that does not name the pin leaves an installed model untouched`() {
+    fun `bytes that fail the pin leave an installed model untouched`() {
         val entry = entryWithPin(pin)
         val store = newStore()
-        installedOf(install(store, StubFetcher(goodBytes, listNamingPin), entry))
+        installedOf(install(store, StubFetcher(goodBytes), entry))
         val archive = store.archiveFile("tiny")
         val before = archive.readBytes()
-        val recordedBefore = store.storedChecksums("tiny")
-        assertEquals(listNamingPin, recordedBefore)
+        assertNull("the install records no upstream list", Fixtures.legacyChecksums(store, "tiny"))
 
-        // The same bytes arrive with a list that names another digest.
-        val unrelated = Fixtures.independentSha256("other".toByteArray())
-        assertNotEquals(pin, unrelated)
-        val refused = refusedOf(install(store, StubFetcher(goodBytes, "model.archive\t$unrelated"), entry))
-        assertEquals(ModelInstaller.Refusal.DIGEST_REFUSED, refused.refusal)
+        // Bytes of the pinned length with one byte changed: the digest refuses them.
+        val sameSize = goodBytes.copyOf().also { it[it.size - 1] = (it[it.size - 1] + 1).toByte() }
+        assertNotEquals(pin, Fixtures.independentSha256(sameSize))
+        val wrongDigest = refusedOf(install(store, StubFetcher(sameSize), entry))
+        assertEquals(ModelInstaller.Refusal.DIGEST_REFUSED, wrongDigest.refusal)
         assertTrue("the earlier install must still be installed", store.isInstalled("tiny"))
         assertArrayEquals(before, archive.readBytes())
-        assertEquals(recordedBefore, store.storedChecksums("tiny"))
         assertEquals(pin, store.lastVerifiedDigest("tiny"))
 
-        // Control: the same bytes with a list that names the pin are accepted over the earlier install.
-        val again = "$listNamingPin\nother.archive\t$unrelated"
-        installedOf(install(store, StubFetcher(goodBytes, again), entry))
-        assertEquals(again, store.storedChecksums("tiny"))
+        // Bytes of another length: the size refuses them.
+        val wrongSize = refusedOf(install(store, StubFetcher(goodBytes + byteArrayOf(1)), entry))
+        assertEquals(ModelInstaller.Refusal.DIGEST_REFUSED, wrongSize.refusal)
+        assertTrue("the earlier install must still be installed", store.isInstalled("tiny"))
+        assertArrayEquals(before, archive.readBytes())
+        assertEquals(pin, store.lastVerifiedDigest("tiny"))
+
+        // Control: the pinned bytes are accepted over the earlier install.
+        installedOf(install(store, StubFetcher(goodBytes), entry))
+        assertEquals(pin, store.lastVerifiedDigest("tiny"))
     }
 
     @Test
     fun `a file in the place of the staging directory is refused before any fetch`() {
-        val fetcher = StubFetcher(goodBytes, listNamingPin)
+        val fetcher = StubFetcher(goodBytes)
         val store = newStore()
         File(store.stagingDirectory().path).writeText("blocker")
         val refused = refusedOf(install(store, fetcher, entryWithPin(pin)))
         assertEquals(ModelInstaller.Refusal.STAGING_FAILED, refused.refusal)
-        assertEquals("no checksum fetch may start", 0, fetcher.checksumFetches)
         assertEquals("no model fetch may start", 0, fetcher.modelFetches)
 
         // Control: with nothing in the way the same fetcher is called.
-        val freshFetcher = StubFetcher(goodBytes, listNamingPin)
+        val freshFetcher = StubFetcher(goodBytes)
         installedOf(install(newStore(), freshFetcher, entryWithPin(pin)))
-        assertEquals(1, freshFetcher.checksumFetches)
         assertEquals(1, freshFetcher.modelFetches)
     }
 
     @Test
-    fun `a failed record write leaves no verified marker when the model cannot be deleted`() {
-        // A directory where the checksum record goes makes the first metadata write fail.
-        val store = newStore(removalWorks = false)
-        val modelDir = store.directoryFor("tiny")
-        File(modelDir, LocalModelStore.CHECKSUMS_FILE).mkdirs()
-        val refused = refusedOf(install(store, StubFetcher(goodBytes, listNamingPin), entryWithPin(pin)))
-        assertEquals(ModelInstaller.Refusal.STAGING_FAILED, refused.refusal)
-        assertTrue("the delete failed, so the model is left", refused.leftOnDisk)
-        assertFalse("no verified marker may be written before the record", File(modelDir, LocalModelStore.VERIFIED_FILE).exists())
-        assertNull(store.lastVerifiedDigest("tiny"))
-    }
-
-    @Test
-    fun `a failed marker write leaves the checksum record when the model cannot be deleted`() {
-        // A directory where the verified marker goes makes the second metadata write fail.
+    fun `a failed marker write leaves no checksum record when the model cannot be deleted`() {
+        // A directory where the verified marker goes makes the metadata write fail.
         val store = newStore(removalWorks = false)
         val modelDir = store.directoryFor("tiny")
         File(modelDir, LocalModelStore.VERIFIED_FILE).mkdirs()
-        val refused = refusedOf(install(store, StubFetcher(goodBytes, listNamingPin), entryWithPin(pin)))
+        val refused = refusedOf(install(store, StubFetcher(goodBytes), entryWithPin(pin)))
         assertEquals(ModelInstaller.Refusal.STAGING_FAILED, refused.refusal)
         assertTrue("the delete failed, so the model is left", refused.leftOnDisk)
-        assertEquals("the record is written before the marker", listNamingPin, store.storedChecksums("tiny"))
+        assertFalse("no checksum record is ever written", File(modelDir, LocalModelStore.CHECKSUMS_FILE).exists())
     }
 
     @Test
     fun `a metadata write that fails with an IOException that is not a missing file is refused`() {
-        // A checksum record that is a link to a device whose writes always fail with a full disk.
+        // A verified marker that is a link to a device whose writes always fail with a full disk.
         val full = File("/dev/full")
         assumeTrue("needs a Linux device that fails every write", System.getProperty("os.name").startsWith("Linux") && full.exists())
         val store = newStore()
         val modelDir = store.directoryFor("tiny")
         modelDir.mkdirs()
         val linked = try {
-            Files.createSymbolicLink(File(modelDir, LocalModelStore.CHECKSUMS_FILE).toPath(), full.toPath())
+            Files.createSymbolicLink(File(modelDir, LocalModelStore.VERIFIED_FILE).toPath(), full.toPath())
             true
         } catch (e: IOException) {
             false
@@ -210,7 +189,7 @@ class ModelInstallerEdgeCasesTest {
         assumeTrue("needs symbolic links", linked)
         // Control: writing to that link fails with an IOException and not with a missing file.
         val failure: IOException? = try {
-            File(modelDir, LocalModelStore.CHECKSUMS_FILE).writeText("x")
+            File(modelDir, LocalModelStore.VERIFIED_FILE).writeText("x")
             null
         } catch (e: IOException) {
             e
@@ -218,7 +197,7 @@ class ModelInstallerEdgeCasesTest {
         assertTrue("fixture: the write must fail", failure != null)
         assertFalse("fixture: the failure must not be a missing file", failure is java.io.FileNotFoundException)
 
-        val refused = refusedOf(install(store, StubFetcher(goodBytes, listNamingPin), entryWithPin(pin)))
+        val refused = refusedOf(install(store, StubFetcher(goodBytes), entryWithPin(pin)))
         assertEquals(ModelInstaller.Refusal.STAGING_FAILED, refused.refusal)
         assertEquals(ModelMessages.SAVE_FAILED, refused.detail)
         assertFalse("the model was deleted", store.directoryFor("tiny").exists())
