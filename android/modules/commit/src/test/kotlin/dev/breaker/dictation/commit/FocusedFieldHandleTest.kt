@@ -13,6 +13,7 @@ internal class FocusedFieldHandleTest {
     /** A field that is only ever compared by identity; it is never asked to type. */
     private class StubField : FocusedField {
         override fun commitText(text: String): FieldCommit = FieldCommit.ACCEPTED
+        override fun focusedWindow(): TakeStartWindow? = null
     }
 
     @Test

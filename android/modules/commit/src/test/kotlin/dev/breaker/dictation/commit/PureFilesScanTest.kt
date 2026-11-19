@@ -26,6 +26,7 @@ internal class PureFilesScanTest {
         "KeyboardProbeReadings.kt",
         "PlatformSeams.kt",
         "PostedMainThread.kt",
+        "TakeStartAnchor.kt",
     )
 
     private val rules: Map<String, Regex> = mapOf(
@@ -39,7 +40,7 @@ internal class PureFilesScanTest {
     private class Sample(val label: String, val source: String, val rule: String)
 
     @Test
-    fun `the six pure files name no framework type and do not reach into the adapter folder`() {
+    fun `the pure files name no framework type and do not reach into the adapter folder`() {
         val main: Map<String, String> = SourceFiles.mainSources()
         val chosen: MutableMap<String, String> = LinkedHashMap()
         for (name in pureFiles) {
@@ -53,7 +54,7 @@ internal class PureFilesScanTest {
     }
 
     @Test
-    fun `every file directly in the main folder is one of the six scanned pure files`() {
+    fun `every file directly in the main folder is one of the scanned pure files`() {
         val top: Set<String> = SourceFiles.mainSources().keys.filter { !it.contains('/') }.toSet()
         assertEquals("commit: a main file outside the adapter folder is not covered by the pure file scan", pureFiles, top)
     }

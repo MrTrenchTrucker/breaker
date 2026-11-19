@@ -25,7 +25,9 @@ This module owns:
 - The accessibility service itself (`AccessibilityService`), its service
   config (requesting the three event types, `flagRetrieveInteractiveWindows` and `canRetrieveWindowContent`,
   because finding the focused field and reading keyboard presence need them — nothing more).
-- Finding the currently focused editable node.
+- Finding the currently focused editable node, and reading its window id and
+  package name through the same port, so the parent can check the field is still
+  in the window the take started in.
 - Inserting text: reading the field's current text and selection, building the
   new text, `AccessibilityNodeInfo.ACTION_SET_TEXT` to merge it in at the
   cursor (since `ACTION_SET_TEXT` replaces the node's whole text, the merge is
@@ -39,8 +41,10 @@ This module owns:
 - Refusing, so the parent falls back to the clipboard: an empty text, a field
   of this app's own package, a field that is not editable or not enabled, and
   a node that is no longer valid.
-- Answering `NO_FIELD` when no field has input focus, so the parent copies the
-  text to the clipboard.
+- Answering `NO_FIELD` when no field has input focus, or when the focused window
+  and package are not the ones the parent captured when the take started, so the
+  parent copies the text to the clipboard. The window is read live at commit
+  time, never cached, and only when a take was captured.
 - Refusing to insert into password fields: a field is a password when the platform flag
   (`isPassword`) is set, or when its input type is a password type (see Invariants).
 - Publishing the focused field into the parent's `FocusedFieldHolder` registry

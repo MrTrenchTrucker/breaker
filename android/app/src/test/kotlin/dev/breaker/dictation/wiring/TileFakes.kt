@@ -1,5 +1,7 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.commit.TakeStartAnchor
+import dev.breaker.dictation.commit.TakeStartWindow
 import dev.breaker.dictation.core.model.CommitOutcome
 import dev.breaker.dictation.core.model.DictationSession
 import dev.breaker.dictation.core.model.DictationState
@@ -143,6 +145,9 @@ internal class FakeTake : TakePort {
         private set
     var sendCalls: Int = 0
         private set
+    /** The window check the send actually saw, so a test can prove the commit read it. */
+    var anchorAtSend: TakeStartWindow? = null
+        private set
     var cancelCalls: Int = 0
         private set
 
@@ -162,6 +167,7 @@ internal class FakeTake : TakePort {
 
     override fun send(): SendResult? {
         sendCalls += 1
+        anchorAtSend = TakeStartAnchor.current()
         sendError?.let { throw it }
         if (mirrorRunner) sessionState = DictationState.IDLE
         return sendResult

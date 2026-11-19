@@ -60,6 +60,8 @@ internal class ModuleFilesGateTest {
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/NodeFocusedFieldRefusalTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/NodeFocusedFieldReleaseTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/NodeFocusedFieldSetTextRefusalTest.kt",
+        "src/test/kotlin/dev/breaker/dictation/commit/accessibility/NodeFocusedFieldWindowTest.kt",
+        "src/test/kotlin/dev/breaker/dictation/commit/accessibility/OwnershipSeamGateTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/PasswordInputTypeTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/PrivacyScanTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeClockGateTest.kt",

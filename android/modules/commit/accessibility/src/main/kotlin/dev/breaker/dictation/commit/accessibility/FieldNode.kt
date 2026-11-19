@@ -15,6 +15,12 @@ internal interface FieldNode {
      */
     val packageName: String?
 
+    /**
+     * The accessibility window id of the window this node is in, read live; null when the
+     * platform gives none. Identifying metadata, never content.
+     */
+    val windowId: Int?
+
     /** True for a password field. An insert must refuse it. Never log or store it. */
     val isPassword: Boolean
 

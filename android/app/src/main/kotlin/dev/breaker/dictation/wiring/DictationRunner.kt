@@ -54,6 +54,18 @@ sealed class FinishResult {
 }
 
 /**
+ * Records the window a take started in. One method, so the runner can be tested with a fake: the
+ * app cannot construct the commit module's capture object (its constructor is internal to that
+ * module), and the composition root adapts it into this instead.
+ */
+fun interface TakeStartRecorder {
+    fun capture()
+
+    /** Drop the anchor this take captured. A recorder that keeps no anchor has nothing to drop. */
+    fun clear() {}
+}
+
+/**
  * Drives one dictation at a time over the core use cases: begin listening, finish and transcribe,
  * send, or cancel.
  *
@@ -74,9 +86,11 @@ class DictationRunner(
     private val audio: AudioSource,
     private val controller: DictationServiceController,
     private val capture: ReportingMicSource?,
+    private val takeStart: TakeStartRecorder? = null,
 ) {
     private val session = AtomicReference(DictationSession())
     private val lastTranscription = AtomicReference<Transcription?>(null)
+    private val sendInFlight = AtomicBoolean(false)
 
     /** True when a capture ended by itself and the audio source has not been stopped since. */
     private val stopOwed = AtomicBoolean(false)
@@ -103,11 +117,14 @@ class DictationRunner(
         payOwedStop()
         capture?.rearm()
         try {
+            takeStart?.capture()  // inside the try: a recorder that throws takes the same rollback
             dictate.startCapture(recording, audio)
-        } catch (e: Exception) {
+        } catch (t: Throwable) {  // the recorder rethrows an Error; it must still roll the take back
             stopQuietly()
             session.set(DictationSession())
-            if ((e as? MicSourceException)?.reason == MicSourceException.Reason.MICROPHONE_TAKEN) {
+            takeStart?.clear()
+            if (t is Error) throw t  // after the rollback: the caller's failure path needs it
+            if ((t as? MicSourceException)?.reason == MicSourceException.Reason.MICROPHONE_TAKEN) {
                 return BeginResult.Taken
             }
             return BeginResult.Failed(RunnerSentences.COULD_NOT_RECORD)
@@ -136,20 +153,28 @@ class DictationRunner(
             session.set(DictationSession())
             lastTranscription.set(null)
             stopOwed.set(false)
+            takeStart?.clear()
             return FinishResult.Failed(RunnerSentences.COULD_NOT_FINISH)
         }
         return when (result) {
             is DictationResult.Success -> {
-                session.set(result.session)
+                if (!session.compareAndSet(current, result.session)) return endedElsewhere()
                 lastTranscription.set(result.transcription)
                 FinishResult.ReadyToSend(result.transcription)
             }
             is DictationResult.Failure -> {
-                session.set(result.session.cancel())
+                if (!session.compareAndSet(current, result.session.cancel())) return endedElsewhere()
                 lastTranscription.set(null)
+                takeStart?.clear()
                 FinishResult.Failed(result.detail ?: RunnerSentences.NOTHING_HEARD)
             }
         }
+    }
+
+    private fun endedElsewhere(): FinishResult {  // ended elsewhere: drop it, a later send answers null
+        lastTranscription.set(null)
+        takeStart?.clear()
+        return FinishResult.Failed(RunnerSentences.NOT_LISTENING)
     }
 
     /**
@@ -157,14 +182,17 @@ class DictationRunner(
      * nothing to send. The dictation is over afterwards, and the service is left as it is.
      */
     fun send(): SendResult? {
-        val current = session.get()
-        val transcription = lastTranscription.get() ?: return null
-        if (current.state != DictationState.SENDING) return null
-        val result = send.send(current, transcription)
-        val next = result.session
-        session.set(if (next.state == DictationState.ERROR) next.cancel() else next)
-        lastTranscription.set(null)
-        return result
+        sendInFlight.set(true)
+        try {
+            val current = session.get()
+            val transcription = lastTranscription.get() ?: return null
+            if (current.state != DictationState.SENDING) return null
+            val result = send.send(current, transcription)
+            val next = result.session
+            session.set(if (next.state == DictationState.ERROR) next.cancel() else next)
+            lastTranscription.set(null)
+            return result
+        } finally { try { takeStart?.clear() } finally { sendInFlight.set(false) } }
     }
 
     /** Drops the dictation: stops the capture, throws the audio and the text away. The service stays armed. */
@@ -182,6 +210,7 @@ class DictationRunner(
         }
         session.set(DictationSession())
         lastTranscription.set(null)
+        if (!sendInFlight.get()) takeStart?.clear()
     }
 
     /**
@@ -196,9 +225,12 @@ class DictationRunner(
     fun onCaptureEnded() {
         val current = session.get()
         if (current.state != DictationState.RECORDING) return
-        // Recorded before the session moves, so a begin that sees the idle session also sees the debt.
-        stopOwed.set(true)
-        if (!session.compareAndSet(current, current.cancel())) stopOwed.set(false)
+        stopOwed.set(true)  // before the session moves: a begin that sees idle also sees the debt
+        if (session.compareAndSet(current, current.cancel())) {  // a lost CAS: finish still owns it
+            takeStart?.clear()
+        } else {
+            stopOwed.set(false)
+        }
     }
 
     /**
@@ -211,6 +243,7 @@ class DictationRunner(
         val current = session.get()
         session.set(current.cancel())
         lastTranscription.set(null)
+        if (!sendInFlight.get()) takeStart?.clear()
     }
 
     /**

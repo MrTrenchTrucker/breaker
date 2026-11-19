@@ -18,6 +18,7 @@ internal object MappingExpected {
 
     val node: Map<String, String> = mapOf(
         "packageName" to "override val packageName: String? get() = node.packageName?.toString()",
+        "windowId" to "override val windowId: Int? get() = node.windowId",
         "isPassword" to "override val isPassword: Boolean get() = node.isPassword || isPasswordInputType(node.inputType)",
         "isEditable" to "override val isEditable: Boolean get() = node.isEditable",
         "isEnabled" to "override val isEnabled: Boolean get() = node.isEnabled",
@@ -145,6 +146,7 @@ internal object MappingSamples {
         variant(real, "the length limit is always minus one", setOf("maxTextLength"), swap("maxTextLength", "Int", "node.maxTextLength", "-1")),
         variant(real, "the text is read from the package name", setOf("text"), swap("text", "String?", "node.text?.toString()", "node.packageName?.toString()")),
         variant(real, "the package name is always null", setOf("packageName"), swap("packageName", "String?", "node.packageName?.toString()", "null")),
+        variant(real, "the window id is always null", setOf("windowId"), swap("windowId", "Int?", "node.windowId", "null")),
         variant(real, "the selection start is a constant", setOf("selectionStart"), swap("selectionStart", "Int", "node.textSelectionStart", "0")),
         variant(
             real, "selection start and end are swapped", setOf("selectionStart", "selectionEnd"),

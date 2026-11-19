@@ -1,5 +1,6 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.commit.TakeStartAnchor
 import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.usecase.SendResult
@@ -182,18 +183,31 @@ private class LazyTakePort(supplier: () -> TakePort) : TakePort {
 
     override fun begin(): BeginResult = port.begin()
 
-    override fun finish(): FinishResult = port.finish()
+    override fun finish(): FinishResult {
+        // No clear here: the Home settle saves and copies AFTER finish, and the take ends at
+        // resetAfterTaken, which clears. Clearing here would leave that commit with no window check.
+        return port.finish()
+    }
 
-    override fun finishTrimmed(trimBeforeMs: Long?): FinishResult = port.finishTrimmed(trimBeforeMs)
+    override fun finishTrimmed(trimBeforeMs: Long?): FinishResult {
+        // No clear here, for the same reason as finish(): the settle still has to read the anchor.
+        return port.finishTrimmed(trimBeforeMs)
+    }
 
-    override fun send(): SendResult? = port.send()
+    override fun send(): SendResult? {
+        val result = port.send()
+        TakeStartAnchor.clear()
+        return result
+    }
 
     override fun cancel() {
         port.cancel()
+        TakeStartAnchor.clear()
     }
 
     override fun resetAfterTaken() {
         port.resetAfterTaken()
+        TakeStartAnchor.clear()
     }
 }
 

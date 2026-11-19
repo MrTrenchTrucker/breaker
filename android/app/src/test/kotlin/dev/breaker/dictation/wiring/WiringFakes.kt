@@ -223,6 +223,7 @@ internal class Rig(
     launchResult: LaunchResult = LaunchResult.Launched,
     armed: Boolean = true,
     withCapture: Boolean = false,
+    takeStart: TakeStartRecorder? = null,
 ) {
     val history = RecordingHistoryStore()
     val localFormatter = CountingFormatter()
@@ -252,7 +253,7 @@ internal class Rig(
             ids = SequenceIds(),
             localFormatter = localFormatter,
         )
-        runner = DictationRunner(dictate, SendUseCase(committer, history), audio, controller, capture)
+        runner = DictationRunner(dictate, SendUseCase(committer, history), audio, controller, capture, takeStart)
         runnerRef = runner
         audio.onStop = { capture?.close() }
         if (armed) controller.adopt()

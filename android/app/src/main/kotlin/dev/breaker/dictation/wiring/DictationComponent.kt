@@ -3,6 +3,8 @@ package dev.breaker.dictation.wiring
 import dev.breaker.dictation.audio.MicCapture
 import dev.breaker.dictation.audio.MicSourceException
 import dev.breaker.dictation.audio.MicSource
+import dev.breaker.dictation.commit.TakeStartAnchor
+import dev.breaker.dictation.commit.adapter.CommitServices
 import dev.breaker.dictation.core.port.Clock
 import dev.breaker.dictation.core.port.ConnectivityProbe
 import dev.breaker.dictation.core.port.Formatter
@@ -111,6 +113,21 @@ class DictationComponent(
             ), { phrase.currentStream() }),
             controller,
             reporting,
+            takeStart = object : TakeStartRecorder {
+                override fun capture() {
+                    try {
+                        CommitServices.takeStartCapture().capture()
+                    } catch (t: Throwable) {
+                        // The build can throw before the capture's own guard exists: the hopper
+                        // asks for the main looper, which a plain JVM test has not got. Fail
+                        // closed the same way the capture does, so the take still records and
+                        // its commit takes the no-field clipboard path.
+                        TakeStartAnchor.capture(null)
+                        if (t is Error) throw t
+                    }
+                }
+                override fun clear() { TakeStartAnchor.clear() }
+            },
         )
         runnerHolder.set(built)
         runner = built

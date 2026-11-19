@@ -22,6 +22,18 @@ internal class AndroidConfinementTest {
         "adapter/HandlerMainThread.kt",
         "adapter/FocusedFieldHolder.kt",
         "adapter/CommitServices.kt",
+        "adapter/TakeStartCapture.kt",
+    )
+
+    /**
+     * The adapter files that name no framework, and why. The scan must still find android or
+     * androidx in every OTHER adapter file, so this set is the whole exemption, argued per file:
+     * FocusedFieldHolder holds a published handle and names no framework; TakeStartCapture reads
+     * the focused field and hops threads through the commit module's own interfaces only.
+     */
+    private val noFramework: Set<String> = setOf(
+        "adapter/FocusedFieldHolder.kt",
+        "adapter/TakeStartCapture.kt",
     )
 
     private val rules: Map<String, Regex> = mapOf(
@@ -40,7 +52,7 @@ internal class AndroidConfinementTest {
     }
 
     @Test
-    fun `the adapter folder holds exactly the five known files`() {
+    fun `the adapter folder holds exactly the listed files`() {
         assertEquals(
             "commit: the adapter folder changed; a new device file has to be argued for and listed here",
             adapterFiles,
@@ -52,7 +64,7 @@ internal class AndroidConfinementTest {
     fun `the scan sees real framework use in the adapter files that talk to the device`() {
         val adapter: Map<String, String> = SourceFiles.mainSources().filterKeys { it.startsWith("adapter/") }
         val naming: Set<String> = SourceFiles.filesMatching(adapter, rules.getValue("framework package")).toSet()
-        val talkToDevice: Set<String> = adapterFiles - "adapter/FocusedFieldHolder.kt"
+        val talkToDevice: Set<String> = adapterFiles - noFramework
         assertTrue(
             "commit: the scan no longer finds the framework in ${talkToDevice - naming}",
             naming.containsAll(talkToDevice),

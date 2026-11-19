@@ -212,7 +212,7 @@ internal class AdapterMappingGateTest {
             seam,
             MappingExpected.node.keys.sorted(),
         )
-        assertEquals("commit/accessibility: the seam should have thirteen members", 13, seam?.size)
+        assertEquals("commit/accessibility: the seam should have fourteen members", 14, seam?.size)
         assertEquals(
             "commit/accessibility: the finder table should pin exactly findInputFocus",
             listOf("findInputFocus"),
