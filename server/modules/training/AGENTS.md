@@ -5,11 +5,12 @@
 Per-user voice phrase model training (CPU; GPU via Local Inference). Per-user voice phrase model training container (F16). The phone
 records, the server trains.
 
-**In:** sample audio + user token (`POST /v1/training/samples`).
-**Out:** a small per-user KWS model + checksum for the phone to download.
+**In:** sample audio + user token (`POST /v1/training/samples`, the planned name; the contract step sets the final paths, Decided, not built, ADR-051 C).
+**Out:** a small per-user KWS model + checksum for the phone to download. Decided, not built (ADR-051 D): the download carries the model's sha256 and byte size.
 
 **Pipeline:**
-- Samples stored in the user's namespace (isolated, N13; deletable, T15).
+- Samples stored in the user's namespace (isolated, N13; deletable, T15). Decided, not built (ADR-051 F): one user action deletes the samples and the model.
+- Decided, not built (ADR-051 D): the server trains on the CPU by default, and stores each user's model in that user's namespace.
 - Fine-tune a small KWS model (sherpa-onnx KWS toolkit / k2-fsa recipes) for
   the user's wake/end phrases in their environment.
 - Publish model + **SHA-256/checksum** — the phone verifies before install (T21).

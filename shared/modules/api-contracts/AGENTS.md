@@ -246,6 +246,7 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   record so other devices remove the rows through the feed.
 - **training** — `POST /v1/training/samples`, `GET /v1/training/model` (+ checksum)
   Planned, not built: no training path is in `openapi.yaml` yet and no module serves it.
+  Decided, not built (ADR-051 C): the training group is these operations, all with the user's token and scoped to that user: upload samples, start a training job, read the job's status, download the trained model (with its sha256 and byte size), delete my samples, and delete my model. The contract step sets the final paths, and the two names above are a starting point.
 
 **Auth:** `Authorization: Bearer <apiKey | userToken | agentToken>`.
 
