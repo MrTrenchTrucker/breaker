@@ -35,7 +35,8 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
   its own Gradle module (`commit/accessibility`, ADR-022) implements
   `FocusedField` and reports `FieldCommit`, and Kotlin `internal` does not
   cross a module boundary. `FieldCommit` has three answers: `ACCEPTED`,
-  `REFUSED`, and `NO_FIELD` (no focused field was found at commit time).
+  `REFUSED`, and `NO_FIELD` (no focused field was found at commit time, or the
+  focused window and package are not the ones captured when the take started).
   `adapter.FocusedFieldHolder.publish(field:
   FocusedField): AutoCloseable` is the one public seam such a sub-module
   publishes through; closing the returned handle clears that publish (a stale
@@ -43,6 +44,11 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
   no public way to read or clear the current field from outside this module,
   so text can only ever be inserted through the commit service's own
   explicit-send flow.
+- `TakeStartAnchor` is public and holds the window a take started in. A take that
+  started with no focused field, or whose read failed, timed out or was refused,
+  stores a window with no id and no package, which refuses every later commit for
+  that take. No take running means no anchor at all, and the ownership check does
+  not run. It stores no node and no text, and its `toString` is a fixed word.
 - `KeyboardProbeReadings` is the holder of the keyboard readings. It is not probe only:
   its production seam (`publishLatest`, `readings`, `current`) feeds the keyboard tile in
   every build. Its probe members (`setEnabled`, `isEnabled`, `publish`, `recent`): no release
@@ -59,12 +65,13 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
   - `recent(): List<ProbeReading>`: a copy of the recent lines, oldest first, at most 200.
   - `readings(): Flow<ProbeReading?>`: a live view of the latest reading; it re-emits on each change and carries the current value when a reader starts collecting.
   - `ProbeReading`: the data class of one reading.
-- Layout: seven pure Kotlin files in the module's package (no Android class is
-  named in them) and five files in `adapter/`, the only place that names
+- Layout: eight pure Kotlin files in the module's package (no Android class is
+  named in them) and six files in `adapter/`, the only place that names
   Android classes: `CommitServices.kt`, `AndroidClipboardWriter.kt`,
-  `ToastNotice.kt`, `HandlerMainThread.kt`, and `FocusedFieldHolder.kt` (the
+  `ToastNotice.kt`, `HandlerMainThread.kt`, `FocusedFieldHolder.kt` (the
   one process-wide holder a text-insert mechanism publishes into, through its
-  one public `publish` function).
+  one public `publish` function), and `TakeStartCapture.kt` (reads the focused
+  window once when a take starts and stores it in `TakeStartAnchor`).
 
 **Outcomes** (`detail` is a fixed text, never the committed text):
 

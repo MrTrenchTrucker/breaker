@@ -95,13 +95,21 @@ internal class ConcurrencyRuleScanTest {
     }
 
     @Test
-    fun `the current thread is read exactly three times, twice in the service and once in the posted hop class`() {
+    fun `the current thread is read exactly four times, twice in the service, once in the posted hop class and once in the take-start capture`() {
         val counts: Map<String, Int> = SourceFiles.mainSources()
             .mapValues { entry -> SourceFiles.countIn(entry.value, currentThread) }
             .filterValues { it > 0 }
         assertEquals(
-            "commit: the places that re-arm an interrupt changed; each one has to be argued for",
-            mapOf("CommitService.kt" to 2, "PostedMainThread.kt" to 1),
+            "commit: the places that re-arm an interrupt changed; each one has to be argued for. " +
+                "The four sites are CommitService.kt:49 (the commit hop catch), CommitService.kt:55 " +
+                "(the hop that gave up), PostedMainThread.kt:90 (the posted wait) and " +
+                "adapter/TakeStartCapture.kt:39 (the take-start capture catch, the same re-arm as " +
+                "CommitService.kt:49 for the same hopper)",
+            mapOf(
+                "CommitService.kt" to 2,
+                "PostedMainThread.kt" to 1,
+                "adapter/TakeStartCapture.kt" to 1,
+            ),
             counts,
         )
     }

@@ -2,6 +2,8 @@ package dev.breaker.dictation.commit.accessibility
 
 import dev.breaker.dictation.commit.FieldCommit
 import dev.breaker.dictation.commit.FocusedField
+import dev.breaker.dictation.commit.TakeStartAnchor
+import dev.breaker.dictation.commit.TakeStartWindow
 
 /**
  * The field that has input focus, as the commit module sees it: it puts dictated text into
@@ -15,6 +17,8 @@ import dev.breaker.dictation.commit.FocusedField
  * exception message is logged, stored or put into a message.
  *
  * A field that belongs to the app named by [ownPackage] is never a target.
+ * A field whose window is not the one the take started in is not a target either: the
+ * take-start window is compared with the window of the live node, and a mismatch is NO_FIELD.
  *
  * @param finder where the input-focused node comes from, asked once per call
  * @param ownPackage the package of this app; a field that belongs to it is refused
@@ -31,6 +35,19 @@ internal class NodeFocusedField(
         } catch (e: Exception) {
             FieldCommit.REFUSED
         }
+
+    /**
+     * The window the focused field is in, read live through the same finder an insert uses.
+     * Null when there is no focused field. No text is read, and the node is given back.
+     */
+    override fun focusedWindow(): TakeStartWindow? {
+        val node: FieldNode = finder.findInputFocus() ?: return null
+        try {
+            return TakeStartWindow(node.windowId, node.packageName)
+        } finally {
+            giveBack(node)
+        }
+    }
 
     /** Look the field up, insert into it, and give the node back on every way out. */
     private fun findAndInsert(text: String): FieldCommit {
@@ -67,6 +84,14 @@ internal class NodeFocusedField(
         if (!isEditable) return FieldCommit.REFUSED
         val isEnabled: Boolean = node.isEnabled
         if (!isEnabled) return FieldCommit.REFUSED
+
+        // The take-start window, when a take was captured. Short-circuit: with no anchor the
+        // node's window is not read at all, and with an anchor it is read at most once.
+        val anchor: TakeStartWindow? = TakeStartAnchor.current()
+        if (anchor != null && (anchor.windowId == null ||
+            anchor.windowId != node.windowId || anchor.packageName != node.packageName)) {
+            return FieldCommit.NO_FIELD
+        }
 
         val showingHint: Boolean = node.isShowingHint
         val limit: Int = node.maxTextLength

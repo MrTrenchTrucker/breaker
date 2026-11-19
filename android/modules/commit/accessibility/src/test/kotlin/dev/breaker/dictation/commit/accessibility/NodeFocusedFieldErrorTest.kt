@@ -59,6 +59,8 @@ internal class NodeFocusedFieldErrorTest {
         override val packageName: String?
             get() = afterCall(FakeFieldNode.READ_PACKAGE_NAME, inner.packageName)
 
+        override val windowId: Int? = null
+
         override val isPassword: Boolean
             get() = afterCall(FakeFieldNode.READ_IS_PASSWORD, inner.isPassword)
 

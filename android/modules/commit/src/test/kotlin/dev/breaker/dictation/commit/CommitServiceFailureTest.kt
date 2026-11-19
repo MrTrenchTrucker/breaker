@@ -16,6 +16,7 @@ internal class CommitServiceFailureTest {
 
     private class ThrowingField : FocusedField {
         override fun commitText(text: String): FieldCommit = throw Fatal()
+        override fun focusedWindow(): TakeStartWindow? = null
     }
 
     private val refusalDetail = "The field did not accept the text, so it was copied instead."

@@ -18,7 +18,7 @@ internal object AdapterAllowed {
         "node" to setOf(
             "packageName", "isPassword", "isEditable", "isEnabled", "isShowingHintText", "maxTextLength",
             "text", "textSelectionStart", "textSelectionEnd", "refresh", "performAction", "recycle",
-            "inputType", "release",
+            "inputType", "release", "windowId",
         ),
         "root" to setOf("findFocus", "recycle"),
         "service" to setOf("rootInActiveWindow"),
@@ -63,6 +63,8 @@ import dev.breaker.dictation.commit.accessibility.FocusedNodeFinder
 internal class AndroidFieldNode(private val node: AccessibilityNodeInfo) : FieldNode {
     override val packageName: String?
         get() = node.packageName?.toString()
+    override val windowId: Int?
+        get() = node.windowId
     override val isPassword: Boolean
         get() = node.isPassword
     override val isEditable: Boolean

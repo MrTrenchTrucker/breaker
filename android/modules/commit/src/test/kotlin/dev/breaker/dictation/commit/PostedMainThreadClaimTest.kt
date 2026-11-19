@@ -117,6 +117,8 @@ private class GatedField(private val gate: Gate) : FocusedField {
         gate.waitForRelease()
         return FieldCommit.ACCEPTED
     }
+
+    override fun focusedWindow(): TakeStartWindow? = null
 }
 
 /**

@@ -25,6 +25,13 @@ internal class FakeFieldNode(val calls: MutableList<String> = ArrayList()) : Fie
             return field
         }
 
+    override var windowId: Int? = null
+        get() {
+            windowIdReads++
+            calls.add(READ_WINDOW_ID)
+            return field
+        }
+
     override var isPassword: Boolean = false
         get() {
             isPasswordReads++
@@ -108,6 +115,8 @@ internal class FakeFieldNode(val calls: MutableList<String> = ArrayList()) : Fie
 
     var packageNameReads: Int = 0
         private set
+    var windowIdReads: Int = 0
+        private set
     var isPasswordReads: Int = 0
         private set
     var isEditableReads: Int = 0
@@ -140,8 +149,10 @@ internal class FakeFieldNode(val calls: MutableList<String> = ArrayList()) : Fie
     val setSelectionArguments: MutableList<Pair<Int, Int>> = ArrayList()
 
     /**
-     * Every counter, in this order: package name, password, editable, enabled, hint,
+     * The thirteen take counters, in this order: package name, password, editable, enabled, hint,
      * max length, text, selection start, selection end, refresh, setText, setSelection, release.
+     * [windowIdReads] is deliberately NOT here: it counts a window read, not a take read, and is
+     * asserted on its own so this list keeps its length.
      */
     fun counts(): List<Int> = listOf(
         packageNameReads,
@@ -198,6 +209,7 @@ internal class FakeFieldNode(val calls: MutableList<String> = ArrayList()) : Fie
     /** The names written to [calls]; constants only, no state. */
     companion object {
         const val READ_PACKAGE_NAME: String = "packageName"
+        const val READ_WINDOW_ID: String = "windowId"
         const val READ_IS_PASSWORD: String = "isPassword"
         const val READ_IS_EDITABLE: String = "isEditable"
         const val READ_IS_ENABLED: String = "isEnabled"

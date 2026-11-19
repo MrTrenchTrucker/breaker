@@ -170,4 +170,24 @@ internal class CommitServiceClipboardTest {
 
         assertEquals("commit: the clipboard must hold one write when the notice is shown", listOf(1), seen)
     }
+
+    @Test
+    fun `a spoof window refusal copies the text marked sensitive`() {
+        // The accessibility module answers NO_FIELD for a spoof window and cannot see a clipboard;
+        // the service copies the text marked sensitive exactly like a plain no-field copy.
+        val rig = Rig(sdkInt = 32)
+        rig.field.answer = FieldCommit.NO_FIELD
+
+        val result = rig.service.commit(Texts.request())
+
+        assertEquals("commit: a spoof window refusal must give COPIED", CommitOutcome.COPIED, result.outcome)
+        assertNull("commit: a spoof window refusal copy carries no detail", result.detail)
+        assertEquals("commit: exactly one clipboard write", 1, rig.clipboard.writes.size)
+        assertEquals(
+            "commit: the spoof refusal copy must get the exact text with the sensitive flag set",
+            listOf(Pair(Texts.SECRET, true)),
+            rig.clipboard.writes,
+        )
+        assertTrue("commit: the sensitive argument must be true", rig.clipboard.writes[0].second)
+    }
 }

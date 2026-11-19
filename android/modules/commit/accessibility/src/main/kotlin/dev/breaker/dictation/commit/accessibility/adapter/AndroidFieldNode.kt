@@ -22,6 +22,9 @@ internal class AndroidFieldNode(private val node: AccessibilityNodeInfo) : Field
     override val packageName: String?
         get() = node.packageName?.toString()
 
+    override val windowId: Int?
+        get() = node.windowId
+
     override val isPassword: Boolean
         get() = node.isPassword || isPasswordInputType(node.inputType)
 

@@ -21,6 +21,16 @@ enum class FieldCommit {
 interface FocusedField {
     /** Put [text] into the field and say whether the field took it. */
     fun commitText(text: String): FieldCommit
+
+    /**
+     * The window this field is in, read live now: an id and a package, never a
+     * node and never text. Null when there is no focused field.
+     *
+     * A public seam member added for take-start window ownership: the capture
+     * reads it on the same main-thread hop the commit uses, and only the two
+     * values are kept from it.
+     */
+    fun focusedWindow(): TakeStartWindow?
 }
 
 /**

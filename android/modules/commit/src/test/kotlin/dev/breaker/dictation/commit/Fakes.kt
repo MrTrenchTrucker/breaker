@@ -69,6 +69,8 @@ internal class FakeField(private val probe: HopProbe) : FocusedField {
         if (toThrow != null) throw toThrow
         return answer
     }
+
+    override fun focusedWindow(): TakeStartWindow? = null
 }
 
 internal class FakeFocus(private val probe: HopProbe, var field: FocusedField?) : FocusedFieldSource {
