@@ -43,7 +43,7 @@ class SherpaOnnxWordStreamFactoryStampTest {
         return dir
     }
 
-    private fun model(dir: File) = SherpaModel("tiny", dir, "digest")
+    private fun model(dir: File) = SherpaModel("small", dir, "digest")
 
     private fun newOpener(): StampOpener = StampOpener(FakeTimedNative(listOf(TIMED_NO_WORDS)))
 
@@ -171,7 +171,7 @@ class SherpaOnnxWordStreamFactoryStampTest {
         assertEquals("the fixed sentence", fixedSentence, text)
         assertFalse("the message names the directory: $text", text.contains(dir.path))
         for (name in names) assertFalse("the message names $name: $text", text.contains(name))
-        assertFalse("the message names the model id: $text", text.contains("tiny"))
+        assertFalse("the message names the model id: $text", text.contains("small"))
     }
 
     @Test

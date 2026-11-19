@@ -2,6 +2,7 @@ package dev.breaker.dictation.ui.screen.onboarding
 
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.ui.BreakerSwitch
+import dev.breaker.dictation.ui.screen.ModelActions
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.write.writeThrough
@@ -65,6 +66,8 @@ private val NOTHING_KNOWN = PlatformStatus(
  *   itself, its progress and its sentences stay the app's.
  * @param screen the pure screen.
  * @param settings the store the microphone flag is kept in; null keeps it in memory only.
+ * @param onDownloadModelId asks the app to download the speech model with the given id; a blank id is refused.
+ * @param models answers the speech models the step offers, asked again on every drawing; empty keeps the one button.
  */
 internal class SetupIntentHandler(
     private val platform: SetupPlatform,
@@ -75,12 +78,15 @@ internal class SetupIntentHandler(
     private val onDownloadModel: () -> Unit,
     private val screen: SetupScreen,
     private val settings: SettingsStore? = null,
+    private val onDownloadModelId: (String) -> Unit = {},
+    private val models: () -> List<FirstRunModel> = { emptyList() },
 ) {
     private var lastStatus: PlatformStatus? = null
     private var lastSwitchOn: Boolean = false
     private var lastModelReady: Boolean = false
     private var lastDownloadLine: String? = null
     private var lastModelDownloadMb: Int = 0
+    private var lastModels: List<FirstRunModel> = emptyList()
     private var micAsked: Boolean = false
     private var notificationsAsked: Boolean = false
     private var held: SetupState? = null
@@ -127,7 +133,7 @@ internal class SetupIntentHandler(
      */
     fun handle(intent: ScreenIntent): Screen {
         val notice = when (intent) {
-            is ScreenIntent.Setup -> act(intent.action)
+            is ScreenIntent.Setup -> act(intent.action, intent.id)
             ScreenIntent.ToggleTheme,
             ScreenIntent.UseSystemTheme,
             is ScreenIntent.SetRoutingMode,
@@ -151,7 +157,8 @@ internal class SetupIntentHandler(
     }
 
     /** Does what the action string asks and returns the notice it leaves, or null. */
-    private fun act(action: String): SetupNotice? {
+    private fun act(action: String, id: String): SetupNotice? {
+        if (action == ModelActions.MODEL_DOWNLOAD) return handOverModelDownload(id, onDownloadModelId)
         if (action == SetupActions.SWITCH_ON) return switchOn()
         if (action == SetupActions.SWITCH_OFF) return switchOff()
         if (action == SetupActions.RECHECK) return null
@@ -321,6 +328,11 @@ internal class SetupIntentHandler(
             failed = true
         }
         try {
+            lastModels = models()
+        } catch (failure: Exception) {
+            failed = true
+        }
+        try {
             if (settings != null && settings.load().microphoneAsked) micAsked = true
         } catch (failure: Exception) {
             // Not a failed seam: the memory flag stays as it is, and no notice is shown.
@@ -338,6 +350,7 @@ internal class SetupIntentHandler(
             modelReady = lastModelReady,
             downloadLine = lastDownloadLine,
             modelDownloadMb = lastModelDownloadMb,
+            models = lastModels,
         )
 
     /**

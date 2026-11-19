@@ -24,11 +24,21 @@ internal object Fixtures {
     const val ABC_SHA256: String = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 
     /**
-     * Build a [UpstreamChecksums.Checksums] from name/digest pairs.
-     * Digests are lowercased to match production behaviour.
+     * Leaves a `.checksums` file in the model folder, as an earlier version of the
+     * app did. Nothing in the module reads or writes it any more; a test uses this
+     * to prove the file cannot change a load or an install.
      */
-    fun checksumsOf(vararg pairs: Pair<String, String>): UpstreamChecksums.Checksums =
-        UpstreamChecksums.Checksums(pairs.associate { (name, digest) -> name to digest.lowercase() })
+    fun writeLegacyChecksums(store: LocalModelStore, modelId: String, text: String) {
+        val dir = store.directoryFor(modelId)
+        dir.mkdirs()
+        File(dir, LocalModelStore.CHECKSUMS_FILE).writeText(text)
+    }
+
+    /** The text of the model folder's `.checksums` file, or null when there is none. */
+    fun legacyChecksums(store: LocalModelStore, modelId: String): String? {
+        val file = File(store.directoryFor(modelId), LocalModelStore.CHECKSUMS_FILE)
+        return if (file.isFile) file.readText() else null
+    }
 
     /**
      * Compute SHA-256 of [bytes] independently of [ModelIntegrity],

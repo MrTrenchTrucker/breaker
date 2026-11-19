@@ -46,7 +46,21 @@ Entry checks (all of them, before any write):
 * archive_name: present, a non-empty plain file name (no `/` or `\\` anywhere),
   and its (archive_name, sha256) pair a line of the committed fixture
   fixtures/upstream-checksum-excerpt.txt - the byte-exact upstream
-  checksum.txt excerpt the module carries (checked offline, no network).
+  checksum.txt excerpt the module carries (checked offline, no network); the
+  one exception is an archive named in tools/model_registry_fields.py as
+  having no upstream line (parakeet), and only while the fixture has none;
+* size_bytes and asset_id: positive integers, our own pin; an asset url must
+  end with the asset_id; a speech entry also needs kind (streaming|offline)
+  and offered (true|false) and may carry label and rating (0 to 3), and
+  offered: true needs both (rules in tools/model_registry_fields.py; nothing
+  outside the registry reads them yet);
+* a speech entry also carries model_type, and a supported one (the pairs of
+  tools/model_types.py) carries files_*, limit_* and language; exactly one
+  speech entry has default: true, it is offered, and an optional notice is
+  plain text (rules in tools/model_registry_engine.py; the generated Kotlin is
+  written by tools/model_registry_render.py);
+* upstream_commit may be left out by a keyword entry or by an entry whose
+  tamper_verified is false (checked when given).
 
 A second top-level list, `keyword_models:` (optional), holds keyword-spotting
 models. Its entries obey every rule above, with three differences: the id may
@@ -67,7 +81,12 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
+import model_registry_engine as engine  # noqa: E402
+import model_registry_fields as mrf  # noqa: E402
 import yaml_subset  # noqa: E402
+from model_registry_render import render_kotlin  # noqa: E402,F401
+from model_registry_render import kotlin_constant as _kotlin_constant  # noqa: E402
+from model_registry_render import kotlin_str as _kotlin_str  # noqa: E402,F401
 
 REPO_ROOT = os.path.dirname(_HERE)
 MODULE_DIR = os.path.join(REPO_ROOT, "shared", "modules", "model-registry")
@@ -82,9 +101,13 @@ FIXTURE = os.path.join(
 REQUIRED_FIELDS = (
     "id", "family", "params", "size_mb", "url", "sha256",
     "upstream_commit", "tamper_verified", "hosted", "archive_name",
+    "size_bytes", "asset_id",
 )
 OPTIONAL_FIELDS = ("license", "license_name", "license_link", "notes")
-KNOWN_FIELDS = set(REQUIRED_FIELDS) | set(OPTIONAL_FIELDS)
+# kind, offered (required) and label, rating (optional) are speech-only, and
+# the field rules for all of them live in tools/model_registry_fields.py.
+KNOWN_FIELDS = (set(REQUIRED_FIELDS) | set(OPTIONAL_FIELDS)
+                | set(mrf.SPEECH_ONLY_FIELDS))
 
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
@@ -107,8 +130,7 @@ SPDX_SHAPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.+-]*$")
 FAMILIES = ("sherpa-onnx", "whisper")
 
 
-class RegistryError(ValueError):
-    """A models.yaml entry the generator refuses to ship."""
+RegistryError = mrf.RegistryError  # a models.yaml entry the generator refuses
 
 
 BLOCK_SCALAR = re.compile(r"^(\s*)\S[^:]*:\s*[|>][0-9+-]*\s*$")
@@ -276,8 +298,11 @@ def _check_entry(raw, span, lines, keyword=False):
     start, _ = span
     keys = set(raw)
 
-    for f in REQUIRED_FIELDS:
-        if f not in keys and not (keyword and f in KEYWORD_OPTIONAL):
+    # A keyword entry, or a speech entry that is not tamper verified, may
+    # leave out upstream_commit: no source revision can be tied to it.
+    commit_optional = keyword or raw.get("tamper_verified") == "false"
+    for f in REQUIRED_FIELDS + (() if keyword else mrf.SPEECH_REQUIRED):
+        if f not in keys and not (commit_optional and f in KEYWORD_OPTIONAL):
             raise RegistryError(
                 f"{_where(raw, span, lines)}: required field '{f}' is missing")
     for k in sorted(keys - KNOWN_FIELDS):
@@ -336,7 +361,7 @@ def _check_entry(raw, span, lines, keyword=False):
             f"{label}line {_field_line(lines, span, 'sha256')}: sha256 is not 64 "
             f"lowercase hex characters")
     commit = value("upstream_commit") if "upstream_commit" in keys else ""
-    if (commit or not keyword) and not HEX40.match(commit):
+    if (commit or not commit_optional) and not HEX40.match(commit):
         raise RegistryError(
             f"{label}line {_field_line(lines, span, 'upstream_commit')}: "
             f"upstream_commit is not 40 lowercase hex characters")
@@ -377,13 +402,18 @@ def _check_entry(raw, span, lines, keyword=False):
             f"{label}line {_field_line(lines, span, 'archive_name')}: "
             f"archive_name must be a plain file name without a path separator "
             f"(got '{archive}')")
-    if (archive, sha) not in _fixture_pairs():
+    if not mrf.archive_pair_ok(archive, sha, _fixture_pairs()):
         raise RegistryError(
             f"{label}line {_field_line(lines, span, 'archive_name')}: "
             f"archive_name '{archive}' does not pair with the entry's sha256 "
             f"in the upstream fixture")
 
+    pin = mrf.check_pin_fields(
+        raw, keyword, label, lambda f: _field_line(lines, span, f), value,
+        url)
+
     return {
+        **pin,
         "id": eid,
         "family": family,
         "params": params,
@@ -447,6 +477,10 @@ def check_registry(text, name="models.yaml"):
         raise RegistryError("the document must be a mapping with a 'models' key")
     lines = text.splitlines()
     speech, speech_lines = _check_list(doc, text, lines, "models", False)
+    try:
+        engine.check_default_count(speech)
+    except engine.EngineFieldError as err:
+        raise RegistryError(str(err)) from None
     if "keyword_models" not in doc:
         return speech, []
     keyword, _ = _check_list(
@@ -457,79 +491,6 @@ def check_registry(text, name="models.yaml"):
 def check_models(text, name="models.yaml"):
     """The speech entries of `check_registry` (both lists are validated)."""
     return check_registry(text, name)[0]
-
-
-def _kotlin_constant(eid):
-    return re.sub(r"(?<!^)([a-z])([A-Z])", r"\1_\2", eid).upper().replace("-", "_")
-
-
-def _kotlin_str(s):
-    # Kotlin reads $ as a template start: a bare $ in a licence or a url owner
-    # segment must reach the compiler as an escaped literal dollar.
-    return ('"' + s.replace("\\", "\\\\").replace('"', '\\"')
-            .replace("$", "\\$") + '"')
-
-
-def render_kotlin(entries, keyword_entries=()):
-    """The committed Kotlin, rendered from converted entries (speech first,
-    then keyword models). Deterministic: same entries -> same bytes. `ALL` and
-    `byId` name the speech entries only; `KEYWORD_MODELS` and `byKeywordId`
-    the keyword entries only."""
-    lines = [
-        "// Generated by tools/gen_model_registry.py from models.yaml —",
-        "// do not edit by hand. Edit models.yaml and rerun the generator.",
-        "// (ADR-016: the app reads these constants; nothing parses YAML at runtime.)",
-        "package dev.breaker.shared.models",
-        "",
-        "enum class ModelFamily {",
-        "    SHERPA_ONNX,",
-        "    WHISPER,",
-        "}",
-        "",
-        "data class ModelEntry(",
-        "    val id: String,",
-        "    val family: ModelFamily,",
-        "    val url: String,",
-        "    val sha256: String,",
-        "    val sizeMb: Int,",
-        "    val licence: String,",
-        "    val hosted: Boolean,",
-        '    val archiveName: String = "",',
-        ")",
-        "",
-        "object ModelRegistry {",
-    ]
-    for e in list(entries) + list(keyword_entries):
-        fam = "SHERPA_ONNX" if e["family"] == "sherpa-onnx" else "WHISPER"
-        lines += [
-            f"    val {_kotlin_constant(e['id'])}: ModelEntry = ModelEntry(",
-            f"        id = {_kotlin_str(e['id'])},",
-            f"        family = ModelFamily.{fam},",
-            f"        url = {_kotlin_str(e['url'])},",
-            f"        sha256 = {_kotlin_str(e['sha256'])},",
-            f"        sizeMb = {e['size_mb']},",
-            f"        licence = {_kotlin_str(e['licence'])},",
-            f"        hosted = {str(e['hosted']).lower()},",
-            f"        archiveName = {_kotlin_str(e['archive_name'])},",
-            "    )",
-            "",
-        ]
-    names = ", ".join(_kotlin_constant(e["id"]) for e in entries)
-    kw_names = ", ".join(_kotlin_constant(e["id"]) for e in keyword_entries)
-    kw_list = f"listOf({kw_names})" if kw_names else "emptyList()"
-    lines += [
-        "    val ALL: List<ModelEntry> = listOf(" + names + ")",
-        "",
-        "    val KEYWORD_MODELS: List<ModelEntry> = " + kw_list,
-        "",
-        "    fun byId(id: String): ModelEntry? = ALL.firstOrNull { it.id == id }",
-        "",
-        "    fun byKeywordId(id: String): ModelEntry? = "
-        "KEYWORD_MODELS.firstOrNull { it.id == id }",
-        "}",
-        "",
-    ]
-    return "\n".join(lines)
 
 
 def generate(models_yaml_path=MODELS_YAML, output_path=OUTPUT_KOTLIN):

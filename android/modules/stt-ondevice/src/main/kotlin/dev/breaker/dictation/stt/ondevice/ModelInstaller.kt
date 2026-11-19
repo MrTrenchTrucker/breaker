@@ -1,30 +1,33 @@
 package dev.breaker.dictation.stt.ondevice
 
 import dev.breaker.shared.models.ModelEntry
+import dev.breaker.shared.models.ModelRegistry
 import java.io.File
 import java.io.IOException
 
 /**
  * Installs a model from the registry into the local store.
  *
- * The flow exists to hold one property: a partially written or unverified
- * archive is never visible to the loader. Bytes are verified in staging and
- * only then moved, and they are verified once more where they will be read.
- * Every failure path deletes what it wrote.
+ * The archive is checked against the registry entry's own pin: its sha256 and
+ * its byte size. The install makes exactly one request, for the model archive;
+ * it never asks for upstream's checksum list, so nothing on upstream's side
+ * can fail an install (see [ModelIntegrity]).
  *
- * A download that fails verification is deleted at once rather than kept -
- * a file that failed verification will not pass it on the next attempt, and
- * the next attempt downloads it fresh.
+ * The flow exists to hold one property: a partially written or unverified
+ * archive is never visible to the loader: bytes are verified in staging, moved,
+ * and verified once more where they will be read. Every failure path deletes what it wrote.
+ *
+ * A download that fails verification is deleted at once rather than kept: it will
+ * not pass on the next attempt, which downloads it fresh.
  *
  * After the second check the archive is unpacked into the few files the engine
  * opens (see [ModelExtractor]). The install result is Installed only once that
  * has finished. Last of all the four unpacked files are measured and their stamp
  * (see [UnpackedStamp]) is written, so a refused install never leaves one. The
- * store's isInstalled answers for the archive alone, and the
- * loader answers not installed when the unpacked files are missing. An archive
- * that cannot be unpacked is deleted with the rest of the model, and the refusal
- * says whether the archive was at fault, the phone was, or the space ran out. A
- * model with no unpack profile is refused before anything is downloaded.
+ * store's isInstalled answers for the archive alone, and the loader answers not installed
+ * when the unpacked files are missing. An archive that cannot be unpacked is deleted with the
+ * rest of the model, and the refusal says whether the archive was at fault, the phone was, or the
+ * space ran out. A model with no unpack profile is refused before anything is downloaded.
  *
  * When a delete on a refusal path fails, the refusal is kept, its sentence says
  * that the file could not be deleted, and [InstallResult.Refused.leftOnDisk] is
@@ -40,6 +43,10 @@ class ModelInstaller(
     private val debug: ModelDebugSink = NoDebugSink,
     private val extractor: ModelExtractor = ModelExtractor(),
     private val digestOf: (File) -> String? = ModelIntegrity::sha256,
+    /** Free bytes on the volume holding a directory. The default asks the file system; a test may replace it. */
+    private val usableSpace: (File) -> Long = { it.usableSpace },
+    /** Resolves a model id to its registry entry, which gives the unpack profile; the real registry by default. */
+    private val lookup: (String) -> ModelEntry? = ModelRegistry::byId,
 ) {
 
     /**
@@ -73,13 +80,7 @@ class ModelInstaller(
         /** The model archive could not be fetched. */
         FETCH_FAILED,
 
-        /** The checksum file could not be fetched. */
-        CHECKSUMS_FAILED,
-
-        /** The checksum file could not be read or parsed. */
-        CHECKSUMS_UNREADABLE,
-
-        /** The staged archive failed integrity verification. */
+        /** The staged archive failed integrity verification (its size or its sha256 is not the registry pin). */
         DIGEST_REFUSED,
 
         /** The model directory could not be created. */
@@ -110,8 +111,7 @@ class ModelInstaller(
      * Each step has its own refusal category so the caller can distinguish
      * a network failure from a verification failure from a filesystem failure.
      *
-     * [onProgress] receives the progress of the model fetch only; the checksum
-     * fetch does not report. A RuntimeException thrown by it is swallowed: the
+     * [onProgress] receives the progress of the model fetch. A RuntimeException thrown by it is swallowed: the
      * first one is logged to the debug sink by class name, and the download goes on.
      *
      * @return [InstallResult.Installed] on success, [InstallResult.Refused] otherwise.
@@ -134,46 +134,24 @@ class ModelInstaller(
 
         // Step 0b: a model with no unpack profile can never be unpacked, so it is
         // refused before anything is downloaded.
-        if (!extractor.supports(entry.id)) {
+        val profile = profileOf(entry)
+        if (profile == null) {
             return refuse(Refusal.UNSUPPORTED_MODEL, ModelMessages.MODEL_WRONG_FAMILY, "no unpack profile for '${entry.id}'")
         }
 
-        // Step 1: fetch checksums. The fetcher writes into staging, so an
-        // IOException here is a staging failure, not a network one (a network
-        // failure comes back as Result.Failed), and a no-space failure is told apart.
-        val checksumsResult = try {
-            fetcher.fetchChecksums(stagingDir)
-        } catch (e: NoSpaceException) {
-            return refuseFetchNoSpace(stagingDir, e)
-        } catch (e: IOException) {
+        // Step 1: the free-space check. The disk holds the archive and the files
+        // unpacked from it at the same moment, so the check needs the pinned archive
+        // size plus the most the unpack profile lets it write. It runs before any
+        // byte is fetched, so a refusal leaves nothing behind.
+        val unpackBytes = profile.limits.maxWrittenBytes
+        val needBytes = entry.sizeBytes + unpackBytes
+        val freeBytes = usableSpace(stagingDir)
+        if (freeBytes < needBytes) {
             return refuse(
-                Refusal.STAGING_FAILED,
-                ModelMessages.SAVE_FAILED,
-                "cannot write into ${stagingDir.absolutePath}: ${e.message}",
-            )
-        }
-        if (checksumsResult is ModelFetcher.Result.Failed) {
-            return refuse(Refusal.CHECKSUMS_FAILED, ModelMessages.CHECKSUMS_DOWNLOAD_FAILED, checksumsResult.reason)
-        }
-        val checksumsFile = (checksumsResult as ModelFetcher.Result.Fetched).file
-
-        val checksumsText: String = try {
-            checksumsFile.readText()
-        } catch (e: Exception) {
-            return refuse(
-                Refusal.CHECKSUMS_UNREADABLE,
-                ModelMessages.CHECKSUMS_UNREADABLE_DOWNLOADED,
-                "checksum file unreadable: ${e.message}",
-            )
-        }
-
-        val checksums: UpstreamChecksums.Checksums = try {
-            UpstreamChecksums.parse(checksumsText)
-        } catch (e: Exception) {
-            return refuse(
-                Refusal.CHECKSUMS_UNREADABLE,
-                ModelMessages.CHECKSUMS_UNREADABLE_DOWNLOADED,
-                "checksum file unparseable: ${e.message}",
+                Refusal.NO_SPACE,
+                ModelMessages.DOWNLOAD_NO_SPACE,
+                "need $needBytes bytes (archive ${entry.sizeBytes} + unpacked $unpackBytes), " +
+                    "free $freeBytes in ${stagingDir.absolutePath}",
             )
         }
 
@@ -191,7 +169,8 @@ class ModelInstaller(
             }
         }
 
-        // Step 2: fetch model archive. Same staging-write reasoning as step 1, with the no-space case told apart.
+        // Step 2: fetch model archive. A write into staging that throws is a staging failure, not a
+        // network one (a network failure comes back as Result.Failed), and a no-space failure is told apart.
         val modelResult = try {
             fetcher.fetchModel(entry, stagingDir, guarded)
         } catch (e: NoSpaceException) {
@@ -209,7 +188,7 @@ class ModelInstaller(
         val staged = (modelResult as ModelFetcher.Result.Fetched).file
 
         // Step 3: verify in staging
-        val stagingVerdict = ModelIntegrity.verify(staged, entry.sha256, checksums, entry.archiveName)
+        val stagingVerdict = ModelIntegrity.verify(staged, entry.sha256, entry.sizeBytes)
         if (stagingVerdict is ModelIntegrity.Verdict.Refused) {
             val removed = store.discardFailedDownload(staged)
             return refuse(
@@ -274,8 +253,8 @@ class ModelInstaller(
         }
 
         // Step 6: verify at final location
-        // Repeats the step 3 staging check on the same bytes as defence in depth; the archive name rule is enforced at step 3, not here.
-        val finalVerdict = ModelIntegrity.verify(archiveFile, entry.sha256, checksums, entry.archiveName)
+        // Repeats the step 3 staging check (size and sha256) on the same bytes as defence in depth.
+        val finalVerdict = ModelIntegrity.verify(archiveFile, entry.sha256, entry.sizeBytes)
         if (finalVerdict is ModelIntegrity.Verdict.Refused) {
             val removed = store.delete(entry.id)
             return refuse(
@@ -287,12 +266,11 @@ class ModelInstaller(
             )
         }
 
-        // Step 7: record checksums and mark verified. A write failure here is
-        // the same staging-write shape as steps 1-2 - return it, never let it
+        // Step 7: mark verified. A write failure here is
+        // the same staging-write shape as step 2 - return it, never let it
         // escape. The archive is deleted so a model that cannot record its
         // provenance is not left looking installed.
         try {
-            store.storeChecksums(entry.id, checksumsText)
             store.markVerified(entry.id, digest)
         } catch (e: IOException) {
             val removed = store.delete(entry.id)
@@ -309,21 +287,35 @@ class ModelInstaller(
         // appear in one move. The stamp is recorded last, from the unpacked files as
         // they are now, and only after a successful unpack. A refusal deletes the
         // whole model so nothing half-installed stays.
-        return when (val unpacked = extractor.extract(archiveFile, entry.id, store)) {
-            is ExtractionOutcome.Extracted -> recordStamp(entry, digest)
+        // The profile resolved in step 0b goes down to the extractor; neither it nor the store looks the id up again.
+        val work = store.extractionWorkDirectory(entry.id)
+        return when (val unpacked = extractor.extract(archiveFile, profile, work, store.extractedDirectory(entry.id))) {
+            is ExtractionOutcome.Extracted -> recordStamp(entry, digest, profile)
             is ExtractionOutcome.Rejected -> refuseUnpack(entry.id, unpacked)
         }
     }
+
+    /**
+     * The unpack profile of [entry], the one source for support, the free-space figure, the unpack and the
+     * stamp. An entry that carries its own files and limits is read as given ([ExtractionProfiles.forEntry]);
+     * an entry missing either is resolved by its id through [lookup] ([ExtractionProfiles.forModel]).
+     * Null means no profile.
+     */
+    private fun profileOf(entry: ModelEntry): ExtractionProfile? =
+        if (entry.files != null && entry.limits != null) {
+            ExtractionProfiles.forEntry(entry)
+        } else {
+            ExtractionProfiles.forModel(entry.id, lookup)
+        }
 
     /**
      * Measures the four unpacked files of [entry] and writes their stamp, then reports the
      * install as Installed. When a file cannot be measured or the stamp cannot be written, the
      * whole model is deleted and the install is refused, the same way a failed metadata write is.
      */
-    private fun recordStamp(entry: ModelEntry, digest: String): InstallResult {
-        val profile = ExtractionProfiles.forModel(entry.id)
+    private fun recordStamp(entry: ModelEntry, digest: String, profile: ExtractionProfile): InstallResult {
         val directory = store.extractedDirectory(entry.id)
-        val stamp = profile?.let { UnpackedStamp.measure(directory, it.files, digest, digestOf) }
+        val stamp = UnpackedStamp.measure(directory, profile.files, digest, digestOf)
         val written = stamp != null && try {
             store.writeStamp(entry.id, stamp)
             true

@@ -22,7 +22,7 @@ class ModelLoaderDefaultEngineTest {
     private val modelId = "tiny"
     private val bytes = "model bytes".toByteArray()
     private val digest = Fixtures.independentSha256(bytes)
-    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
 
     private class RecordingSink : ModelDebugSink {
         val messages = ArrayList<String>()
@@ -38,12 +38,11 @@ class ModelLoaderDefaultEngineTest {
         override fun release() {}
     }
 
-    /** An installed model whose archive matches its pin and its stored checksum list. */
+    /** An installed model whose archive matches its pin. */
     private fun installedStore(): LocalModelStore {
         val store = LocalModelStore(tmp.newFolder())
         Fixtures.writeBytes(store.archiveFile(modelId), bytes)
         store.markVerified(modelId, digest)
-        store.storeChecksums(modelId, "model.archive\t$digest")
         Fixtures.seedExtracted(store, modelId)
         assertTrue("fixture: the model must be installed", store.isInstalled(modelId))
         return store

@@ -117,8 +117,8 @@ class DictationFlowTest {
             archive.writeText("x")
         }
         assertEquals(
-            "app: with an archive in the root's model folder the engine must get past not-installed and stop at the missing checksums",
-            FinishResult.Failed(checkNotNull(ErrorMapping.checksumsUnreadable("small").detail)),
+            "app: with an archive in the root's model folder the engine must get past not-installed and stop at the archive check (a one-byte file is not the pinned size)",
+            FinishResult.Failed(checkNotNull(ErrorMapping.tampered("small", leftOnDisk = false).detail)),
             result,
         )
     }

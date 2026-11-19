@@ -4,6 +4,7 @@ import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.flatten
+import dev.breaker.dictation.ui.screen.onboarding.FirstRunModel
 import dev.breaker.dictation.ui.screen.onboarding.SETUP_NOTICE_ID
 import dev.breaker.dictation.ui.screen.onboarding.SetupIntentHandler
 import dev.breaker.dictation.ui.screen.onboarding.SetupNotice
@@ -31,6 +32,8 @@ import dev.breaker.dictation.ui.screen.onboarding.SetupState
  * @param onFinished called once, when the model is on the phone while the download page is shown.
  * @param tracker the memory of the download page; the app shares one instance so that a page
  *   built again still sees a download that is running.
+ * @param onDownloadModelId asks the app to download the speech model with the given id, from [tapModel].
+ * @param models answers the speech models the download page offers, asked again on every read.
  */
 internal class FirstRunController(
     private val handler: SetupIntentHandler,
@@ -39,6 +42,8 @@ internal class FirstRunController(
     private val onDownloadModel: () -> Unit,
     private val onFinished: () -> Unit,
     private val tracker: DownloadTracker = DownloadTracker(),
+    private val onDownloadModelId: (String) -> Unit = {},
+    private val models: () -> List<FirstRunModel> = { emptyList() },
 ) {
     /** The page the user is on; starts on the welcome page. */
     var page: FirstRunPage = FirstRunPage.WELCOME
@@ -48,6 +53,7 @@ internal class FirstRunController(
     private var notice: String? = null
     private var lastModelReady: Boolean = false
     private var lastLine: String? = null
+    private var lastModels: List<FirstRunModel> = emptyList()
     private var finished: Boolean = false
 
     init {
@@ -62,6 +68,7 @@ internal class FirstRunController(
         notice = notice,
         missing = FirstRunMissing.of(state),
         download = DownloadShown(tracker.phase, tracker.doneMb, tracker.totalMb, lastLine),
+        models = lastModels,
     )
 
     /** Asks the phone, the model and the download sentence again, then finishes if the model is ready on the download page. */
@@ -93,6 +100,20 @@ internal class FirstRunController(
         if (!tracker.requestStart()) return
         try {
             onDownloadModel()
+        } catch (failure: Exception) {
+            tracker.onStopped(false, null)
+            notice = SetupNotice.COULD_NOT_DOWNLOAD.text
+        }
+    }
+
+    /**
+     * Asks the app to download the speech model [id], only when the download page allows a start and the id is not blank.
+     * A start that throws is stopped and says so, the same way [tapDownload] stops one.
+     */
+    fun tapModel(id: String) {
+        if (id.isBlank() || !tracker.requestStart()) return
+        try {
+            onDownloadModelId(id)
         } catch (failure: Exception) {
             tracker.onStopped(false, null)
             notice = SetupNotice.COULD_NOT_DOWNLOAD.text
@@ -132,6 +153,7 @@ internal class FirstRunController(
         }
         lastModelReady = guarded(lastModelReady, modelReady)
         lastLine = guarded(lastLine, downloadLine)
+        lastModels = guarded(lastModels, models)
     }
 
     /** The answer of [provider], or [last] when the provider throws. */

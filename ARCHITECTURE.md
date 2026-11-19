@@ -224,8 +224,8 @@ admins.
 - N1. Dictation starts < 1 s after wake phrase (models preloaded where possible).
 - N2. No telemetry; the app's network calls are to the Local Server and, once per
       model, the speech-model download from GitHub (F43, N3).
-- N3. Model files **pinned to immutable release-asset ids** and checked against
-      its own SHA-256 pin before use [2]. Decided, not built (ADR-050): the pin is the rule for every model; upstream's checksum.txt is advisory, not required. Today's code still requires the pin to appear in that file.
+- N3. Model files **named by release-asset id** (upstream can re-point an id, so our own pin is the check) and checked against
+      its own SHA-256 pin and byte size before use [2]. ADR-050: the pin is the rule for every model, built in the speech module and the registry (not compiled or run); upstream's checksum.txt is advisory and never fetched on install.
 - N4. Battery-friendly: sensor + overlay listeners idle when not dictating.
 - N5. Android 11+ (min SDK 30), arm64-v8a primary target.
 - N6. Audio never leaves the device in local/fallback mode (except user-initiated sync).
@@ -341,14 +341,14 @@ upstream Apache-2.0 — verified by Security Review; credited in NOTICE) [1].
 Security Review audit) — record per-model license in the registry [1]. S25 Ultra (16 GB):
 `small` default, `medium` possible. Download once -> verify against our SHA-256 pin -> preload [2].
 
-**Decided, not built (ADR-050):** two speech models. `small` is labelled Good (1 of 3 truck emoji). Parakeet TDT 0.6B v3 (sherpa-onnx int8, offline) is labelled Better (2 of 3 truck emoji). Parakeet is decoded once after the user stops, as `small` is today. The first-run step offers both and downloads the one the user picks. Settings lists both, with download, delete (never the model in use) and use-this-one. Each model has its own registry pin (our SHA-256, byte size and asset id). Upstream checksum.txt is advisory. The wake and send phrases run on the separate keyword model and do not read this choice. Today the app ships `small` only: there is no picker, no delete and no second model.
+**Decided, not built (ADR-050):** two speech models. `small` is labelled Good (1 of 3 truck emoji). Parakeet TDT 0.6B v3 (sherpa-onnx int8, offline) is labelled Better (2 of 3 truck emoji). Parakeet is decoded once after the user stops, as `small` is today. The first-run step offers both and downloads the one the user picks. Settings lists both, with download, delete (never the model in use) and use-this-one. Each model has its own registry pin (our SHA-256, byte size and asset id). Upstream checksum.txt is advisory. The wake and send phrases run on the separate keyword model and do not read this choice. The registry entry, the pin and the offline recogniser for Parakeet are built in the registry and speech modules (not compiled or run; the recogniser's native binding has never been compiled against the library, and real-phone memory is not measured). Not built: the first-run second button, the settings section, the ratings display and the notices (the `android/ui` and settings modules). Today the app ships `small` only: no screen downloads, picks or deletes a model.
 
 **Security Review's sherpa-onnx audit (2026):** safe to use with **three mitigations**
 [2]. Clean of malware/backdoors/phone-home; the vendored Kotlin bindings match
 upstream signatures exactly [2]. **Known bug:** GitHub issue #3983 — an OOB
 write in the offline transducer greedy-search decoder, reachable via a tampered
 .onnx (model metadata parses vocab_size with no upper bound) [2]. Mitigations,
-all adopted: (1) treat every .onnx as untrusted - pin model URLs to immutable release-asset ids + verify against our own SHA-256 pin [2] (amended by ADR-050: upstream checksum.txt is advisory); (2) retain the
+all adopted: (1) treat every .onnx as untrusted - name each model by release-asset id + verify against our own SHA-256 pin and byte size [2] (amended by ADR-050: upstream checksum.txt is advisory and never fetched on install; built, not compiled or run); (2) retain the
 transducer path but track #3983 and adopt the upstream decoder fix when it lands
 — revisit (beam-search / non-transducer models) only if the fix doesn't land in
 a reasonable window [2]; (3) sherpa-onnx stays OFF Local Server's network-exposed
@@ -877,8 +877,8 @@ smoke-test gate [1].
       request limit is built in whisper-server: off unless the admin sets it.
 - T20. **SSRF via transcription service config** — admin-only config; URL
       validation on the connectivity test (F26).
-- T21. **Tampered model / transducer OOB write (#3983)** — models pinned to
-      immutable release-asset ids + own SHA-256 pin verified (ADR-050; today's code also needs the upstream line); track the
+- T21. **Tampered model / transducer OOB write (#3983)** — models named by
+      release-asset id, with our own SHA-256 pin and byte size verified (ADR-050; upstream's list is advisory and never fetched on install; built, not compiled or run); track the
       upstream decoder fix [2].
 - T22. **Plaintext leakage via logs** — log policy: events only, per-user, never
       plaintext transcriptions (F32).

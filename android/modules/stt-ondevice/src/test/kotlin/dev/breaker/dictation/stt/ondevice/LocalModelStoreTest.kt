@@ -181,7 +181,7 @@ class LocalModelStoreTest {
     }
 
     @Test
-    fun `modelFiles excludes marker files`() {
+    fun `modelFiles excludes marker files and a checksums file left by an earlier version`() {
         val dir = store.directoryFor("model1")
         dir.mkdirs()
         File(dir, LocalModelStore.ARCHIVE_NAME).writeBytes("data".toByteArray())
@@ -285,49 +285,6 @@ class LocalModelStoreTest {
         dir.mkdirs()
         File(dir, LocalModelStore.VERIFIED_FILE).writeText("  ${Fixtures.VALID_PIN}  \n")
         assertEquals(Fixtures.VALID_PIN, store.lastVerifiedDigest("model1"))
-    }
-
-    // --- storeChecksums / storedChecksums ---
-
-    @Test
-    fun `storeChecksums creates directory and writes text`() {
-        val text = "model.tar.bz2\t${Fixtures.VALID_PIN}"
-        store.storeChecksums("model1", text)
-        val file = File(store.directoryFor("model1"), LocalModelStore.CHECKSUMS_FILE)
-        assertTrue(file.isFile)
-        assertEquals(text, file.readText())
-    }
-
-    @Test
-    fun `storeChecksums returns quietly for unsafe id`() {
-        store.storeChecksums("..", "text")
-        store.storeChecksums("a/b", "text")
-        store.storeChecksums(".hidden", "text")
-        store.storeChecksums("", "text")
-        store.storeChecksums("a".repeat(65), "text")
-        assertTrue(store.installedModelIds().isEmpty())
-    }
-
-    @Test
-    fun `storedChecksums returns null for unsafe id`() {
-        assertNull(store.storedChecksums(".."))
-        assertNull(store.storedChecksums("a/b"))
-        assertNull(store.storedChecksums(".hidden"))
-        assertNull(store.storedChecksums(""))
-        assertNull(store.storedChecksums("a".repeat(65)))
-    }
-
-    @Test
-    fun `storedChecksums returns null when no file exists`() {
-        store.directoryFor("model1").mkdirs()
-        assertNull(store.storedChecksums("model1"))
-    }
-
-    @Test
-    fun `storedChecksums returns text after storeChecksums`() {
-        val text = "model.tar.bz2\t${Fixtures.VALID_PIN}"
-        store.storeChecksums("model1", text)
-        assertEquals(text, store.storedChecksums("model1"))
     }
 
     // --- delete ---

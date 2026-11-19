@@ -212,8 +212,6 @@ class HttpModelFetcherEdgeTest {
         val thrown = attemptModel(fetcherOf(modelOpener, openOutput = open), testEntry(), staging).thrownIo("a model whose staging file cannot be opened")
         assertSame("the original exception is the one thrown", denied, thrown)
         assertTrue("the body was closed", body.closes > 0)
-        val listOpener = FakeOpener(serve(okBytes(ByteArray(10) { 1 })))
-        attemptChecksums(fetcherOf(listOpener, openOutput = open), staging).thrownIo("a checksum list whose staging file cannot be opened")
         noPartial()
     }
 

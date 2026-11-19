@@ -33,7 +33,12 @@ import gen_model_registry as gmr
 
 class UpstreamChecksumFixtureTest(unittest.TestCase):
     def setUp(self):
-        self.entries = ts.check_models(ts.models_text())
+        # parakeet has no upstream checksum.txt line (its pin is our own hash),
+        # so there is no upstream line to compare it with: it is skipped here
+        # and nowhere else, and NoUpstreamLineRuleTest in test_pin_field_data.py
+        # pins that the skip is exactly the archives the fixture holds no line for.
+        self.entries = ts.entries_with_upstream_line(
+            ts.check_models(ts.models_text()))
         self.asset_map, self.lines = ts.fixture_data()
 
     def _entry_lines_for(self, url, filename):

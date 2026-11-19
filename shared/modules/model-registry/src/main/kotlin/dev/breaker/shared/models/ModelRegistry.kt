@@ -8,6 +8,28 @@ enum class ModelFamily {
     WHISPER,
 }
 
+enum class ModelKind {
+    STREAMING,
+    OFFLINE,
+}
+
+/** The four file names inside an archive, flat under its single top folder. */
+data class ModelFiles(
+    val encoder: String,
+    val decoder: String,
+    val joiner: String,
+    val tokens: String,
+)
+
+/** The bounds one unpack of the archive works within. */
+data class ModelLimits(
+    val maxEntryBytes: Long,
+    val maxWrittenBytes: Long,
+    val maxStreamBytes: Long,
+    val maxEntries: Int,
+    val maxDepth: Int,
+)
+
 data class ModelEntry(
     val id: String,
     val family: ModelFamily,
@@ -17,7 +39,26 @@ data class ModelEntry(
     val licence: String,
     val hosted: Boolean,
     val archiveName: String = "",
-)
+    val kind: ModelKind = ModelKind.STREAMING,
+    val sizeBytes: Long = 0L,
+    val assetId: Long = 0L,
+    val label: String? = null,
+    val rating: Int? = null,
+    val offered: Boolean = false,
+    val modelType: String? = null,
+    val files: ModelFiles? = null,
+    val limits: ModelLimits? = null,
+    val language: String? = null,
+    val isDefault: Boolean = false,
+    val notice: String? = null,
+) {
+    /** True when the engine can run this entry: it carries its model type,
+     *  files, limits and language and its (kind, modelType) pair is supported. */
+    val isSupported: Boolean
+        get() = modelType != null && files != null && limits != null &&
+            language != null &&
+            ModelRegistry.SUPPORTED_TYPES.contains(Pair(kind, modelType))
+}
 
 object ModelRegistry {
     val SMALL: ModelEntry = ModelEntry(
@@ -29,6 +70,17 @@ object ModelRegistry {
         licence = "Apache-2.0",
         hosted = false,
         archiveName = "sherpa-onnx-streaming-zipformer-en-2023-06-21-mobile.tar.bz2",
+        kind = ModelKind.STREAMING,
+        sizeBytes = 365748162L,
+        assetId = 191972150L,
+        label = "Good",
+        rating = 1,
+        offered = true,
+        modelType = "",
+        files = ModelFiles(encoder = "encoder-epoch-99-avg-1.int8.onnx", decoder = "decoder-epoch-99-avg-1.onnx", joiner = "joiner-epoch-99-avg-1.int8.onnx", tokens = "tokens.txt"),
+        limits = ModelLimits(maxEntryBytes = 314572800L, maxWrittenBytes = 167772160L, maxStreamBytes = 469762048L, maxEntries = 32, maxDepth = 4),
+        language = "en",
+        isDefault = true,
     )
 
     val TINY: ModelEntry = ModelEntry(
@@ -40,6 +92,14 @@ object ModelRegistry {
         licence = "Apache-2.0",
         hosted = false,
         archiveName = "sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2",
+        kind = ModelKind.STREAMING,
+        sizeBytes = 127887156L,
+        assetId = 143510207L,
+        offered = false,
+        modelType = "",
+        files = ModelFiles(encoder = "encoder-epoch-99-avg-1.int8.onnx", decoder = "decoder-epoch-99-avg-1.onnx", joiner = "joiner-epoch-99-avg-1.onnx", tokens = "tokens.txt"),
+        limits = ModelLimits(maxEntryBytes = 134217728L, maxWrittenBytes = 83886080L, maxStreamBytes = 167772160L, maxEntries = 32, maxDepth = 4),
+        language = "en",
     )
 
     val BASE: ModelEntry = ModelEntry(
@@ -51,6 +111,11 @@ object ModelRegistry {
         licence = "MIT",
         hosted = false,
         archiveName = "sherpa-onnx-whisper-base.en.tar.bz2",
+        kind = ModelKind.OFFLINE,
+        sizeBytes = 208576005L,
+        assetId = 196350763L,
+        offered = false,
+        modelType = "whisper",
     )
 
     val MEDIUM: ModelEntry = ModelEntry(
@@ -62,6 +127,33 @@ object ModelRegistry {
         licence = "MIT",
         hosted = false,
         archiveName = "sherpa-onnx-whisper-medium.en.tar.bz2",
+        kind = ModelKind.OFFLINE,
+        sizeBytes = 1905872689L,
+        assetId = 179372814L,
+        offered = false,
+        modelType = "whisper",
+    )
+
+    val PARAKEET: ModelEntry = ModelEntry(
+        id = "parakeet",
+        family = ModelFamily.SHERPA_ONNX,
+        url = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/719769366",
+        sha256 = "1495e91b59d7fc53ddca91f3431758ec99f8fa253fdb0e1e851be0f72b14b0f9",
+        sizeMb = 465,
+        licence = "CC-BY-4.0",
+        hosted = false,
+        archiveName = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
+        kind = ModelKind.OFFLINE,
+        sizeBytes = 487211443L,
+        assetId = 719769366L,
+        label = "Better",
+        rating = 2,
+        offered = true,
+        modelType = "nemo_transducer",
+        files = ModelFiles(encoder = "encoder.int8.onnx", decoder = "decoder.int8.onnx", joiner = "joiner.int8.onnx", tokens = "tokens.txt"),
+        limits = ModelLimits(maxEntryBytes = 671088640L, maxWrittenBytes = 738197504L, maxStreamBytes = 754974720L, maxEntries = 32, maxDepth = 4),
+        language = "",
+        notice = "This app includes the Parakeet TDT 0.6B v3 model by NVIDIA Corporation (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Model weights were converted/quantized from the original.",
     )
 
     val KWS_GIGASPEECH_3M: ModelEntry = ModelEntry(
@@ -73,11 +165,15 @@ object ModelRegistry {
         licence = "Apache-2.0",
         hosted = false,
         archiveName = "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile.tar.bz2",
+        sizeBytes = 15667804L,
+        assetId = 191975328L,
     )
 
-    val ALL: List<ModelEntry> = listOf(SMALL, TINY, BASE, MEDIUM)
+    val ALL: List<ModelEntry> = listOf(SMALL, TINY, BASE, MEDIUM, PARAKEET)
 
     val KEYWORD_MODELS: List<ModelEntry> = listOf(KWS_GIGASPEECH_3M)
+
+    val SUPPORTED_TYPES: Set<Pair<ModelKind, String>> = setOf(ModelKind.STREAMING to "", ModelKind.OFFLINE to "nemo_transducer")
 
     fun byId(id: String): ModelEntry? = ALL.firstOrNull { it.id == id }
 

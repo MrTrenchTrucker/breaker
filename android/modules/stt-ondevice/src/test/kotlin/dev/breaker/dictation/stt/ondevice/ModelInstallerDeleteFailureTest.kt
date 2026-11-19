@@ -23,29 +23,22 @@ class ModelInstallerDeleteFailureTest {
 
     private val goodBytes = "test model bytes".toByteArray()
     private val pin = Fixtures.independentSha256(goodBytes)
-    private val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false)
+    private val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false, sizeBytes = goodBytes.size.toLong())
     private val couldNotDelete = "The file could not be deleted."
 
     /**
-     * A fetcher that writes [modelBytes] and a checksum list naming the pin.
+     * A fetcher that writes [modelBytes].
      * [wrap] can return a [File] subclass in place of the staged file, so a
      * test can decide what the move does.
      */
     private class StubFetcher(
         private val modelBytes: ByteArray,
-        private val pin: String,
         private val wrap: (File) -> File = { it },
     ) : ModelFetcher {
         override fun fetchModel(entry: ModelEntry, stagingDir: File): ModelFetcher.Result {
             val file = File(stagingDir, "model.archive")
             file.writeBytes(modelBytes)
             return ModelFetcher.Result.Fetched(wrap(file))
-        }
-
-        override fun fetchChecksums(stagingDir: File): ModelFetcher.Result {
-            val file = File(stagingDir, "checksums.txt")
-            file.writeText("model.archive\t$pin")
-            return ModelFetcher.Result.Fetched(file)
         }
     }
 
@@ -73,7 +66,7 @@ class ModelInstallerDeleteFailureTest {
         }
         prepare(store)
         val sunk = mutableListOf<String>()
-        val result = ModelInstaller(store, fetcher, ModelDebugSink { sunk.add(it) }).install(entry)
+        val result = ModelInstaller(store, fetcher, ModelDebugSink { sunk.add(it) }, usableSpace = { Long.MAX_VALUE }).install(entry)
         assertTrue("the install must be refused, got $result", result is ModelInstaller.InstallResult.Refused)
         return Outcome(result as ModelInstaller.InstallResult.Refused, sunk, store)
     }
@@ -133,30 +126,48 @@ class ModelInstallerDeleteFailureTest {
         assertDeleteFailed(outcome, refusal, saveFailedLeft, " $couldNotDelete")
     }
 
-    private fun wrongBytes() = "different model bytes".toByteArray()
+    /** Same length as the good bytes, one byte changed: the size passes, so only the digest can refuse it. */
+    private fun wrongBytes() = goodBytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
+
+    /** A different length from the good bytes: the size check refuses it before any digest is computed. */
+    private fun longerBytes() = goodBytes + byteArrayOf(1)
 
     @Test
     fun `install reports a bad download that could not be discarded`() {
-        val failed = attempt(Failing.DISCARD, StubFetcher(wrongBytes(), pin))
+        val failed = attempt(Failing.DISCARD, StubFetcher(wrongBytes()))
         assertCheckSentenceLeft(failed)
         assertTrue("the sink must hold the verdict: ${failed.sunk}", failed.sunk.single().contains("PIN_MISMATCH"))
         assertTrue("the rejected download must still be in staging", stagedArchive(failed).isFile)
         assertFalse(failed.store.directoryFor("tiny").exists())
 
-        val worked = attempt(Failing.NONE, StubFetcher(wrongBytes(), pin))
+        val worked = attempt(Failing.NONE, StubFetcher(wrongBytes()))
         assertDeleteWorked(worked, ModelInstaller.Refusal.DIGEST_REFUSED, ModelMessages.DOWNLOAD_FAILED_CHECK)
+        assertFalse("the rejected download must be gone", stagedArchive(worked).exists())
+    }
+
+    @Test
+    fun `install reports a download of the wrong size that could not be discarded`() {
+        val failed = attempt(Failing.DISCARD, StubFetcher(longerBytes()))
+        assertCheckSentenceLeft(failed)
+        assertTrue("the sink must hold the size verdict: ${failed.sunk}", failed.sunk.single().contains("SIZE_MISMATCH"))
+        assertTrue("the rejected download must still be in staging", stagedArchive(failed).isFile)
+        assertFalse(failed.store.directoryFor("tiny").exists())
+
+        val worked = attempt(Failing.NONE, StubFetcher(longerBytes()))
+        assertDeleteWorked(worked, ModelInstaller.Refusal.DIGEST_REFUSED, ModelMessages.DOWNLOAD_FAILED_CHECK)
+        assertTrue("the sink must hold the size verdict: ${worked.sunk}", worked.sunk.single().contains("SIZE_MISMATCH"))
         assertFalse("the rejected download must be gone", stagedArchive(worked).exists())
     }
 
     @Test
     fun `install reports a staged file it could not discard when the model directory cannot be created`() {
         val blockModelDirectory: (LocalModelStore) -> Unit = { store -> File(store.directoryFor("tiny").path).writeText("blocker") }
-        val failed = attempt(Failing.DISCARD, StubFetcher(goodBytes, pin), blockModelDirectory)
+        val failed = attempt(Failing.DISCARD, StubFetcher(goodBytes), blockModelDirectory)
         assertSaveSentenceLeft(failed, ModelInstaller.Refusal.STAGING_FAILED)
         assertTrue("the sink must hold the model directory: ${failed.sunk}", failed.sunk.single().contains("cannot create"))
         assertTrue("the staged file must still be in staging", stagedArchive(failed).isFile)
 
-        val worked = attempt(Failing.NONE, StubFetcher(goodBytes, pin), blockModelDirectory)
+        val worked = attempt(Failing.NONE, StubFetcher(goodBytes), blockModelDirectory)
         assertDeleteWorked(worked, ModelInstaller.Refusal.STAGING_FAILED, ModelMessages.SAVE_FAILED)
         assertFalse("the staged file must be gone", stagedArchive(worked).exists())
     }
@@ -164,12 +175,12 @@ class ModelInstallerDeleteFailureTest {
     @Test
     fun `install reports a staged file it could not discard when the archive destination is a directory`() {
         val blockDestination: (LocalModelStore) -> Unit = { store -> store.archiveFile("tiny").mkdirs() }
-        val failed = attempt(Failing.DISCARD, StubFetcher(goodBytes, pin), blockDestination)
+        val failed = attempt(Failing.DISCARD, StubFetcher(goodBytes), blockDestination)
         assertSaveSentenceLeft(failed, ModelInstaller.Refusal.MOVE_FAILED)
         assertTrue("the sink must say the destination is not a file: ${failed.sunk}", failed.sunk.single().contains("destination is not a file"))
         assertTrue("the staged file must still be in staging", stagedArchive(failed).isFile)
 
-        val worked = attempt(Failing.NONE, StubFetcher(goodBytes, pin), blockDestination)
+        val worked = attempt(Failing.NONE, StubFetcher(goodBytes), blockDestination)
         assertDeleteWorked(worked, ModelInstaller.Refusal.MOVE_FAILED, ModelMessages.SAVE_FAILED)
         assertFalse("the staged file must be gone", stagedArchive(worked).exists())
     }
@@ -182,13 +193,13 @@ class ModelInstallerDeleteFailureTest {
                 override fun renameTo(dest: File): Boolean = false
             }
         }
-        val failed = attempt(Failing.DISCARD, StubFetcher(goodBytes, pin, unmovable))
+        val failed = attempt(Failing.DISCARD, StubFetcher(goodBytes, unmovable))
         assertSaveSentenceLeft(failed, ModelInstaller.Refusal.MOVE_FAILED)
         assertTrue("the sink must say the move failed: ${failed.sunk}", failed.sunk.single().contains("cannot move"))
         assertTrue("the staged file must still be in staging", stagedArchive(failed).isFile)
         assertFalse("nothing may reach the archive path", failed.store.archiveFile("tiny").exists())
 
-        val worked = attempt(Failing.NONE, StubFetcher(goodBytes, pin, unmovable))
+        val worked = attempt(Failing.NONE, StubFetcher(goodBytes, unmovable))
         assertDeleteWorked(worked, ModelInstaller.Refusal.MOVE_FAILED, ModelMessages.SAVE_FAILED)
         assertTrue("the sink must say the move failed: ${worked.sunk}", worked.sunk.single().contains("cannot move"))
         assertFalse("the staged file must be gone", stagedArchive(worked).exists())
@@ -205,12 +216,12 @@ class ModelInstallerDeleteFailureTest {
                 }
             }
         }
-        val failed = attempt(Failing.DELETE, StubFetcher(goodBytes, pin, swapsOnMove))
+        val failed = attempt(Failing.DELETE, StubFetcher(goodBytes, swapsOnMove))
         assertCheckSentenceLeft(failed)
         assertTrue("the sink must hold the verdict: ${failed.sunk}", failed.sunk.single().contains("PIN_MISMATCH"))
         assertTrue("the rejected model must still be on disk", failed.store.archiveFile("tiny").isFile)
 
-        val worked = attempt(Failing.NONE, StubFetcher(goodBytes, pin, swapsOnMove))
+        val worked = attempt(Failing.NONE, StubFetcher(goodBytes, swapsOnMove))
         assertDeleteWorked(worked, ModelInstaller.Refusal.DIGEST_REFUSED, ModelMessages.DOWNLOAD_FAILED_CHECK)
         assertTrue("the sink must hold the verdict: ${worked.sunk}", worked.sunk.single().contains("PIN_MISMATCH"))
         assertFalse("the rejected model must be gone", worked.store.directoryFor("tiny").exists())
@@ -218,17 +229,17 @@ class ModelInstallerDeleteFailureTest {
 
     @Test
     fun `install reports a model that could not be deleted when its metadata cannot be recorded`() {
-        // A directory where the checksum record must go makes the final metadata write throw.
-        val blockChecksumRecord: (LocalModelStore) -> Unit = { store ->
+        // A directory where the verified marker must go makes the metadata write throw.
+        val blockVerifiedMarker: (LocalModelStore) -> Unit = { store ->
             store.directoryFor("tiny").mkdirs()
-            File(store.directoryFor("tiny"), LocalModelStore.CHECKSUMS_FILE).mkdirs()
+            File(store.directoryFor("tiny"), LocalModelStore.VERIFIED_FILE).mkdirs()
         }
-        val failed = attempt(Failing.DELETE, StubFetcher(goodBytes, pin), blockChecksumRecord)
+        val failed = attempt(Failing.DELETE, StubFetcher(goodBytes), blockVerifiedMarker)
         assertSaveSentenceLeft(failed, ModelInstaller.Refusal.STAGING_FAILED)
         assertTrue("the sink must hold the metadata failure: ${failed.sunk}", failed.sunk.single().contains("cannot record model metadata"))
         assertTrue("the model must still be on disk", failed.store.archiveFile("tiny").isFile)
 
-        val worked = attempt(Failing.NONE, StubFetcher(goodBytes, pin), blockChecksumRecord)
+        val worked = attempt(Failing.NONE, StubFetcher(goodBytes), blockVerifiedMarker)
         assertDeleteWorked(worked, ModelInstaller.Refusal.STAGING_FAILED, ModelMessages.SAVE_FAILED)
         assertTrue("the sink must hold the metadata failure: ${worked.sunk}", worked.sunk.single().contains("cannot record model metadata"))
         assertFalse("the model must be gone", worked.store.directoryFor("tiny").exists())

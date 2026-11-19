@@ -264,11 +264,11 @@ internal class ModelDownloadEntryTest {
     }
 
     @Test
-    fun `requestDownload is the one public way in`() {
+    fun `requestDownload is the way in and downloadingId is a read`() {
         val names = ModelDownloader::class.java.declaredMethods
             .filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }
             .map { it.name }
-        assertEquals("app: the downloader must have one public method", listOf("requestDownload"), names)
+        assertEquals("app: the downloader public names are the two requests and the read", setOf("requestDownload", "downloadingId"), names.toSet())
     }
 
     @Test

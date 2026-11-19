@@ -187,8 +187,12 @@ internal sealed class ScreenIntent {
     /** Move the server address row at [index] one place away from entry 1. */
     data class MoveServerAddressDown(val index: Int) : ScreenIntent()
 
-    /** Do the step of the setup walk-through named by [action], such as opening a page or switching on. */
-    data class Setup(val action: String) : ScreenIntent()
+    /**
+     * Do the step of the setup walk-through named by [action], such as opening a page or switching on.
+     * It also carries a speech-model action (see [ModelActions]) and the id of the model it is for in [id];
+     * an empty [id] is the one-model path, which names no model.
+     */
+    data class Setup(val action: String, val id: String = "") : ScreenIntent()
 
     /** Do the step of the history screen named by [action] (see [HistoryActions]) on the row [id]. */
     data class History(val action: String, val id: String = "") : ScreenIntent()
@@ -211,6 +215,21 @@ internal object HistoryActions {
     const val MORE = "MORE"
     const val SHOW_ALL = "SHOW_ALL"
     const val HIDE = "HIDE"
+}
+
+/**
+ * The action names a [ScreenIntent.Setup] may carry for a speech model. The model's id rides in the
+ * intent's id; the prefix keeps these apart from every set-up action, which carries no prefix.
+ */
+internal object ModelActions {
+    /** Download the speech model named by the intent's id. */
+    const val MODEL_DOWNLOAD = "model-download"
+
+    /** Delete the speech model named by the intent's id, when it is installed and not in use. */
+    const val MODEL_DELETE = "model-delete"
+
+    /** Use the speech model named by the intent's id as the model in use. */
+    const val MODEL_USE = "model-use"
 }
 
 /** A whole screen: an identity, a title and the tree that makes it up. */

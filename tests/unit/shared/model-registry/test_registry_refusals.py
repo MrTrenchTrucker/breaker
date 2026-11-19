@@ -230,10 +230,13 @@ class UrlRuleTest(unittest.TestCase):
         self.assertIn("api.github.com", msg)
 
     def test_api_host_asset_url_is_accepted(self):
+        # the url names asset 4242, so the entry's own asset_id names 4242 too:
+        # the plant then tests only that the api-host url is accepted
         text = replace_once(
             ts.models_text(), self.GOOD,
             "url: https://api.github.com/repos/k2-fsa/sherpa-onnx/"
             "releases/assets/4242")
+        text = replace_once(text, "asset_id: 191972150", "asset_id: 4242")
         entries = ts.check_models(text)
         self.assertEqual(entries[0]["url"],
                          "https://api.github.com/repos/k2-fsa/sherpa-onnx/"

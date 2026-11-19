@@ -174,21 +174,34 @@ internal class ModelSupportTest {
                 asked.add("model ${entry.id} in ${stagingDir.path}")
                 return ModelFetcher.Result.Failed("offline")
             }
+        }
+        val store = LocalModelStore(root)
+        val outcome = modelInstallPortFor(store, fetcher, usableSpace = { Long.MAX_VALUE }).install(ModelRegistry.SMALL)
+        assertTrue("app: a fetch that fails must come back as a refusal, got $outcome", outcome is InstallOutcome.Refused)
+        assertEquals(
+            "app: the installer must have asked the given fetcher for the model, and only the model, in the given store's staging folder",
+            listOf("model small in ${store.stagingDirectory().path}"),
+            asked,
+        )
+        assertTrue("app: the installer prepares the staging folder of the given store", store.stagingDirectory().isDirectory)
+    }
 
-            override fun fetchChecksums(stagingDir: File): ModelFetcher.Result {
-                asked.add("checksums in ${stagingDir.path}")
+    @Test
+    fun `the real install port hands its free-space reader to the installer`() {
+        val asked: MutableList<String> = ArrayList()
+        val fetcher = object : ModelFetcher {
+            override fun fetchModel(entry: ModelEntry, stagingDir: File): ModelFetcher.Result {
+                asked.add("model ${entry.id}")
                 return ModelFetcher.Result.Failed("offline")
             }
         }
         val store = LocalModelStore(root)
-        val outcome = modelInstallPortFor(store, fetcher).install(ModelRegistry.SMALL)
-        assertTrue("app: a fetch that fails must come back as a refusal, got $outcome", outcome is InstallOutcome.Refused)
-        assertEquals(
-            "app: the installer must have asked the given fetcher for the checksum list in the given store's staging folder",
-            listOf("checksums in ${store.stagingDirectory().path}"),
-            asked,
-        )
-        assertTrue("app: the installer prepares the staging folder of the given store", store.stagingDirectory().isDirectory)
+        val readFor: MutableList<File> = ArrayList()
+        val port = modelInstallPortFor(store, fetcher, usableSpace = { dir -> readFor.add(dir); 1L })
+        val outcome = port.install(ModelRegistry.SMALL)
+        assertEquals("app: one free byte is too little, so the port must report no space", InstallOutcome.NoSpace, outcome)
+        assertEquals("app: the handed-in reader must have been asked once, for the staging folder", listOf(store.stagingDirectory()), readFor)
+        assertEquals("app: no request may be made once the space check refuses", emptyList<String>(), asked)
     }
 
     @Test

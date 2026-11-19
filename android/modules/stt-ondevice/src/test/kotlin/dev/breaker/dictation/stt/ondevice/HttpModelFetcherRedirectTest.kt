@@ -183,10 +183,6 @@ class HttpModelFetcherRedirectTest {
             assertTrue("first address $url: reason '$reason'", reason.startsWith("address refused"))
             assertEquals("first address $url makes no request", 0, opener.requests.size)
         }
-        val list = FakeOpener(serve(okBytes(payload)))
-        val limits = DownloadLimits(checksumsUrl = "http://api.github.com/list")
-        assertTrue(attemptChecksums(fetcherOf(list, limits), staging).failedReason("insecure checksum address").startsWith("address refused"))
-        assertEquals("no request for the checksum address", 0, list.requests.size)
     }
 
     @Test

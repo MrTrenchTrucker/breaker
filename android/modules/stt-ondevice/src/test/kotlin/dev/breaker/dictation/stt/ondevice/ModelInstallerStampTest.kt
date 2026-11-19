@@ -15,18 +15,18 @@ class ModelInstallerStampTest : ModelInstallerUnpackFixture() {
     private val tinyNames = ExtractionProfiles.forModel("tiny")!!.files
 
     /**
-     * One install of [archive] into [store] with the real extractor. [listedDigest] is the digest the
-     * checksum list gives for the archive; [digestOf] is the hash the stamp is measured with.
+     * One install of [archive] into [store] with the real extractor. [pin] is the sha256 the registry entry
+     * pins for the archive; [digestOf] is the hash the stamp is measured with.
      */
     private fun install(
         store: LocalModelStore,
         archive: ByteArray = tinyBytes,
-        listedDigest: String = Fixtures.independentSha256(archive),
+        pin: String = Fixtures.independentSha256(archive),
         digestOf: (File) -> String? = ModelIntegrity::sha256,
     ): ModelInstaller.InstallResult {
-        val fetcher = ArchiveFetcher(archive, "model.archive\t$listedDigest")
-        return ModelInstaller(store, fetcher, NoDebugSink, Seams().extractor(), digestOf)
-            .install(entry("tiny", Fixtures.independentSha256(archive)))
+        val fetcher = ArchiveFetcher(archive)
+        return ModelInstaller(store, fetcher, NoDebugSink, Seams().extractor(), digestOf, usableSpace = { Long.MAX_VALUE })
+            .install(entry("tiny", pin, archive.size.toLong()))
     }
 
     @Test
@@ -77,7 +77,7 @@ class ModelInstallerStampTest : ModelInstallerUnpackFixture() {
         assertNotNull("control: the true digest writes a stamp", control.readStamp("tiny"))
 
         val store = newStore()
-        val refused = refusedOf(install(store, listedDigest = "0".repeat(64)))
+        val refused = refusedOf(install(store, pin = "0".repeat(64)))
         assertEquals(ModelInstaller.Refusal.DIGEST_REFUSED, refused.refusal)
         assertNull("no stamp", store.readStamp("tiny"))
         assertFalse("no unpacked folder", store.extractedDirectory("tiny").exists())

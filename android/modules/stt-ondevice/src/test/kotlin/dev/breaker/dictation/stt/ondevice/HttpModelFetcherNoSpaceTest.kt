@@ -11,7 +11,7 @@ import java.io.IOException
 import java.io.OutputStream
 
 /**
- * The free-space check of the real fetcher at both fetch steps. A full phone is a
+ * The free-space check of the real fetcher at the model fetch. A full phone is a
  * different failure from a broken write, so the check's failure is its own exception
  * type, and a failed write stays the plain IOException it was before.
  */
@@ -57,17 +57,6 @@ class HttpModelFetcherNoSpaceTest {
         noPartial()
         val enough = FakeOpener(serve(reply(body = SizedStream(10))))
         attemptModel(fetcherOf(enough, usableSpace = { cap }), testEntry(), staging).fetchedFile("space equal to the cap")
-    }
-
-    @Test
-    fun `checksum step with free space below the declared length throws the no-space type`() {
-        val body = SizedStream(40)
-        val opener = FakeOpener(serve(reply(body = body, contentLength = 40)))
-        val thrown = attemptChecksums(fetcherOf(opener, usableSpace = { 0L }), staging)
-            .thrownIo("checksum list with no space")
-        assertNoSpaceType(thrown, "checksum step, 0 bytes free for 40")
-        assertTrue("the body was closed", body.closes > 0)
-        noPartial()
     }
 
     @Test

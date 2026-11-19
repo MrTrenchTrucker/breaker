@@ -22,7 +22,11 @@ class EntrySurfaceTest {
             "modelReady: () -> Boolean, downloadLine: () -> String?, " +
             "onDownloadModel: () -> Unit, onThemeChanged: (() -> Unit)? = null, " +
             "sessionLive: (() -> Boolean)? = null, onSignIn: (() -> Unit)? = null, " +
-            "serverAddressStatus: (() -> dev.breaker.dictation.ui.screen.settings.ServerAddressStatus)? = null): android.view.View"
+            "serverAddressStatus: (() -> dev.breaker.dictation.ui.screen.settings.ServerAddressStatus)? = null, " +
+            "offeredModels: (() -> List<dev.breaker.dictation.ui.SpeechModelChoice>)? = null, " +
+            "installedModel: ((String) -> Boolean)? = null, downloadingModelId: (() -> String?)? = null, " +
+            "onDownloadModelId: ((String) -> Unit)? = null, onDeleteModel: ((String) -> Unit)? = null, " +
+            "onUseModel: ((String) -> Unit)? = null): android.view.View"
 
     /** The public declaration of the history view, written on one line. */
     private val HISTORY_SIGNATURE =

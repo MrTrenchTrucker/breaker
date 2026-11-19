@@ -54,7 +54,7 @@ python3 tools/check_repo.py     # must print REPO CONSISTENT
 - Base repo: clean bill of health with 4 fixes — no silent cloud fallthrough,
   in-app updater deleted, package ID changed, Gradle SHA-256 pinned — plus a
   NOTICE file (licensing) [1].
-- sherpa-onnx: safe with three mitigations - pin models to immutable release-asset ids + verify each model's own SHA-256 pin (ADR-050; upstream checksum.txt advisory); track decoder bug #3983; keep sherpa-onnx
+- sherpa-onnx: safe with three mitigations - name models by release-asset id + verify each model's own SHA-256 pin and byte size (ADR-050; upstream checksum.txt advisory, built, not compiled or run); track decoder bug #3983; keep sherpa-onnx
   off the server's network-exposed path [2].
 - Honest caveat: the new modules compile and their tests run, but the forked
   base app is not on `main` yet and has not passed its build and smoke test —

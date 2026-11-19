@@ -44,35 +44,12 @@ class HttpModelFetcherTest {
     }
 
     @Test
-    fun `fetchChecksums fetches the checksum address and stages its text`() {
-        val limits = DownloadLimits(checksumsUrl = "https://api.github.com/repos/example/example/releases/assets/7")
-        val text = "model.archive\t${"a".repeat(64)}\n".toByteArray()
-        val opener = FakeOpener(serve(okBytes(text)))
-        val file = attemptChecksums(fetcherOf(opener, limits), staging).fetchedFile("a checksum list")
-        assertEquals("checksums.txt", file.name)
-        assertEquals("the staged file sits directly in the staging directory", staging.canonicalFile, file.parentFile.canonicalFile)
-        assertArrayEquals("the staged text is the served text", text, file.readBytes())
-        assertEquals("one request, to the configured checksum address", listOf(limits.checksumsUrl), opener.requests.map { it.url })
-    }
-
-    @Test
-    fun `the default checksum address is the published asset route`() {
-        assertEquals(
-            "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/761425283",
-            DownloadLimits().checksumsUrl,
-        )
-    }
-
-    @Test
     fun `every request asks for the binary stream and identity encoding and carries no credential or cookie`() {
         val seenAll = ArrayList<SeenRequest>()
         val modelOpener = FakeOpener(serve(redirectTo(HttpFixtures.RELEASE_URL)), serve(okBytes(payload)))
         attemptModel(fetcherOf(modelOpener), testEntry(), staging).fetchedFile("model after one redirect")
-        val listOpener = FakeOpener(serve(redirectTo(HttpFixtures.RELEASE_URL)), serve(okBytes(payload)))
-        attemptChecksums(fetcherOf(listOpener), staging).fetchedFile("checksums after one redirect")
         seenAll.addAll(modelOpener.requests)
-        seenAll.addAll(listOpener.requests)
-        assertEquals("two requests for each fetch", 4, seenAll.size)
+        assertEquals("two requests for the fetch (the address and one redirect)", 2, seenAll.size)
         for ((i, request) in seenAll.withIndex()) {
             assertEquals(
                 "request $i carries exactly Accept, Accept-Encoding and User-Agent: ${request.headers.keys}",
@@ -139,15 +116,15 @@ class HttpModelFetcherTest {
         // The served model is a real archive: a successful install unpacks it.
         val archive = TarFixtures.tinyArchive()
         val digest = httpTestSha256Hex(archive)
-        val entry = testEntry(sha256 = digest)
-        val opener = FakeOpener(serve(okBytes(httpTestChecksumList(digest))), serve(okBytes(archive)))
-        val result = ModelInstaller(store, fetcherOf(opener)).install(entry)
+        val entry = testEntry(sha256 = digest, sizeBytes = archive.size.toLong())
+        val opener = FakeOpener(serve(okBytes(archive)))
+        val result = ModelInstaller(store, fetcherOf(opener), usableSpace = { Long.MAX_VALUE }).install(entry)
         assertEquals(ModelInstaller.InstallResult.Installed("tiny", digest), result)
         assertTrue("the model is installed", store.isInstalled("tiny"))
         assertArrayEquals("the installed archive holds the served bytes", archive, store.archiveFile("tiny").readBytes())
         assertEquals(
-            "the checksum list was asked for first, then the model",
-            listOf(DownloadLimits().checksumsUrl, entry.url),
+            "the model address alone was asked, once",
+            listOf(entry.url),
             opener.requests.map { it.url },
         )
         assertFalse("the partial download is gone from staging", File(store.stagingDirectory(), "tiny.download").exists())
@@ -171,7 +148,7 @@ class HttpModelFetcherTest {
     }
 
     @Test
-    fun `the checksum list already in staging is left alone by a model fetch`() {
+    fun `a checksum list left in staging by an earlier version is left alone by a model fetch`() {
         val other = File(staging, "checksums.txt")
         FileOutputStream(other).use { it.write(1) }
         val opener = FakeOpener(serve(okBytes(payload)))

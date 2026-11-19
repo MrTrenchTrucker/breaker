@@ -67,11 +67,6 @@ class HttpModelFetcher internal constructor(
         return fetchTo(entry.url, target, limits.modelCapBytes(entry), stagingDir, onProgress)
     }
 
-    override fun fetchChecksums(stagingDir: File): ModelFetcher.Result {
-        val target = File(stagingDir, CHECKSUMS_NAME)
-        return fetchTo(limits.checksumsUrl, target, limits.checksumsMaxBytes, stagingDir, NO_PROGRESS)
-    }
-
     /**
      * Fetch [startUrl] into [target]. The partial file is deleted on every path
      * except a complete, checked download.
@@ -261,7 +256,6 @@ class HttpModelFetcher internal constructor(
 
     private companion object {
         const val DOWNLOAD_SUFFIX = ".download"
-        const val CHECKSUMS_NAME = "checksums.txt"
         const val CHUNK_BYTES = 64 * 1024
         const val JSON_TYPE = "application/json"
         const val ACCEPT_HEADER = "Accept"

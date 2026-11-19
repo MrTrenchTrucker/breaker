@@ -4,7 +4,6 @@ import dev.breaker.shared.models.ModelEntry
 import dev.breaker.shared.models.ModelFamily
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -25,7 +24,9 @@ class ModelLoaderSinkTextTest {
     private val modelId = "tiny"
     private val bytes = "model bytes".toByteArray()
     private val digest = Fixtures.independentSha256(bytes)
-    private val tamperedDigest = Fixtures.independentSha256("tampered".toByteArray())
+    private val tampered = bytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
+    private val tamperedDigest = Fixtures.independentSha256(tampered)
+    private val longer = bytes + byteArrayOf(0)
 
     private object IdleRecognizer : SherpaRecognizer {
         override fun decode(pcm: FloatArray, sampleRateHz: Int): SherpaTranscript =
@@ -45,7 +46,7 @@ class ModelLoaderSinkTextTest {
     private class Outcome(val refused: ModelLoader.LoadResult.Refused, val sunk: List<String>)
 
     private fun entryFor(family: ModelFamily = ModelFamily.SHERPA_ONNX) =
-        ModelEntry(modelId, family, "https://example.com/model", digest, 1, "Apache-2.0", false)
+        ModelEntry(modelId, family, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
 
     /** Loads [modelId] on [store] with a recording sink and requires a refusal. */
     private fun loadRefused(
@@ -70,18 +71,17 @@ class ModelLoaderSinkTextTest {
     private fun seed(store: LocalModelStore, archiveBytes: ByteArray = bytes, checksums: String? = null) {
         Fixtures.writeBytes(File(store.directoryFor(modelId), LocalModelStore.ARCHIVE_NAME), archiveBytes)
         store.markVerified(modelId, digest)
-        if (checksums != null) store.storeChecksums(modelId, checksums)
+        if (checksums != null) Fixtures.writeLegacyChecksums(store, modelId, checksums)
         Fixtures.seedExtracted(store, modelId)
     }
 
-    /** The text the parser gives for [text]; the test fails if the parser accepts it. */
-    private fun parserMessage(text: String): String {
-        try {
-            UpstreamChecksums.parse(text)
-        } catch (e: UpstreamChecksums.ChecksumFormatException) {
-            return e.message ?: ""
-        }
-        throw AssertionError("the parser accepted: $text")
+    /** Loads [modelId] on [store] and requires a loaded model; returns every message the sink received. */
+    private fun loadReady(store: LocalModelStore, entry: ModelEntry): List<String> {
+        val sunk = ArrayList<String>()
+        val lookup: (String) -> ModelEntry? = { requested -> if (requested == modelId) entry else null }
+        val result = ModelLoader(store, StubFactory(), lookup, ModelDebugSink { message -> sunk.add(message) }).load(modelId)
+        assertTrue("the load must succeed, got $result", result is ModelLoader.LoadResult.Ready)
+        return sunk
     }
 
     private fun assertSunk(outcome: Outcome, expected: String) {
@@ -114,49 +114,45 @@ class ModelLoaderSinkTextTest {
     }
 
     @Test
-    fun `missing stored checksums send a technical reason and not the user sentence to the sink`() {
+    fun `a missing or empty stored checksums file loads and sends nothing to the sink`() {
         val store = newStore()
         seed(store)
-        val missing = loadRefused(store, entryFor())
-        assertEquals(ModelLoader.Refusal.CHECKSUMS_UNREADABLE, missing.refused.refusal)
-        assertEquals("The model could not be checked right now.", missing.refused.detail)
-        assertSunk(missing, "CHECKSUMS_UNREADABLE: no stored checksums for 'tiny'")
+        assertTrue("a model with no checksums file must load without a sink message", loadReady(store, entryFor()).isEmpty())
 
-        // A stored but empty text is a different case: it is read and then fails to parse.
         val emptyStore = newStore()
         seed(emptyStore, checksums = "")
-        val empty = loadRefused(emptyStore, entryFor())
-        assertEquals(ModelLoader.Refusal.CHECKSUMS_UNREADABLE, empty.refused.refusal)
-        assertEquals(missing.refused.detail, empty.refused.detail)
-        assertNotEquals("the sink must tell a missing list from an empty one", missing.sunk.single(), empty.sunk.single())
-        assertTrue(empty.sunk.single(), empty.sunk.single().startsWith("CHECKSUMS_UNREADABLE: stored checksums unparseable: "))
+        assertTrue("a model with an empty checksums file must load without a sink message", loadReady(emptyStore, entryFor()).isEmpty())
     }
 
     @Test
-    fun `unparseable stored checksums send the parser text to the sink`() {
-        val garbage = "not valid checksums"
-        val parserText = parserMessage(garbage)
-        assertTrue("fixture: the parser must say something", parserText.isNotEmpty())
+    fun `unparseable stored checksums load and send nothing to the sink`() {
         val store = newStore()
-        seed(store, checksums = garbage)
+        seed(store, checksums = "not valid checksums")
+        assertTrue("unparseable stored checksums must not reach the sink", loadReady(store, entryFor()).isEmpty())
+    }
+
+    @Test
+    fun `an archive of another length sends the size verdict to the sink`() {
+        val store = newStore()
+        seed(store, longer, "model.archive\t$digest")
         val outcome = loadRefused(store, entryFor())
-        assertEquals(ModelLoader.Refusal.CHECKSUMS_UNREADABLE, outcome.refused.refusal)
-        assertEquals("The model could not be checked right now.", outcome.refused.detail)
-        assertSunk(outcome, "CHECKSUMS_UNREADABLE: stored checksums unparseable: $parserText")
+        assertEquals(ModelLoader.Refusal.VERIFICATION_REFUSED, outcome.refused.refusal)
+        assertEquals("The model file failed its check and was deleted. Download it again.", outcome.refused.detail)
+        assertSunk(outcome, "VERIFICATION_REFUSED: SIZE_MISMATCH: expected ${bytes.size} bytes, found ${longer.size}")
         assertFalse("the user sentence must not be the sink text", outcome.sunk.single().contains(outcome.refused.detail))
     }
 
     @Test
     fun `a failed check sends the verdict to the sink and notes a failed delete only when it failed`() {
         val deleted = newStore()
-        seed(deleted, "tampered".toByteArray(), "model.archive\t$digest")
+        seed(deleted, tampered, "model.archive\t$digest")
         val worked = loadRefused(deleted, entryFor())
         assertEquals(ModelLoader.Refusal.VERIFICATION_REFUSED, worked.refused.refusal)
         assertEquals("The model file failed its check and was deleted. Download it again.", worked.refused.detail)
         assertSunk(worked, "VERIFICATION_REFUSED: PIN_MISMATCH: expected $digest, found $tamperedDigest")
 
         val stuck = LocalModelStore(tmp.newFolder(), remove = { false })
-        seed(stuck, "tampered".toByteArray(), "model.archive\t$digest")
+        seed(stuck, tampered, "model.archive\t$digest")
         val failed = loadRefused(stuck, entryFor())
         assertEquals("The model file failed its check but could not be deleted.", failed.refused.detail)
         assertSunk(failed, "VERIFICATION_REFUSED: PIN_MISMATCH: expected $digest, found $tamperedDigest; delete failed")

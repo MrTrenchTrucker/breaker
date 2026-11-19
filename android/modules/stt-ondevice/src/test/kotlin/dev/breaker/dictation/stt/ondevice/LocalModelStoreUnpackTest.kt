@@ -41,7 +41,6 @@ class LocalModelStoreUnpackTest {
         val dir = store.directoryFor("tiny")
         Fixtures.writeBytes(File(dir, LocalModelStore.ARCHIVE_NAME), "archive".toByteArray())
         store.markVerified("tiny", "digest")
-        store.storeChecksums("tiny", "model.archive\tdigest")
         for (name in names) Fixtures.writeBytes(File(store.extractedDirectory("tiny"), name), name.toByteArray())
         return dir
     }
@@ -159,7 +158,6 @@ class LocalModelStoreUnpackTest {
         assertFalse(store.extractedDirectory("tiny").exists())
         assertTrue("the archive stays", File(dir, LocalModelStore.ARCHIVE_NAME).isFile)
         assertEquals("digest", store.lastVerifiedDigest("tiny"))
-        assertEquals("model.archive\tdigest", store.storedChecksums("tiny"))
         assertTrue(store.isInstalled("tiny"))
     }
 

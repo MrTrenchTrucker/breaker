@@ -10,7 +10,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 
-/** The size caps of the real fetcher: models, checksum lists, declared and running lengths. */
+/** The size caps of the real fetcher: the model cap, declared and running lengths. */
 class HttpModelFetcherCapTest {
 
     @get:Rule
@@ -126,32 +126,5 @@ class HttpModelFetcherCapTest {
         val many = ByteArray(200_000) { (it % 251).toByte() }
         val big = model(reply(body = BytesStream(many, chunk = 4096))).fetchedFile("long undeclared body")
         assertArrayEquals(many, big.readBytes())
-    }
-
-    @Test
-    fun `a checksum body above its own cap is refused and exactly the cap is accepted`() {
-        val limits = DownloadLimits(checksumsMaxBytes = 100L)
-        val atCap = FakeOpener(serve(reply(body = SizedStream(100))))
-        attemptChecksums(fetcherOf(atCap, limits), staging).fetchedFile("100 bytes under a 100 byte cap")
-        val over = FakeOpener(serve(reply(body = SizedStream(101))))
-        assertEquals("too large", attemptChecksums(fetcherOf(over, limits), staging).failedReason("101 bytes"))
-        noPartialChecksums()
-        val declared = ThrowIfRead("a checksum list declared above its cap")
-        val pre = FakeOpener(serve(reply(body = declared, contentLength = 101)))
-        assertEquals("too large", attemptChecksums(fetcherOf(pre, limits), staging).failedReason("declared 101 bytes"))
-        assertEquals("no read happened", 0, declared.reads)
-    }
-
-    private fun noPartialChecksums() = assertFalse("no checksum file is left", File(staging, "checksums.txt").exists())
-
-    @Test
-    fun `the checksum cap defaults to one MiB and the model cap does not apply to it`() {
-        val atCap = FakeOpener(serve(reply(body = SizedStream(1_048_576))))
-        attemptChecksums(fetcherOf(atCap), staging).fetchedFile("one MiB checksum list")
-        val over = FakeOpener(serve(reply(body = SizedStream(1_048_577))))
-        assertEquals("too large", attemptChecksums(fetcherOf(over), staging).failedReason("one MiB plus one byte"))
-        val limits = DownloadLimits(checksumsMaxBytes = 100L)
-        val modelBody = model(reply(body = SizedStream(101)), limits)
-        assertEquals("a model body uses the model cap", 101L, modelBody.fetchedFile("101 byte model, small checksum cap").length())
     }
 }

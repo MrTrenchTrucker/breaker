@@ -13,7 +13,7 @@ KW_NAME = ("sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile"
 KW_SIZE_MB = 15
 CHECKSUM_TXT_SHA = (
     "284637b2b9fec1287aca10315dcc960710c6ec14224fb1dfa9fe427e77eb6c18")
-SPEECH_IDS = ["small", "tiny", "base", "medium"]
+SPEECH_IDS = ["small", "tiny", "base", "medium", "parakeet"]
 
 
 def replace_once(text, old, new):

@@ -69,6 +69,7 @@ class SherpaOnnxRecognizerFactoryTest {
     private val joinerPlain = "joiner-epoch-99-avg-1.onnx"
     private val tokens = "tokens.txt"
     private val smallNames = listOf(encoderInt8, decoderPlain, joinerInt8, tokens)
+    private val tinyNames = listOf(encoderInt8, decoderPlain, joinerPlain, tokens)
 
     private fun modelDir(names: List<String> = smallNames): File {
         val dir = tmp.newFolder()
@@ -135,7 +136,7 @@ class SherpaOnnxRecognizerFactoryTest {
             val files = opener.files.single()
             assertEquals("encoder: int8 preferred", File(dir, encoderInt8), files.encoder)
             assertEquals("decoder: plain preferred", File(dir, decoderPlain), files.decoder)
-            assertEquals("joiner: plain preferred", File(dir, joinerPlain), files.joiner)
+            assertEquals("joiner: from the entry (int8)", File(dir, joinerInt8), files.joiner)
             assertEquals("tokens", File(dir, tokens), files.tokens)
         }
     }
@@ -145,14 +146,14 @@ class SherpaOnnxRecognizerFactoryTest {
         val native = FactoryProbeNative(answer = "hello")
         val factory = SherpaOnnxRecognizerFactory(FactoryProbeOpener { _, _ -> native }, 2)
         for (id in listOf("small", "tiny")) {
-            val recognizer = factory.create(model(id, modelDir()))
+            val recognizer = factory.create(model(id, modelDir(if (id == "tiny") tinyNames else smallNames)))
             assertTrue("$id: the recognizer is the on-device one", recognizer is SherpaOnnxRecognizer)
             val transcript = recognizer.decode(FloatArray(1_600), 16_000)
             assertEquals("$id: text comes from the opened engine", "hello", transcript.text)
             assertEquals("$id: language is the profile language", "en", transcript.language)
         }
         val before = native.releases
-        factory.create(model("tiny", modelDir())).release()
+        factory.create(model("tiny", modelDir(tinyNames))).release()
         assertEquals("release reaches the opened engine once", before + 1, native.releases)
     }
 
@@ -188,7 +189,7 @@ class SherpaOnnxRecognizerFactoryTest {
             ExceptionInInitializerError("init failed at $secret"),
         )
         for (error in errors) {
-            val dir = modelDir()
+            val dir = modelDir(tinyNames)
             val refused = refusal(error.javaClass.simpleName) {
                 SherpaOnnxRecognizerFactory(failingOpener(error), 2).create(model("tiny", dir))
             }

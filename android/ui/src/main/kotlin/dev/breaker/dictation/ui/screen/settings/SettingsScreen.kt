@@ -37,13 +37,33 @@ import dev.breaker.dictation.ui.screen.KitLook
  * value derived from them.
  */
 
-/** What the model row shows: whether the speech model is ready, and the sentence about a download, or null. */
-internal data class ModelRow(val ready: Boolean, val line: String?) {
+/**
+ * What the model row shows: whether the speech model is ready, and the sentence about a download, or null.
+ *
+ * [rows] holds one [ModelRowItem] per offered speech model. When it is empty the row is drawn as it always
+ * was: one Download button, its line, and the READY badge when the model is ready.
+ */
+internal data class ModelRow(val ready: Boolean, val line: String?, val rows: List<ModelRowItem> = emptyList()) {
     internal companion object {
         /** The row when the speech model is on the phone and no download runs. */
         val READY: ModelRow = ModelRow(ready = true, line = null)
     }
 }
+
+/**
+ * One offered speech model as the settings section draws it: its id, its label and rating from the registry,
+ * its download size, whether it is on the phone, whether it is the model in use, and the download sentence
+ * while this model is the one downloading.
+ */
+internal data class ModelRowItem(
+    val id: String,
+    val label: String,
+    val rating: Int,
+    val sizeMb: Int,
+    val installed: Boolean,
+    val inUse: Boolean,
+    val line: String?,
+)
 
 /** The settings shown on screen, and the changes it is willing to make. */
 internal class SettingsScreen {

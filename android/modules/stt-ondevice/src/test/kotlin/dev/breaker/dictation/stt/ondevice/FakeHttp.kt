@@ -28,15 +28,12 @@ internal object HttpFixtures {
 }
 
 /** A registry entry by hand. The default size of 1 MiB gives a cap of two MiB. */
-internal fun testEntry(id: String = "tiny", sizeMb: Int = 1, url: String = HttpFixtures.ASSET_URL, sha256: String = "0".repeat(64)): ModelEntry =
-    ModelEntry(id, ModelFamily.SHERPA_ONNX, url, sha256, sizeMb, "Apache-2.0", false)
+internal fun testEntry(id: String = "tiny", sizeMb: Int = 1, url: String = HttpFixtures.ASSET_URL, sha256: String = "0".repeat(64), sizeBytes: Long = 0L): ModelEntry =
+    ModelEntry(id, ModelFamily.SHERPA_ONNX, url, sha256, sizeMb, "Apache-2.0", false, sizeBytes = sizeBytes)
 
 /** Lower-case hex SHA-256 of [bytes], computed by the test itself. */
 internal fun httpTestSha256Hex(bytes: ByteArray): String =
     MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
-
-/** A checksum list with one line for [digest], in the shape the installer parses. */
-internal fun httpTestChecksumList(digest: String): ByteArray = "model.archive\t$digest\n".toByteArray()
 
 /** The names inside [dir], sorted; an absent directory reads as empty. */
 internal fun stagedNames(dir: File): List<String> = dir.list()?.sorted() ?: emptyList()
@@ -293,6 +290,3 @@ internal class Attempt(val result: ModelFetcher.Result?, val thrown: Exception?)
 
 internal fun attemptModel(fetcher: ModelFetcher, entry: ModelEntry, stagingDir: File): Attempt =
     try { Attempt(fetcher.fetchModel(entry, stagingDir), null) } catch (e: Exception) { Attempt(null, e) }
-
-internal fun attemptChecksums(fetcher: ModelFetcher, stagingDir: File): Attempt =
-    try { Attempt(fetcher.fetchChecksums(stagingDir), null) } catch (e: Exception) { Attempt(null, e) }

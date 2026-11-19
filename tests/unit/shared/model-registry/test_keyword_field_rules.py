@@ -162,8 +162,9 @@ class KeywordOtherFieldRulesTest(unittest.TestCase):
         self.assertIn("true or false", msg)
 
     def test_tamper_verified_must_be_true_or_false(self):
-        msg = refused_kw("    tamper_verified: false\n",
-                         "    tamper_verified: 0\n")
+        # two-line anchor: only the keyword entry has Apache-2.0 after the flag
+        msg = refused_kw("    tamper_verified: false\n    license: Apache-2.0\n",
+                         "    tamper_verified: 0\n    license: Apache-2.0\n")
         self.assertIn("tamper_verified", msg)
 
     def test_an_spdx_id_with_whitespace_is_refused(self):
@@ -183,8 +184,12 @@ class KeywordOtherFieldRulesTest(unittest.TestCase):
         self.assertTrue(msg.startswith(KW_PREFIX), msg)
 
     def test_an_unknown_field_is_refused_at_its_own_line(self):
-        planted = replace_once(ts.models_text(), "    tamper_verified: false\n",
-                               "    tamper_verified: false\n    flavour: vanilla\n")
+        # two-line anchor: only the keyword entry has Apache-2.0 after the flag
+        planted = replace_once(
+            ts.models_text(),
+            "    tamper_verified: false\n    license: Apache-2.0\n",
+            "    tamper_verified: false\n    flavour: vanilla\n"
+            "    license: Apache-2.0\n")
         msg = ts.refuses(planted)
         self.assertIn("unknown field 'flavour'", msg)
         self.assertTrue(msg.startswith(KW_PREFIX), msg)

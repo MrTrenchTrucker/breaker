@@ -10,7 +10,6 @@ import dev.breaker.dictation.wiring.HomeTakeWiring
 import dev.breaker.dictation.wiring.MainPost
 import dev.breaker.dictation.wiring.ModelSentences
 import dev.breaker.dictation.wiring.usableHeightDp
-import dev.breaker.shared.models.ModelRegistry
 
 /**
  * Builds the Home screen's mic from the take wiring, in the mode the Home view reports.
@@ -102,4 +101,4 @@ internal fun downloadControlOf(
 
 /** The selected model's size in the decimal megabytes the phone shows. */
 internal fun selectedModelMb(app: BreakerApp): Int =
-    ModelCatalog.byId(app.settingsStore.load().modelSize)?.sizeMb?.let(ModelSentences::mibToMb) ?: ModelSentences.mibToMb(ModelRegistry.SMALL.sizeMb)
+    ModelSentences.mibToMb(ModelCatalog.byIdOrDefault(app.settingsStore.load().modelSize).sizeMb)

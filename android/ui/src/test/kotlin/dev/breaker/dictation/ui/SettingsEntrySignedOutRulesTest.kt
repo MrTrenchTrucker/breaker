@@ -28,7 +28,7 @@ class SettingsEntrySignedOutRulesTest {
         assertTrue("entry: signed out: control: $what must be reported, got $problems", problems.isNotEmpty())
 
     private val liveDefault = "private val ALWAYS_LIVE: () -> Boolean = { true }"
-    private val passLiveness = "onDownloadModel, sessionLive ?: ALWAYS_LIVE, onSignIn ?: NO_SIGN_IN, serverAddressStatus)"
+    private val passLiveness = "onDownloadModel, sessionLive ?: ALWAYS_LIVE, onSignIn ?: NO_SIGN_IN, serverAddressStatus, offeredModels = { rowItemsOf(offeredFn()) }, installedModel = installedFn, heldModelId = { settings.load().modelSize }, downloadingModelId = downloadingFn, onDownloadModelId = downloadIdFn, onDeleteModel = deleteFn, onUseModel = useFn, )"
 
     private fun defaultProblems(text: String): List<String> =
         listOfNotNull("the default session check is not the one that answers signed in".takeUnless { liveDefault in text })

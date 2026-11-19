@@ -1,29 +1,35 @@
 package dev.breaker.dictation.stt.ondevice
 
+import dev.breaker.shared.models.ModelEntry
+import dev.breaker.shared.models.ModelKind
+import dev.breaker.shared.models.ModelRegistry
+
 /**
- * What the streaming engine needs to know about one model beyond its files.
+ * What the engine needs to know about one model beyond its files.
  *
- * @property language the language code the transcript is labelled with.
+ * @property language the language code the transcript is labelled with. An empty
+ *   string means the model decides: the engine wrap then labels the transcript with
+ *   the language of the request.
  */
 internal class StreamingProfile(val language: String)
 
 /**
- * The models this module can run through the streaming engine.
+ * The models this module can run through its STREAMING engine.
  *
- * The ids here are the ids the unpack table knows (`ExtractionProfiles`): a model
- * that can be unpacked can be run, and the reverse. A test keeps the two
- * lists equal. Both listed models are English only.
+ * A model belongs here when its registry entry is of kind STREAMING and is a supported entry (see
+ * [SpeechModels.usable]); the profile is read from the entry, so no model id is written in this module.
+ * An entry of kind OFFLINE, an entry that is not supported, and an id the registry does not know have no
+ * streaming profile. This code is written but not compiled or run.
  */
 internal object StreamingProfiles {
 
-    private val TABLE: Map<String, StreamingProfile> = mapOf(
-        "small" to StreamingProfile("en"),
-        "tiny" to StreamingProfile("en"),
-    )
+    /** Every model id of the real registry that has a streaming profile; derived, no id is written here. */
+    val ids: Set<String> get() = ModelRegistry.ALL.filter { forModel(it.id) != null }.map { it.id }.toSet()
 
-    /** Every model id that has a streaming profile. */
-    val ids: Set<String> get() = TABLE.keys
-
-    /** The profile for [modelId], or null when the model cannot be run by the streaming engine. */
-    fun forModel(modelId: String): StreamingProfile? = TABLE[modelId]
+    /**
+     * The profile for [modelId], or null when the model cannot be run by the streaming engine. [lookup] is
+     * the registry; the real one is the default.
+     */
+    fun forModel(modelId: String, lookup: (String) -> ModelEntry? = ModelRegistry::byId): StreamingProfile? =
+        SpeechModels.usable(modelId, lookup, ModelKind.STREAMING)?.let { StreamingProfile(it.language.orEmpty()) }
 }

@@ -11,7 +11,7 @@ import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
  * The one place that talks to the real sherpa-onnx library.
  *
  * This is the only file of the module that names the library's classes; everything else
- * works through the small interfaces in NativeStreaming.kt, so the rest of the module and
+ * works through the narrow interfaces in NativeStreaming.kt, so the rest of the module and
  * all of its tests run without the library. The library classes are on the compile path
  * only: the app supplies the classes and the native libraries when it runs.
  *
@@ -31,7 +31,8 @@ internal object SherpaOnnxBinding : NativeStreamingOpener {
     /**
      * Opens a streaming transducer recognizer over [files] with [numThreads] threads.
      *
-     * The model type is left empty on purpose: the library then reads it from the model
+     * The model type is the one the registry entry gives ([TransducerFiles.modelType]); for a streaming
+     * transducer that is the empty string, and the library then reads it from the model
      * files. The engine runs on the CPU, with greedy decoding and without endpoint
      * detection, because one call decodes exactly one finished clip.
      *
@@ -53,7 +54,7 @@ internal object SherpaOnnxBinding : NativeStreamingOpener {
                 tokens = files.tokens.path,
                 numThreads = numThreads,
                 provider = "cpu",
-                modelType = "",
+                modelType = files.modelType,
             ),
             enableEndpoint = false,
             decodingMethod = "greedy_search",

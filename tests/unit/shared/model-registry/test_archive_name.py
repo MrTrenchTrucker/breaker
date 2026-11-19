@@ -208,7 +208,10 @@ class CommittedRegistryPairsTest(unittest.TestCase):
         entries = ts.check_models(ts.models_text())
         _, lines = ts.fixture_data()
         pairs = set(lines)
-        for e in entries:
+        # parakeet has no upstream line; its pin is our own hash (skipped here,
+        # the skip itself is pinned by NoUpstreamLineRuleTest in
+        # test_pin_field_data.py)
+        for e in ts.entries_with_upstream_line(entries):
             self.assertIn(
                 (e["archive_name"], e["sha256"]), pairs,
                 f"entry {e['id']!r}: ({e['archive_name']!r}, "
@@ -234,8 +237,8 @@ class RenderedArchiveNamesTest(unittest.TestCase):
         import gen_model_registry as gmr
 
         entries = ts.check_models(ts.models_text())
-        self.assertEqual(4, len(entries),
-                         "models.yaml is expected to carry the four "
+        self.assertEqual(5, len(entries),
+                         "models.yaml is expected to carry the five "
                          "committed entries")
         kotlin = gmr.render_kotlin(entries)
         blocks = re.findall(

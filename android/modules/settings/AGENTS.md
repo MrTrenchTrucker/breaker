@@ -23,7 +23,7 @@ implementation:
   exists yet (see Known Gotchas) — so a caller who treats it as a constructible
   type will not compile.
 - `ModelCatalog` — a read-only object over the model registry: the full model
-  list (id, size, URL, SHA-256) and a lookup by id. No download or verify logic
+  list (id, size, URL, SHA-256), the label, rating and offer of each model, a lookup by id and the default entry (the one the registry flags as default; written, not compiled); `offered()` gives the offered models (built, not yet compiled or run). No download or verify logic
   lives here; that is `stt-ondevice`'s.
 
 **Keys:** mode, model_size, server_url, server_address_1, server_address_2, server_address_3,
@@ -92,10 +92,10 @@ This is how the project's own team builds modules. It is recommended for AI
 agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
-## Decided, not built (ADR-050)
+## Decided (ADR-050); the speech-model reading is built, not yet compiled or run
 
-- The registry gains a label and a rating for each speech model (ADR-050). This module reads them through `ModelCatalog` and does not own them.
-- The chosen model stays in the existing `model_size` key. This module needs no new key. Switching and deleting are calls the ui and app make; this module only stores the choice.
+- The registry holds a label, a rating and an offer for each speech model (ADR-050). This module reads them through `ModelCatalog` and does not own them; the reading is built, not yet compiled or run.
+- The chosen model stays in the existing `model_size` key. This module needs no new key. Switching and deleting are calls the ui and app make; this module only stores the choice. The default model of a fresh install is the registry entry with `default: true`: core's `AppSettings` cannot see the registry, so its `modelSize` keeps ONE literal, and `ModelDefaultTest` in this module pins that literal equal to the id of the default entry (the test is written and traced by hand, not compiled or run, and it needs the generated `isDefault`, which is built as data and not compiled as Kotlin; the rule that models are data is ADR-050 J).
 
 ## Known Gotchas
 - Server URL is a first-run setting — never hardcode.

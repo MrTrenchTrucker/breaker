@@ -29,7 +29,7 @@ class AboutScreenRowsTest {
         )
         val body = rendered.nodes.filterIsInstance<Label>().filter { it.role == TypeRole.BODY }
         assertEquals(
-            "the default face must carry the same two body lines",
+            "the default face must carry the two body lines",
             listOf(AboutTexts.LINE_1, AboutTexts.LINE_2),
             body.map { it.text },
         )

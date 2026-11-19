@@ -15,8 +15,8 @@ import java.io.File
 
 /**
  * What the loader tells the user (a fixed sentence per refusal), what it keeps
- * for the debug sink (the technical text), and what it does with an archive
- * whose checksums could not be read (keep it, create nothing, check again).
+ * for the debug sink (the technical text), and that a stored checksums file, good,
+ * garbage or absent, never changes a load.
  */
 class ModelLoaderMessagesTest {
 
@@ -27,6 +27,8 @@ class ModelLoaderMessagesTest {
     private val bytes = "model bytes".toByteArray()
     private val digest = Fixtures.independentSha256(bytes)
     private val garbage = "not valid checksums"
+    private val tampered = bytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
+    private val longer = bytes + byteArrayOf(0)
     private val engineFailureText = "init failed at /data/app/lib/libsherpa.so with IllegalStateException"
 
     private class RecordingSink : ModelDebugSink {
@@ -71,7 +73,7 @@ class ModelLoaderMessagesTest {
     }
 
     private fun entryFor(family: ModelFamily = ModelFamily.SHERPA_ONNX) =
-        ModelEntry(modelId, family, "https://example.com/model", digest, 1, "Apache-2.0", false)
+        ModelEntry(modelId, family, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
 
     private fun scenario(
         entry: ModelEntry?,
@@ -85,7 +87,7 @@ class ModelLoaderMessagesTest {
     private fun install(s: Scenario, archiveBytes: ByteArray = bytes, checksums: String? = null): Scenario {
         Fixtures.writeBytes(s.archive, archiveBytes)
         s.store.markVerified(s.id, digest)
-        if (checksums != null) s.store.storeChecksums(s.id, checksums)
+        if (checksums != null) Fixtures.writeLegacyChecksums(s.store, s.id, checksums)
         Fixtures.seedExtracted(s.store, s.id)
         assertTrue("fixture: the model must be installed", s.store.isInstalled(s.id))
         return s
@@ -96,66 +98,67 @@ class ModelLoaderMessagesTest {
     private fun notInstalled() = scenario(entryFor())
     private fun missingChecksums() = install(scenario(entryFor()))
     private fun garbageChecksums() = install(scenario(entryFor()), checksums = garbage)
-    private fun failedCheck() = install(scenario(entryFor()), "tampered".toByteArray(), validChecksums())
+    private fun failedCheck() = install(scenario(entryFor()), tampered, validChecksums())
+    private fun wrongSize() = install(scenario(entryFor()), longer, validChecksums())
     private fun engineFails() = install(
         scenario(entryFor(), CountingFactory(IllegalStateException(engineFailureText))),
         checksums = validChecksums(),
     )
 
     @Test
-    fun `load keeps the archive when the stored checksums are missing`() {
+    fun `load ignores missing stored checksums and loads the model`() {
         val s = missingChecksums()
-        val refused = s.refused()
-        assertEquals(ModelLoader.Refusal.CHECKSUMS_UNREADABLE, refused.refusal)
-        assertEquals(ModelMessages.NOT_VERIFIED_YET, refused.detail)
+        val result = loadOrFail(s.loader, s.id)
+        assertTrue("expected a loaded model but got $result", result.isReady)
         assertTrue("the archive must stay", s.archive.isFile)
         assertArrayEquals(bytes, s.archive.readBytes())
         assertEquals(digest, s.store.lastVerifiedDigest(s.id))
-        assertNull(s.store.storedChecksums(s.id))
-        assertEquals(0, s.factory.creates)
+        assertNull(Fixtures.legacyChecksums(s.store, s.id))
+        assertEquals(1, s.factory.creates)
+        assertTrue("a load that succeeds sends nothing to the sink: ${s.sink.messages}", s.sink.messages.isEmpty())
     }
 
     @Test
-    fun `load keeps the archive when the stored checksums cannot be parsed`() {
+    fun `load ignores stored checksums that cannot be parsed and loads the model`() {
         val s = garbageChecksums()
-        val refused = s.refused()
-        assertEquals(ModelLoader.Refusal.CHECKSUMS_UNREADABLE, refused.refusal)
-        assertEquals(ModelMessages.NOT_VERIFIED_YET, refused.detail)
+        val result = loadOrFail(s.loader, s.id)
+        assertTrue("expected a loaded model but got $result", result.isReady)
         assertTrue("the archive must stay", s.archive.isFile)
         assertArrayEquals(bytes, s.archive.readBytes())
         assertEquals(digest, s.store.lastVerifiedDigest(s.id))
-        assertEquals(garbage, s.store.storedChecksums(s.id))
-        assertEquals(0, s.factory.creates)
+        assertEquals(garbage, Fixtures.legacyChecksums(s.store, s.id))
+        assertEquals(1, s.factory.creates)
+        assertTrue("a load that succeeds sends nothing to the sink: ${s.sink.messages}", s.sink.messages.isEmpty())
     }
 
     @Test
     fun `load never creates a recognizer for a model that was not verified`() {
         val cases = listOf(
-            missingChecksums() to ModelLoader.Refusal.CHECKSUMS_UNREADABLE,
-            garbageChecksums() to ModelLoader.Refusal.CHECKSUMS_UNREADABLE,
             failedCheck() to ModelLoader.Refusal.VERIFICATION_REFUSED,
+            wrongSize() to ModelLoader.Refusal.VERIFICATION_REFUSED,
         )
-        assertEquals(3, cases.size)
+        assertEquals(2, cases.size)
         var checked = 0
         for ((s, expected) in cases) {
             assertEquals(expected, s.refused().refusal)
             assertEquals("a recognizer was created for a model that was not verified", 0, s.factory.creates)
             checked++
         }
-        assertEquals(3, checked)
+        assertEquals(2, checked)
     }
 
     @Test
-    fun `load verifies again on the next call once the checksums are readable`() {
+    fun `a checksums file stored after a load changes nothing for the next load`() {
         val s = missingChecksums()
-        assertEquals(ModelMessages.NOT_VERIFIED_YET, s.refused().detail)
-        assertEquals(0, s.factory.creates)
+        val first = loadOrFail(s.loader, s.id)
+        assertTrue("first load: $first", first.isReady)
+        assertEquals(1, s.factory.creates)
 
-        s.store.storeChecksums(s.id, validChecksums())
+        Fixtures.writeLegacyChecksums(s.store, s.id, garbage)
         val second = loadOrFail(s.loader, s.id)
 
         assertTrue("second load: $second", second.isReady)
-        assertEquals(1, s.factory.creates)
+        assertEquals(2, s.factory.creates)
     }
 
     @Test
@@ -221,14 +224,15 @@ class ModelLoaderMessagesTest {
             unknownModel(),
             wrongFamily(),
             notInstalled(),
-            missingChecksums(),
-            garbageChecksums(),
             failedCheck(),
+            wrongSize(),
             engine,
         ).map { it.refused() }
 
-        assertEquals(7, refusals.size)
-        assertEquals(ModelLoader.Refusal.values().toSet(), refusals.map { it.refusal }.toSet())
+        assertEquals(6, refusals.size)
+        // The loader no longer produces the unreadable-checksums refusal; every other kind appears.
+        val produced = ModelLoader.Refusal.values().toSet()
+        assertEquals(produced, refusals.map { it.refusal }.toSet())
         // Control: the words scanned for do occur in the technical text, so a leak would show.
         val technical = engine.sink.messages.single()
         assertTrue(technical, technical.contains("/") && technical.contains("Exception"))
@@ -243,7 +247,7 @@ class ModelLoaderMessagesTest {
             }
             scanned++
         }
-        assertEquals(7, scanned)
+        assertEquals(6, scanned)
     }
 
     @Test
@@ -251,7 +255,7 @@ class ModelLoaderMessagesTest {
         val store = LocalModelStore(tmp.newFolder())
         Fixtures.writeBytes(File(store.directoryFor(modelId), LocalModelStore.ARCHIVE_NAME), bytes)
         store.markVerified(modelId, digest)
-        store.storeChecksums(modelId, validChecksums())
+        Fixtures.writeLegacyChecksums(store, modelId, validChecksums())
         Fixtures.seedExtracted(store, modelId)
         val loader = ModelLoader(
             store,

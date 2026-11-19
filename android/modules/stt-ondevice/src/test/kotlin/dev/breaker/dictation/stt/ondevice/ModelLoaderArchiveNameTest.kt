@@ -59,6 +59,7 @@ class ModelLoaderArchiveNameTest {
             1,
             "Apache-2.0",
             false,
+            sizeBytes = archiveBytes.size.toLong(),
             archiveName = archiveName,
         )
 
@@ -68,17 +69,29 @@ class ModelLoaderArchiveNameTest {
         dir.mkdirs()
         File(dir, LocalModelStore.ARCHIVE_NAME).writeBytes(archiveBytes)
         store.markVerified("tiny", archiveDigest)
-        store.storeChecksums("tiny", checksumsText)
+        Fixtures.writeLegacyChecksums(store, "tiny", checksumsText)
         Fixtures.seedExtracted(store, "tiny")
     }
 
     @Test
-    fun `load refuses a pin that is listed only on another archive line`() {
+    fun `load ignores a stored list that names the pin only on another archive line`() {
         seedWithChecksums("archive-y.tar.bz2\t$archiveDigest")
         val factory = CountingFactory()
         val loader = ModelLoader(store, factory, { id -> if (id == "tiny") entryNamed("archive-x.tar.bz2") else null })
         val result = loader.load("tiny")
-        assertFalse("a pin listed only on another archive's line must not load", result.isReady)
+        assertTrue("the registry pin decides, not the stored list, but got $result", result.isReady)
+        assertEquals("the engine must be created once for a loaded model", 1, factory.creates)
+    }
+
+    @Test
+    fun `a stored list that names the digest of a tampered archive does not make it load`() {
+        val tampered = archiveBytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
+        seedWithChecksums("archive-x.tar.bz2\t${sha256Hex(tampered)}")
+        File(store.directoryFor("tiny"), LocalModelStore.ARCHIVE_NAME).writeBytes(tampered)
+        val factory = CountingFactory()
+        val loader = ModelLoader(store, factory, { id -> if (id == "tiny") entryNamed("archive-x.tar.bz2") else null })
+        val result = loader.load("tiny")
+        assertFalse("an archive that is not the registry pin must not load", result.isReady)
         val refused = result as ModelLoader.LoadResult.Refused
         assertEquals(ModelLoader.Refusal.VERIFICATION_REFUSED, refused.refusal)
         assertEquals("a refused model must not reach the engine", 0, factory.creates)
@@ -97,11 +110,11 @@ class ModelLoaderArchiveNameTest {
     }
 
     @Test
-    fun `load with a blank archive name keeps the set match`() {
+    fun `load with a blank archive name loads on the registry pin`() {
         seedWithChecksums("archive-y.tar.bz2\t$archiveDigest")
         val factory = CountingFactory()
         val loader = ModelLoader(store, factory, { id -> if (id == "tiny") entryNamed("") else null })
         val result = loader.load("tiny")
-        assertTrue("with no archive name the pin matched anywhere in the list must still load", result.isReady)
+        assertTrue("with no archive name the registry pin must still load", result.isReady)
     }
 }

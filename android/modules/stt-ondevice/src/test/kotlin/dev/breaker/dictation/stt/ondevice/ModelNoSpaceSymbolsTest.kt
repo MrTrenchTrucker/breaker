@@ -28,15 +28,6 @@ class ModelNoSpaceSymbolsTest {
     }
 
     @Test
-    fun `a low-space checksum fetch throws the no-space type with the fixed message`() {
-        val staging = tmp.newFolder("checksums")
-        val opener = FakeOpener(serve(reply(body = SizedStream(40), contentLength = 40)))
-        val thrown = attemptChecksums(fetcherOf(opener, usableSpace = { 0L }), staging).thrown
-        assertTrue("the exception is a NoSpaceException: $thrown", thrown is NoSpaceException)
-        assertEquals("not enough space", thrown?.message)
-    }
-
-    @Test
     fun `the download no-space sentence reads exactly as written`() {
         assertEquals(
             "There is not enough free space on the phone to download the model.",
@@ -62,13 +53,10 @@ class ModelNoSpaceSymbolsTest {
             ModelMessages.MODEL_UNKNOWN,
             ModelMessages.MODEL_WRONG_FAMILY,
             ModelMessages.MODEL_NOT_INSTALLED,
-            ModelMessages.NOT_VERIFIED_YET,
             ModelMessages.CHECK_FAILED_DELETED,
             ModelMessages.CHECK_FAILED_NOT_DELETED,
             ModelMessages.ENGINE_COULD_NOT_START,
             ModelMessages.SAVE_FAILED,
-            ModelMessages.CHECKSUMS_DOWNLOAD_FAILED,
-            ModelMessages.CHECKSUMS_UNREADABLE_DOWNLOADED,
             ModelMessages.MODEL_DOWNLOAD_FAILED,
             ModelMessages.DOWNLOAD_FAILED_CHECK,
             ModelMessages.DOWNLOAD_FAILED_CHECK_NOT_DELETED,
@@ -77,7 +65,7 @@ class ModelNoSpaceSymbolsTest {
             ModelMessages.UNPACK_FAILED,
             ModelMessages.UNPACK_NO_SPACE,
         )
-        assertEquals("every earlier sentence is listed", 17, others.size)
+        assertEquals("every earlier sentence is listed", 14, others.size)
         val all = others + ModelMessages.DOWNLOAD_NO_SPACE
         assertEquals("two sentences have the same text: $all", all.size, all.toSet().size)
     }

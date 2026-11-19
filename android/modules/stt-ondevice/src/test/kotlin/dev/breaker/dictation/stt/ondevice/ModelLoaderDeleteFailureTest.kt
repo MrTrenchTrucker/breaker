@@ -24,7 +24,7 @@ class ModelLoaderDeleteFailureTest {
     private val modelId = "tiny"
     private val bytes = "model bytes".toByteArray()
     private val digest = Fixtures.independentSha256(bytes)
-    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
+    private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false, sizeBytes = bytes.size.toLong())
 
     private object IdleRecognizer : SherpaRecognizer {
         override fun decode(pcm: FloatArray, sampleRateHz: Int): SherpaTranscript =
@@ -53,9 +53,10 @@ class ModelLoaderDeleteFailureTest {
     private fun loadTamperedModel(removalWorks: Boolean): Outcome {
         val root = tmp.newFolder()
         val store = if (removalWorks) LocalModelStore(root) else LocalModelStore(root, remove = { false })
-        Fixtures.writeBytes(File(store.directoryFor(modelId), LocalModelStore.ARCHIVE_NAME), "tampered".toByteArray())
+        // Same length as the pinned size, so the check reaches the digest and the verdict is PIN_MISMATCH.
+        val tampered = bytes.copyOf().also { it[0] = (it[0] + 1).toByte() }
+        Fixtures.writeBytes(File(store.directoryFor(modelId), LocalModelStore.ARCHIVE_NAME), tampered)
         store.markVerified(modelId, digest)
-        store.storeChecksums(modelId, "model.archive\t$digest")
         assertTrue("fixture: the model must be installed", store.isInstalled(modelId))
 
         val sunk = mutableListOf<String>()

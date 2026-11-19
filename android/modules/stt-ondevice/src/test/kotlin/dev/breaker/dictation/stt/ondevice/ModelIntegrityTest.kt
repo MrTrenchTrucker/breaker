@@ -58,8 +58,7 @@ class ModelIntegrityTest {
     @Test
     fun `verify returns FILE_MISSING when file does not exist`() {
         val file = File(tmp.root, "missing.bin")
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, checksums)
+        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, 4L)
         assertTrue(verdict is ModelIntegrity.Verdict.Refused)
         assertEquals(ModelIntegrity.Refusal.FILE_MISSING, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
@@ -69,8 +68,7 @@ class ModelIntegrityTest {
     @Test
     fun `verify returns NOT_A_READABLE_FILE when path is a directory`() {
         val dir = tmp.newFolder("adir")
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(dir, Fixtures.VALID_PIN, checksums)
+        val verdict = ModelIntegrity.verify(dir, Fixtures.VALID_PIN, 4L)
         assertTrue(verdict is ModelIntegrity.Verdict.Refused)
         assertEquals(ModelIntegrity.Refusal.NOT_A_READABLE_FILE, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
@@ -80,8 +78,7 @@ class ModelIntegrityTest {
     @Test
     fun `verify returns FILE_EMPTY when file is zero bytes`() {
         val file = Fixtures.writeBytes(File(tmp.root, "empty.bin"), ByteArray(0))
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, checksums)
+        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, 4L)
         assertTrue(verdict is ModelIntegrity.Verdict.Refused)
         assertEquals(ModelIntegrity.Refusal.FILE_EMPTY, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
@@ -91,8 +88,7 @@ class ModelIntegrityTest {
     @Test
     fun `verify returns PIN_MALFORMED when pin is too short`() {
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), "data".toByteArray())
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(file, "tooshort", checksums)
+        val verdict = ModelIntegrity.verify(file, "tooshort", 4L)
         assertTrue(verdict is ModelIntegrity.Verdict.Refused)
         assertEquals(ModelIntegrity.Refusal.PIN_MALFORMED, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
@@ -100,9 +96,8 @@ class ModelIntegrityTest {
     @Test
     fun `verify returns PIN_MALFORMED when pin has non-hex characters`() {
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), "data".toByteArray())
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
         val badPin = "g1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
-        val verdict = ModelIntegrity.verify(file, badPin, checksums)
+        val verdict = ModelIntegrity.verify(file, badPin, 4L)
         assertTrue(verdict is ModelIntegrity.Verdict.Refused)
         assertEquals(ModelIntegrity.Refusal.PIN_MALFORMED, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
@@ -110,21 +105,9 @@ class ModelIntegrityTest {
     @Test
     fun `verify returns PIN_MALFORMED when pin is empty`() {
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), "data".toByteArray())
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(file, "", checksums)
+        val verdict = ModelIntegrity.verify(file, "", 4L)
         assertTrue(verdict is ModelIntegrity.Verdict.Refused)
         assertEquals(ModelIntegrity.Refusal.PIN_MALFORMED, (verdict as ModelIntegrity.Verdict.Refused).refusal)
-    }
-
-    // --- verify: PIN_NOT_IN_UPSTREAM ---
-
-    @Test
-    fun `verify returns PIN_NOT_IN_UPSTREAM when pin is not in checksums`() {
-        val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), "data".toByteArray())
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.OTHER_PIN)
-        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, checksums)
-        assertTrue(verdict is ModelIntegrity.Verdict.Refused)
-        assertEquals(ModelIntegrity.Refusal.PIN_NOT_IN_UPSTREAM, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
 
     // --- verify: PIN_MISMATCH ---
@@ -133,8 +116,7 @@ class ModelIntegrityTest {
     fun `verify returns PIN_MISMATCH when computed digest differs from pin`() {
         val content = "actual content".toByteArray()
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), content)
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, checksums)
+        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, content.size.toLong())
         assertTrue(verdict is ModelIntegrity.Verdict.Refused)
         assertEquals(ModelIntegrity.Refusal.PIN_MISMATCH, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
@@ -146,8 +128,7 @@ class ModelIntegrityTest {
         val content = "trusted model".toByteArray()
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), content)
         val digest = Fixtures.independentSha256(content)
-        val checksums = Fixtures.checksumsOf("model" to digest)
-        val verdict = ModelIntegrity.verify(file, digest, checksums)
+        val verdict = ModelIntegrity.verify(file, digest, content.size.toLong())
         assertTrue(verdict is ModelIntegrity.Verdict.Verified)
         assertEquals(digest, (verdict as ModelIntegrity.Verdict.Verified).digest)
     }
@@ -157,8 +138,7 @@ class ModelIntegrityTest {
         val content = "case test".toByteArray()
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), content)
         val digest = Fixtures.independentSha256(content)
-        val checksums = Fixtures.checksumsOf("model" to digest)
-        val verdict = ModelIntegrity.verify(file, digest.uppercase(), checksums)
+        val verdict = ModelIntegrity.verify(file, digest.uppercase(), content.size.toLong())
         assertTrue(verdict is ModelIntegrity.Verdict.Verified)
     }
 
@@ -167,42 +147,38 @@ class ModelIntegrityTest {
     @Test
     fun `verify checks FILE_MISSING before NOT_A_READABLE_FILE`() {
         val file = File(tmp.root, "nonexistent")
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, checksums)
+        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, 4L)
         assertEquals(ModelIntegrity.Refusal.FILE_MISSING, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
 
     @Test
     fun `verify checks NOT_A_READABLE_FILE before FILE_EMPTY`() {
         val dir = tmp.newFolder("adir")
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(dir, Fixtures.VALID_PIN, checksums)
+        val verdict = ModelIntegrity.verify(dir, Fixtures.VALID_PIN, 4L)
         assertEquals(ModelIntegrity.Refusal.NOT_A_READABLE_FILE, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
 
     @Test
     fun `verify checks FILE_EMPTY before PIN_MALFORMED`() {
         val file = Fixtures.writeBytes(File(tmp.root, "empty.bin"), ByteArray(0))
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(file, "badpin", checksums)
+        val verdict = ModelIntegrity.verify(file, "badpin", 4L)
         assertEquals(ModelIntegrity.Refusal.FILE_EMPTY, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
 
     @Test
-    fun `verify checks PIN_MALFORMED before PIN_NOT_IN_UPSTREAM`() {
+    fun `verify checks PIN_MALFORMED before SIZE_MISMATCH`() {
+        // The file is 4 bytes and the pinned size is 99, so both checks would fail; the pin is judged first.
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), "data".toByteArray())
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.OTHER_PIN)
-        val verdict = ModelIntegrity.verify(file, "badpin", checksums)
+        val verdict = ModelIntegrity.verify(file, "badpin", 99L)
         assertEquals(ModelIntegrity.Refusal.PIN_MALFORMED, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
 
     @Test
-    fun `verify checks PIN_NOT_IN_UPSTREAM before PIN_MISMATCH`() {
-        val content = "data".toByteArray()
-        val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), content)
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.OTHER_PIN)
-        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, checksums)
-        assertEquals(ModelIntegrity.Refusal.PIN_NOT_IN_UPSTREAM, (verdict as ModelIntegrity.Verdict.Refused).refusal)
+    fun `verify checks SIZE_MISMATCH before PIN_MISMATCH`() {
+        // The pin is well formed and wrong for these bytes, and the size is wrong too; the size is judged first.
+        val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), "data".toByteArray())
+        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, 99L)
+        assertEquals(ModelIntegrity.Refusal.SIZE_MISMATCH, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
 
     // --- large file independent digest test ---
@@ -225,16 +201,14 @@ class ModelIntegrityTest {
         val content = "test".toByteArray()
         val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), content)
         val digest = Fixtures.independentSha256(content)
-        val checksums = Fixtures.checksumsOf("model" to digest)
-        val verdict = ModelIntegrity.verify(file, digest, checksums)
+        val verdict = ModelIntegrity.verify(file, digest, content.size.toLong())
         assertTrue(verdict.isVerified)
     }
 
     @Test
     fun `isVerified is false for Refused verdict`() {
         val file = File(tmp.root, "missing.bin")
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.VALID_PIN)
-        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, checksums)
+        val verdict = ModelIntegrity.verify(file, Fixtures.VALID_PIN, 4L)
         assertFalse(verdict.isVerified)
     }
 
@@ -243,20 +217,8 @@ class ModelIntegrityTest {
     @Test
     fun `verify returns FILE_EMPTY for empty file even when pin matches empty digest`() {
         val file = Fixtures.writeBytes(File(tmp.root, "empty.bin"), ByteArray(0))
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.EMPTY_SHA256)
-        val verdict = ModelIntegrity.verify(file, Fixtures.EMPTY_SHA256, checksums)
+        val verdict = ModelIntegrity.verify(file, Fixtures.EMPTY_SHA256, 0L)
         assertTrue(verdict is ModelIntegrity.Verdict.Refused)
         assertEquals(ModelIntegrity.Refusal.FILE_EMPTY, (verdict as ModelIntegrity.Verdict.Refused).refusal)
-    }
-
-    @Test
-    fun `verify returns PIN_NOT_IN_UPSTREAM when pin matches file digest but is absent from checksums`() {
-        val content = "trusted model bytes".toByteArray()
-        val file = Fixtures.writeBytes(File(tmp.root, "model.bin"), content)
-        val digest = Fixtures.independentSha256(content)
-        val checksums = Fixtures.checksumsOf("model" to Fixtures.OTHER_PIN)
-        val verdict = ModelIntegrity.verify(file, digest, checksums)
-        assertTrue(verdict is ModelIntegrity.Verdict.Refused)
-        assertEquals(ModelIntegrity.Refusal.PIN_NOT_IN_UPSTREAM, (verdict as ModelIntegrity.Verdict.Refused).refusal)
     }
 }

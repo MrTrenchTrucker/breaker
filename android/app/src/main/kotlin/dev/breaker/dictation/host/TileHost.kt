@@ -38,6 +38,11 @@ import dev.breaker.dictation.wiring.appGesture
 import dev.breaker.dictation.wiring.appReleaseWatcher
 import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.modelInstallPortFor
+import dev.breaker.dictation.wiring.DownloadOutcome
+import dev.breaker.dictation.wiring.ModelDeletion
+import dev.breaker.dictation.wiring.ModelSelectWriter
+import dev.breaker.dictation.wiring.StoreModelDelete
+import dev.breaker.dictation.wiring.modelSelectWriterFor
 import dev.breaker.dictation.commit.KeyboardProbeReadings
 
 /**
@@ -156,13 +161,22 @@ internal class TileHost(
     }
 
     private val forwardingNotice = ForwardingDownloadNotice(notifications)
+    /** The one serial background of the speech model: the download and the delete both run on it, in order. */
+    private val modelBackground = SerialBackground("breaker-model-download")
     private val downloader = ModelDownloader(
         installer = modelInstallPortFor(root.modelStore),
         selectedId = selectedId,
-        background = SerialBackground("breaker-model-download"),
+        background = modelBackground,
         main = main,
         notice = forwardingNotice,
     )
+    private val modelDeletion = ModelDeletion(
+        StoreModelDelete(root.modelStore, { root.settingsStore.load().modelSize }, { downloader.downloadingId() }),
+        modelBackground,
+        main,
+    )
+    private val deleteSlot = DeleteListenerSlot()
+    private val modelSelect: ModelSelectWriter = modelSelectWriterFor(root.settingsStore, root.modelStore)
 
     /** Sets the notification line to a text of a taken take (or clears it when null). Main thread only. */
     private fun setNotificationLine(text: String?) {
@@ -201,6 +215,33 @@ internal class TileHost(
         downloader.requestDownload()
     }
 
+    /** Starts the download of the model [id], answering [onFinished] when it ends. Call it on the main thread. */
+    fun requestDownload(id: String, onFinished: (DownloadOutcome) -> Unit = {}) {
+        downloader.requestDownload(id, onFinished)
+    }
+
+    /** The id of the model downloading now, or null when no download runs. */
+    fun downloadingModelId(): String? = downloader.downloadingId()
+
+    /**
+     * Deletes the model [id] on the speech model's background, unless it is in use or downloading. [onFinished]
+     * is answered on the main thread with whether its files were removed.
+     */
+    fun deleteModel(id: String, onFinished: (Boolean) -> Unit = {}) {
+        modelDeletion.request(id) { removed ->
+            onFinished(removed)
+            deleteSlot.answer(removed)
+        }
+    }
+
+    /** Sets the listener of model deletes, answered on the main thread after each delete's own answer; null clears it. */
+    fun setDeleteListener(listener: ((Boolean) -> Unit)?) {
+        deleteSlot.set(listener)
+    }
+
+    /** Makes the installed model [id] the model in use, on the main thread, through the settings store; answers whether it was saved. */
+    fun useModel(id: String): Boolean = modelSelect.select(id)
+
     /** Sets the in-app download listener (called by the activity in onResume). */
     fun setDownloadListener(listener: ModelDownloadNotice?) {
         forwardingNotice.setListener(listener)
@@ -219,5 +260,23 @@ internal class TileHost(
 
     private fun toCoordinator(block: (TileCoordinator) -> Unit) {
         main.post { block(coordinator) }
+    }
+}
+
+/**
+ * The one listener of model deletes. Its owner sets it and clears it; a delete answers whatever is set at the
+ * time of the answer, and nothing once it is cleared, so no view or activity is kept after its owner lets go.
+ */
+internal class DeleteListenerSlot {
+    private var listener: ((Boolean) -> Unit)? = null
+
+    /** Replaces the listener; null clears it. */
+    fun set(next: ((Boolean) -> Unit)?) {
+        listener = next
+    }
+
+    /** Answers the listener, when one is set, with whether the model's files were removed. */
+    fun answer(removed: Boolean) {
+        listener?.invoke(removed)
     }
 }

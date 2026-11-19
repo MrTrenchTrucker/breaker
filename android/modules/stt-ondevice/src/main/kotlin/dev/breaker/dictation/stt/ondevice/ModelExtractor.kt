@@ -1,5 +1,7 @@
 package dev.breaker.dictation.stt.ondevice
 
+import dev.breaker.shared.models.ModelEntry
+import dev.breaker.shared.models.ModelRegistry
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
@@ -42,6 +44,7 @@ import java.util.Locale
  * @param openOutput opens one output file; replaceable for tests.
  * @param syncFile forces one written file to storage before it is closed.
  * @param rename moves the finished work directory to the target.
+ * @param lookup resolves a model id to its registry entry, which gives the unpack profile; the real registry by default.
  */
 class ModelExtractor(
     private val usableSpace: (File) -> Long = { it.usableSpace },
@@ -49,22 +52,31 @@ class ModelExtractor(
     private val openOutput: (File) -> OutputStream = { FileOutputStream(it) },
     private val syncFile: (OutputStream) -> Unit = { (it as? FileOutputStream)?.fd?.sync() },
     private val rename: (File, File) -> Boolean = { from, to -> from.renameTo(to) },
+    private val lookup: (String) -> ModelEntry? = ModelRegistry::byId,
 ) {
 
     /** True when [modelId] has an unpack profile. */
-    fun supports(modelId: String): Boolean = ExtractionProfiles.forModel(modelId) != null
+    fun supports(modelId: String): Boolean = ExtractionProfiles.forModel(modelId, lookup) != null
+
+    /**
+     * The most bytes an unpack of [modelId] may write, or null when the model has no
+     * profile. This is the figure the free-space check inside [extract] uses; a caller
+     * that sizes a disk check for archive plus unpacked files adds this number to the
+     * archive size. Nothing outside this module calls it yet.
+     */
+    fun unpackedBytesAllowed(modelId: String): Long? = ExtractionProfiles.forModel(modelId, lookup)?.limits?.maxWrittenBytes
 
     /**
      * Unpacks [archive] for [modelId] into the store's work directory and moves
      * it to the store's extracted directory.
      */
     fun extract(archive: File, modelId: String, store: LocalModelStore): ExtractionOutcome {
-        val profile = ExtractionProfiles.forModel(modelId)
+        val profile = ExtractionProfiles.forModel(modelId, lookup)
             ?: return ExtractionOutcome.Rejected(ExtractionReason.MISSING_FILE, "no unpack profile for this model")
         return extract(archive, profile, store.extractionWorkDirectory(modelId), store.extractedDirectory(modelId))
     }
 
-    /** The same with explicit places and limits; tests pass small limits and temporary directories. */
+    /** The same with explicit places and limits; tests pass tight limits and temporary directories. */
     internal fun extract(archive: File, profile: ExtractionProfile, workDir: File, target: File): ExtractionOutcome {
         if (target.exists()) return reject(ExtractionReason.TARGET_EXISTS, "the target directory already exists")
         val stop = try {

@@ -223,7 +223,7 @@ internal fun valuesBlock(held: AppSettings, model: ModelRow, rowCount: Int, serv
  * language and size in mono, and, when it is not ready, the download button with the
  * line about a download in progress.
  */
-private fun modelRow(held: AppSettings, model: ModelRow): Box = Box(
+private fun modelRow(held: AppSettings, model: ModelRow): Box = if (model.rows.isNotEmpty()) modelRowsBlock(model.rows) else Box(
     id = SettingsIds.MODEL_ROW,
     background = PaletteSlot.BACKGROUND,
     gap = Space.S,

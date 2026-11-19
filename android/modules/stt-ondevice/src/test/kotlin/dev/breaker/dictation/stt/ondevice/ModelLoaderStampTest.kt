@@ -17,7 +17,7 @@ internal object StampFixture {
     val DIGEST: String = Fixtures.independentSha256(BYTES)
     val FILES: List<String> = TarFixtures.TINY_FILES
     val ENTRY: ModelEntry =
-        ModelEntry(MODEL, ModelFamily.SHERPA_ONNX, "https://example.com/model", DIGEST, 1, "Apache-2.0", false)
+        ModelEntry(MODEL, ModelFamily.SHERPA_ONNX, "https://example.com/model", DIGEST, 1, "Apache-2.0", false, sizeBytes = BYTES.size.toLong())
 }
 
 /** What the loader asked of its three counted seams: the archive check, the file digest and the engine creation. */
@@ -56,9 +56,9 @@ internal class StampRig(
         factory = StampFactory(calls),
         lookup = { requested -> if (requested == StampFixture.MODEL) StampFixture.ENTRY else null },
         debug = ModelDebugSink { debug.add(it) },
-        verify = { file, pin, checksums, archiveName ->
+        verify = { file, pin, expectedBytes ->
             calls.verify++
-            ModelIntegrity.verify(file, pin, checksums, archiveName)
+            ModelIntegrity.verify(file, pin, expectedBytes)
         },
         digestOf = { file ->
             calls.digest++
@@ -67,11 +67,10 @@ internal class StampRig(
     )
 }
 
-/** Writes the archive, its verified marker and the stored checksums of the fixed model. */
+/** Writes the archive and its verified marker of the fixed model. */
 internal fun seedStampArchive(store: LocalModelStore, archive: ByteArray = StampFixture.BYTES) {
     Fixtures.writeBytes(store.archiveFile(StampFixture.MODEL), archive)
     store.markVerified(StampFixture.MODEL, StampFixture.DIGEST)
-    store.storeChecksums(StampFixture.MODEL, "model.archive\t${StampFixture.DIGEST}")
 }
 
 internal fun unpackedFileOf(store: LocalModelStore, name: String): File =

@@ -1,5 +1,7 @@
 package dev.breaker.dictation.stt.ondevice
 
+import dev.breaker.shared.models.ModelEntry
+import dev.breaker.shared.models.ModelRegistry
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -9,33 +11,31 @@ import java.nio.file.StandardCopyOption
  * Manages the on-disk layout of installed models.
  *
  * The store keeps one directory per model under [root]. Each directory holds
- * the model archive, a marker file recording the last verified digest, and
- * the upstream checksum file used at install time.
+ * the model archive and a marker file recording the last verified digest.
+ * A `.checksums` file written by an earlier version may still sit in a model
+ * folder; it is never read, never written and never listed as a model file.
  *
- * Staging lives inside the models root so the move into a model directory
- * is a same-filesystem rename, not a copy - a crash can therefore never
- * leave a half-copied archive where the loader reads.
+ * Staging lives inside the models root so the move into a model directory is a
+ * same-filesystem rename, not a copy: a crash never leaves a half-copied archive.
  *
  * A verified archive is unpacked into [EXTRACTED_DIR] inside the model
  * directory: written in a work directory in staging, then moved into place with
  * one rename, so a partly unpacked model is never visible. [delete] removes the
  * archive, the markers and the unpacked files together. [extractedDirectory] and
- * [extractionWorkDirectory] `require` a safe id; [isExtracted] and
- * [removeExtracted] answer safely.
+ * [extractionWorkDirectory] `require` a safe id; [isExtracted] and [removeExtracted] answer safely.
  *
- * Division of responsibility for unsafe ids: [directoryFor] is the one place
- * a bad id must be loud (it `require`s a safe name), because it returns a path
- * that callers will write to. The question-answering calls - [isInstalled],
- * [modelFiles], [lastVerifiedDigest], [storedChecksums], [delete] - answer
- * safely instead of throwing, so an untrusted id can never crash a caller
- * that is merely asking. The writing calls - [markVerified], [storeChecksums] -
- * return quietly without creating anything when the id is unsafe.
+ * Unsafe ids: [directoryFor] is the one place a bad id must be loud (it `require`s
+ * a safe name), because it returns a path that callers will write to. The
+ * question-answering calls - [isInstalled], [modelFiles], [lastVerifiedDigest],
+ * [delete] - answer safely instead of throwing; the writing call - [markVerified] -
+ * returns quietly without creating anything when the id is unsafe.
  *
  * @param remove deletes a model directory tree for [delete] and reports whether
  *   it is gone; it can be replaced so a test can make that delete fail.
  * @param discard deletes one file for [discardFailedDownload] and for the temporary
  *   file of a failed [writeStamp]; the default does not remove a non-empty
  *   directory, and it can be replaced so a test can make that delete fail.
+ * @param lookup resolves a model id to its registry entry (the unpack profile); the real registry by default.
  * @param beforeMove runs between the temporary file's write and the atomic move of
  *   [writeStamp]; a test can make the move fail.
  */
@@ -44,13 +44,14 @@ class LocalModelStore(
     private val remove: (File) -> Boolean = { it.deleteRecursively() },
     private val discard: (File) -> Boolean = { it.delete() },
     private val beforeMove: (File) -> Unit = {},
+    private val lookup: (String) -> ModelEntry? = ModelRegistry::byId,
 ) {
 
     companion object {
         /** Name of the marker file that records the last verified digest. */
         const val VERIFIED_FILE: String = ".verified"
 
-        /** Name of the file that stores the upstream checksum text. */
+        /** Name of a file an earlier version stored; it is only excluded from the model files now. */
         const val CHECKSUMS_FILE: String = ".checksums"
 
         /** Name of the staging directory (inside the models root). */
@@ -123,7 +124,7 @@ class LocalModelStore(
 
     /**
      * Returns a map of readable files in the model directory, keyed by
-     * filename. Marker files ([VERIFIED_FILE], [CHECKSUMS_FILE]) are excluded.
+     * filename. The marker file ([VERIFIED_FILE]) and a leftover [CHECKSUMS_FILE] from an earlier version are excluded.
      *
      * An unsafe id answers with an empty map rather than throwing.
      */
@@ -190,38 +191,6 @@ class LocalModelStore(
     }
 
     /**
-     * Store the upstream checksum text for [modelId].
-     *
-     * Writes [text] to the `.checksums` file inside the model directory.
-     * Creates the directory if needed.
-     *
-     * An unsafe id returns quietly without creating anything.
-     */
-    fun storeChecksums(modelId: String, text: String) {
-        if (!isSafeName(modelId)) return
-        val dir = directoryFor(modelId)
-        if (!dir.exists()) dir.mkdirs()
-        File(dir, CHECKSUMS_FILE).writeText(text)
-    }
-
-    /**
-     * Returns the stored upstream checksum text for [modelId], or null
-     * if none has been stored or the file is unreadable.
-     *
-     * An unsafe id answers null rather than throwing.
-     */
-    fun storedChecksums(modelId: String): String? {
-        if (!isSafeName(modelId)) return null
-        val file = File(directoryFor(modelId), CHECKSUMS_FILE)
-        if (!file.isFile || !file.canRead()) return null
-        return try {
-            file.readText()
-        } catch (e: IOException) {
-            null
-        }
-    }
-
-    /**
      * Delete the model directory for [modelId] recursively.
      *
      * An unsafe id answers false rather than throwing - there is nothing
@@ -277,9 +246,13 @@ class LocalModelStore(
      * earlier unpack can leave some files behind: a missing, empty or directory
      * name, an absent or plain-file directory, a model with no profile, an unsafe id.
      */
-    fun isExtracted(modelId: String): Boolean {
+    fun isExtracted(modelId: String): Boolean =
+        isSafeName(modelId) &&
+            ExtractionProfiles.forModel(modelId, lookup)?.let { isExtracted(modelId, it) } == true
+
+    /** The same for a [profile] the caller already resolved from its entry; the store's own lookup is not asked. */
+    internal fun isExtracted(modelId: String, profile: ExtractionProfile): Boolean {
         if (!isSafeName(modelId)) return false
-        val profile = ExtractionProfiles.forModel(modelId) ?: return false
         val directory = extractedDirectory(modelId)
         if (!directory.isDirectory) return false
         return profile.files.all { name ->
@@ -345,9 +318,13 @@ class LocalModelStore(
      * deletes. Returns false for an unsafe id, for a [name] that is not one of the model's
      * profile file names, or when the delete fails; true when the file is gone.
      */
-    internal fun deleteUnpackedFile(modelId: String, name: String): Boolean {
+    internal fun deleteUnpackedFile(modelId: String, name: String): Boolean =
+        isSafeName(modelId) &&
+            ExtractionProfiles.forModel(modelId, lookup)?.let { deleteUnpackedFile(modelId, name, it) } == true
+
+    /** The same for a [profile] the caller already resolved from its entry; the store's own lookup is not asked. */
+    internal fun deleteUnpackedFile(modelId: String, name: String, profile: ExtractionProfile): Boolean {
         if (!isSafeName(modelId)) return false
-        val profile = ExtractionProfiles.forModel(modelId) ?: return false
         if (name !in profile.files) return false
         return discardFailedDownload(File(extractedDirectory(modelId), name))
     }

@@ -1,8 +1,10 @@
 package dev.breaker.dictation.stt.ondevice
 
+import dev.breaker.shared.models.ModelKind
 import dev.breaker.shared.models.ModelRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -41,10 +43,13 @@ class StreamingProfilesConsistencyTest {
 
     @Test
     fun `the unpack profile ids and the streaming profile ids are the same set`() {
-        val unpack = unpackIds()
-        assertTrue("the unpack table must have profiles to compare, got $unpack", unpack.isNotEmpty())
+        // The registry's STREAMING entries are small and tiny. The whisper entries base and medium are OFFLINE models
+        // with no unpack profile and no streaming profile; the fixed id list below still probes them by name.
+        val streaming = ModelRegistry.ALL.filter { it.kind == ModelKind.STREAMING }.map { it.id }
+        val unpack = streaming.filter { ExtractionProfiles.forModel(it) != null }.toSet()
+        assertTrue("the unpack table must have streaming profiles to compare, got $unpack", unpack.isNotEmpty())
         assertEquals("ids with a streaming profile", unpack, StreamingProfiles.ids)
-        for (id in candidateIds()) {
+        for (id in streaming + listOf("small", "tiny", "base", "medium", "", "unknown")) {
             assertEquals(
                 "id [$id]: has an unpack profile exactly when it has a streaming profile",
                 ExtractionProfiles.forModel(id) != null,
@@ -52,5 +57,16 @@ class StreamingProfilesConsistencyTest {
             )
         }
         for (id in unpack) assertEquals("language of $id", "en", StreamingProfiles.forModel(id)!!.language)
+        // No offline entry has a streaming profile; parakeet is the one offline id with an unpack profile.
+        val offline = ModelRegistry.ALL.filter { it.kind == ModelKind.OFFLINE }.map { it.id }
+        assertEquals("the offline entries", listOf("base", "medium", "parakeet"), offline)
+        for (id in offline) {
+            assertNull("offline $id: has no streaming profile", StreamingProfiles.forModel(id))
+            assertEquals("offline $id: has an unpack profile only if it is parakeet", id == "parakeet", ExtractionProfiles.forModel(id) != null)
+        }
+        val parakeet = ModelRegistry.byId("parakeet")
+        assertNotNull("parakeet is in the registry", parakeet)
+        assertEquals(ModelKind.OFFLINE, parakeet!!.kind)
+        assertNull("parakeet has no streaming profile", StreamingProfiles.forModel("parakeet"))
     }
 }

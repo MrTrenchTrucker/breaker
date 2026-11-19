@@ -39,7 +39,7 @@ object ErrorMapping {
         )
 
     /**
-     * The model for [modelId] did not match its published checksum.
+     * The model for [modelId] did not match what this app expects.
      *
      * With [leftOnDisk] false the model was deleted and the detail says so. With
      * [leftOnDisk] true the delete failed and the detail says that instead, so
@@ -53,18 +53,18 @@ object ErrorMapping {
         if (leftOnDisk) {
             SttResult.Failure(
                 SttError.LOCAL_MODEL_MISSING,
-                "The model for '$modelId' did not match its published checksum and could not be deleted. " +
+                "The model for '$modelId' did not match what this app expects and could not be deleted. " +
                     "It will not be used.",
             )
         } else {
             SttResult.Failure(
                 SttError.LOCAL_MODEL_MISSING,
-                "The model for '$modelId' did not match its published checksum and was deleted. Download it again.",
+                "The model for '$modelId' did not match what this app expects and was deleted. Download it again.",
             )
         }
 
     /**
-     * The model [modelId] is a [family] model; this app can only run the streaming Zipformer models today.
+     * The model [modelId] is a [family] model; this app cannot run that kind of model yet.
      *
      * The detail is a short, safe, user-facing sentence. No audio content,
      * transcript text, or file path is ever placed in a detail.
@@ -72,19 +72,7 @@ object ErrorMapping {
     fun wrongFamily(modelId: String, family: String): SttResult.Failure =
         SttResult.Failure(
             SttError.LOCAL_MODEL_MISSING,
-            "'$modelId' is a $family model; this app can only run the streaming Zipformer models today.",
-        )
-
-    /**
-     * Upstream's checksum list could not be read, so [modelId] could not be verified.
-     *
-     * The detail is a short, safe, user-facing sentence. No audio content,
-     * transcript text, or file path is ever placed in a detail.
-     */
-    fun checksumsUnreadable(modelId: String): SttResult.Failure =
-        SttResult.Failure(
-            SttError.LOCAL_MODEL_MISSING,
-            "Upstream's checksum list could not be read, so '$modelId' could not be verified.",
+            "'$modelId' is a $family model; this app cannot run that kind of model yet.",
         )
 
     /**

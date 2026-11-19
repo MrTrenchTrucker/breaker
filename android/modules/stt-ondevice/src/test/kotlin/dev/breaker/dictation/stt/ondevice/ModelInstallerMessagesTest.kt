@@ -21,30 +21,17 @@ class ModelInstallerMessagesTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
-    /** A fetcher that can fail or throw at either step, with its own bytes and checksum list. */
+    /** A fetcher that can fail or throw at the model step, with its own bytes. */
     private class StubFetcher(
         private val modelBytes: ByteArray,
-        private val checksumsText: String,
-        private val checksumsFailure: String? = null,
         private val modelFailure: String? = null,
-        private val checksumsThrow: String? = null,
         private val modelThrow: String? = null,
-        private val checksumsAsDirectory: Boolean = false,
     ) : ModelFetcher {
         override fun fetchModel(entry: ModelEntry, stagingDir: File): ModelFetcher.Result {
             if (modelThrow != null) throw IOException(modelThrow)
             if (modelFailure != null) return ModelFetcher.Result.Failed(modelFailure)
             val file = File(stagingDir, "model.archive")
             file.writeBytes(modelBytes)
-            return ModelFetcher.Result.Fetched(file)
-        }
-
-        override fun fetchChecksums(stagingDir: File): ModelFetcher.Result {
-            if (checksumsThrow != null) throw IOException(checksumsThrow)
-            if (checksumsFailure != null) return ModelFetcher.Result.Failed(checksumsFailure)
-            if (checksumsAsDirectory) return ModelFetcher.Result.Fetched(stagingDir)
-            val file = File(stagingDir, "checksums.txt")
-            file.writeText(checksumsText)
             return ModelFetcher.Result.Fetched(file)
         }
     }
@@ -58,16 +45,20 @@ class ModelInstallerMessagesTest {
 
     private val goodBytes = "test model bytes".toByteArray()
     private val pin = Fixtures.independentSha256(goodBytes)
-    private val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false)
+    private val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false, sizeBytes = goodBytes.size.toLong())
 
-    private fun goodFetcher() = StubFetcher(goodBytes, "model.archive\t$pin")
+    private fun goodFetcher() = StubFetcher(goodBytes)
 
     /** Runs one install on a fresh store with a recording sink and requires it to be refused. */
-    private fun attempt(fetcher: ModelFetcher, prepare: (LocalModelStore) -> Unit = {}): Outcome {
+    private fun attempt(
+        fetcher: ModelFetcher,
+        usableSpace: (File) -> Long = { Long.MAX_VALUE },
+        prepare: (LocalModelStore) -> Unit = {},
+    ): Outcome {
         val store = LocalModelStore(tmp.newFolder())
         prepare(store)
         val sunk = mutableListOf<String>()
-        val result = ModelInstaller(store, fetcher, ModelDebugSink { message -> sunk.add(message) }).install(entry)
+        val result = ModelInstaller(store, fetcher, ModelDebugSink { message -> sunk.add(message) }, usableSpace = usableSpace).install(entry)
         assertTrue("the install must be refused, got $result", result is ModelInstaller.InstallResult.Refused)
         return Outcome(result as ModelInstaller.InstallResult.Refused, sunk, store)
     }
@@ -76,20 +67,21 @@ class ModelInstallerMessagesTest {
         File(store.stagingDirectory().path).writeText("blocker")
     }
 
-    private fun checksumsDownloadFails(reason: String) =
-        attempt(StubFetcher(goodBytes, "", checksumsFailure = reason))
-
-    private fun checksumsUnparseable() =
-        attempt(StubFetcher(goodBytes, "not a valid checksums file"))
-
     private fun modelDownloadFails(reason: String) =
-        attempt(StubFetcher(goodBytes, "model.archive\t$pin", modelFailure = reason))
+        attempt(StubFetcher(goodBytes, modelFailure = reason))
 
+    /** The pinned length with one byte changed: the size passes, so the digest refuses it. */
     private fun wrongBytes() =
-        attempt(StubFetcher("different model bytes".toByteArray(), "model.archive\t$pin"))
+        attempt(StubFetcher(goodBytes.copyOf().also { it[0] = (it[0] + 1).toByte() }))
 
-    private fun checksumsFetchThrows(message: String) =
-        attempt(StubFetcher(goodBytes, "", checksumsThrow = message))
+    /** One byte longer than the pinned length: the size refuses it. */
+    private fun wrongSize() =
+        attempt(StubFetcher(goodBytes + byteArrayOf(1)))
+
+    private fun modelFetchThrows(message: String) =
+        attempt(StubFetcher(goodBytes, modelThrow = message))
+
+    private fun noSpace() = attempt(goodFetcher(), usableSpace = { 0L })
 
     private fun moveBlocked() = attempt(goodFetcher()) { store ->
         store.archiveFile("tiny").mkdirs()
@@ -109,32 +101,6 @@ class ModelInstallerMessagesTest {
         assertFalse("the path must not reach the user", outcome.refused.detail.contains(stagingPath))
         assertEquals("one sink call per refusal", 1, outcome.sunk.size)
         assertTrue("the sink must hold the staging path: ${outcome.sunk}", outcome.sunk.single().contains(stagingPath))
-    }
-
-    @Test
-    fun `a failed checksum download gives the checksum sentence and the reason goes to the sink`() {
-        val outcome = checksumsDownloadFails("boom-reason")
-        assertEquals(ModelInstaller.Refusal.CHECKSUMS_FAILED, outcome.refused.refusal)
-        assertEquals(ModelMessages.CHECKSUMS_DOWNLOAD_FAILED, outcome.refused.detail)
-        assertFalse(outcome.refused.detail.contains("boom-reason"))
-        assertEquals("one sink call per refusal", 1, outcome.sunk.size)
-        assertTrue("the sink must hold the reason: ${outcome.sunk}", outcome.sunk.single().contains("boom-reason"))
-    }
-
-    @Test
-    fun `an unreadable downloaded checksum list gives the unreadable sentence`() {
-        val unparseable = checksumsUnparseable()
-        assertEquals(ModelInstaller.Refusal.CHECKSUMS_UNREADABLE, unparseable.refused.refusal)
-        assertEquals(ModelMessages.CHECKSUMS_UNREADABLE_DOWNLOADED, unparseable.refused.detail)
-        assertEquals("one sink call per refusal", 1, unparseable.sunk.size)
-        assertTrue("the sink must say the list could not be parsed: ${unparseable.sunk}", unparseable.sunk.single().contains("unparseable"))
-
-        // The same sentence when the list cannot be read at all; the sink tells the two apart.
-        val unreadable = attempt(StubFetcher(goodBytes, "", checksumsAsDirectory = true))
-        assertEquals(ModelInstaller.Refusal.CHECKSUMS_UNREADABLE, unreadable.refused.refusal)
-        assertEquals(ModelMessages.CHECKSUMS_UNREADABLE_DOWNLOADED, unreadable.refused.detail)
-        assertEquals("one sink call per refusal", 1, unreadable.sunk.size)
-        assertTrue("the sink must say the list could not be read: ${unreadable.sunk}", unreadable.sunk.single().contains("unreadable"))
     }
 
     @Test
@@ -158,17 +124,28 @@ class ModelInstallerMessagesTest {
     }
 
     @Test
-    fun `a fetcher that throws an IOException gives the save sentence and the exception text goes to the sink only`() {
-        val checksumsStep = checksumsFetchThrows("disk-detail")
-        assertEquals(ModelInstaller.Refusal.STAGING_FAILED, checksumsStep.refused.refusal)
-        assertEquals(ModelMessages.SAVE_FAILED, checksumsStep.refused.detail)
-        assertFalse(checksumsStep.refused.detail.contains("disk-detail"))
-        assertFalse(checksumsStep.refused.detail.contains("IOException"))
-        assertEquals("one sink call per refusal", 1, checksumsStep.sunk.size)
-        assertTrue("the sink must hold the exception text: ${checksumsStep.sunk}", checksumsStep.sunk.single().contains("disk-detail"))
+    fun `a download of the wrong size gives the check sentence and the size verdict goes to the sink`() {
+        val outcome = wrongSize()
+        assertEquals(ModelInstaller.Refusal.DIGEST_REFUSED, outcome.refused.refusal)
+        assertEquals(ModelMessages.DOWNLOAD_FAILED_CHECK, outcome.refused.detail)
+        assertFalse("the sizes must not reach the user", outcome.refused.detail.contains(goodBytes.size.toString()))
+        assertEquals("one sink call per refusal", 1, outcome.sunk.size)
+        assertTrue("the sink must hold the verdict name: ${outcome.sunk}", outcome.sunk.single().contains("SIZE_MISMATCH"))
+    }
 
-        // The model download writes into the same staging directory and is treated the same way.
-        val modelStep = attempt(StubFetcher(goodBytes, "model.archive\t$pin", modelThrow = "disk-detail-model"))
+    @Test
+    fun `too little space gives the no-space sentence and the figures go to the sink only`() {
+        val outcome = noSpace()
+        assertEquals(ModelInstaller.Refusal.NO_SPACE, outcome.refused.refusal)
+        assertEquals(ModelMessages.DOWNLOAD_NO_SPACE, outcome.refused.detail)
+        assertNoSeparator("no space", outcome.refused.detail)
+        assertEquals("one sink call per refusal", 1, outcome.sunk.size)
+        assertTrue("the sink must hold the free figure: ${outcome.sunk}", outcome.sunk.single().contains("free 0 in"))
+    }
+
+    @Test
+    fun `a fetcher that throws an IOException gives the save sentence and the exception text goes to the sink only`() {
+        val modelStep = modelFetchThrows("disk-detail-model")
         assertEquals(ModelInstaller.Refusal.STAGING_FAILED, modelStep.refused.refusal)
         assertEquals(ModelMessages.SAVE_FAILED, modelStep.refused.detail)
         assertFalse(modelStep.refused.detail.contains("disk-detail-model"))
@@ -201,10 +178,10 @@ class ModelInstallerMessagesTest {
 
     @Test
     fun `a metadata write that fails gives the save sentence and sends the exception text to the sink only`() {
-        // A directory where the checksum record must go makes the final metadata write throw.
+        // A directory where the verified marker must go makes the metadata write throw.
         val outcome = attempt(goodFetcher()) { store ->
             store.directoryFor("tiny").mkdirs()
-            File(store.directoryFor("tiny"), LocalModelStore.CHECKSUMS_FILE).mkdirs()
+            File(store.directoryFor("tiny"), LocalModelStore.VERIFIED_FILE).mkdirs()
         }
         assertEquals(ModelInstaller.Refusal.STAGING_FAILED, outcome.refused.refusal)
         assertEquals(ModelMessages.SAVE_FAILED, outcome.refused.detail)
@@ -217,20 +194,19 @@ class ModelInstallerMessagesTest {
     fun `no refusal detail of the installer holds a path separator or an exception name`() {
         val sentences = setOf(
             ModelMessages.SAVE_FAILED,
-            ModelMessages.CHECKSUMS_DOWNLOAD_FAILED,
-            ModelMessages.CHECKSUMS_UNREADABLE_DOWNLOADED,
             ModelMessages.MODEL_DOWNLOAD_FAILED,
             ModelMessages.DOWNLOAD_FAILED_CHECK,
+            ModelMessages.DOWNLOAD_NO_SPACE,
         )
         // Fetch reasons and exception messages that look like the real thing: a path, a class name.
         val cases = listOf(
             "staging" to stagingBlocked(),
-            "checksum download" to checksumsDownloadFails("connection to /api/v3/assets failed: SocketException"),
-            "checksum list" to checksumsUnparseable(),
             "model download" to modelDownloadFails("HTTP 500 from C:\\temp\\mirror: ServerError"),
             "check" to wrongBytes(),
-            "fetcher exception" to checksumsFetchThrows("failed writing /data/app/staging/model.archive: IOException"),
+            "size" to wrongSize(),
+            "fetcher exception" to modelFetchThrows("failed writing /data/app/staging/model.archive: IOException"),
             "move" to moveBlocked(),
+            "no space" to noSpace(),
         )
         assertEquals("every refusal kind must be built", 7, cases.size)
         var checked = 0
@@ -248,7 +224,7 @@ class ModelInstallerMessagesTest {
     fun `the default sink drops the technical text and the installer still refuses`() {
         val store = LocalModelStore(tmp.newFolder())
         File(store.stagingDirectory().path).writeText("blocker")
-        val result = ModelInstaller(store, goodFetcher()).install(entry)
+        val result = ModelInstaller(store, goodFetcher(), usableSpace = { Long.MAX_VALUE }).install(entry)
         assertTrue("the install must be refused, got $result", result is ModelInstaller.InstallResult.Refused)
         assertEquals(ModelMessages.SAVE_FAILED, (result as ModelInstaller.InstallResult.Refused).detail)
 

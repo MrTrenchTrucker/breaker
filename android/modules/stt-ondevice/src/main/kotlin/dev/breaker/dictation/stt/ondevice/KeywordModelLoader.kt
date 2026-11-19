@@ -9,8 +9,8 @@ import java.io.File
  *
  * It runs exactly the checks [ModelLoader] runs for a speech model, because it
  * wraps one: registry lookup (through the keyword list, not the speech list),
- * family check, install check, stored checksums, the install stamp or the archive
- * check, the unpacked files, and the stamp write or refresh. The wrapped loader is
+ * family check, install check, the install stamp or the archive
+ * check (the registry pin: sha256 and byte size), the unpacked files, and the stamp write or refresh. The wrapped loader is
  * given a factory that opens no engine and creates no recognizer, so a ready load
  * only carries the directory and the digest. Speech loading is untouched.
  *
@@ -18,15 +18,15 @@ import java.io.File
  *
  * @param lookup resolves an id to its registry entry; the default is the keyword list.
  * @param debug receives the technical text of each refusal; the default drops it.
- * @param verify the archive check; a test may replace it to count calls.
+ * @param verify the archive check (file, pinned sha256, pinned byte size); a test may replace it to count calls.
  * @param digestOf digests one unpacked file; a test may replace it.
  */
 class KeywordModelLoader(
     store: LocalModelStore,
     lookup: (String) -> ModelEntry? = ModelRegistry::byKeywordId,
     debug: ModelDebugSink = NoDebugSink,
-    verify: (File, String, UpstreamChecksums.Checksums, String?) -> ModelIntegrity.Verdict =
-        { file, pin, checksums, archiveName -> ModelIntegrity.verify(file, pin, checksums, archiveName) },
+    verify: (File, String, Long) -> ModelIntegrity.Verdict =
+        { file, pin, expectedBytes -> ModelIntegrity.verify(file, pin, expectedBytes) },
     digestOf: (File) -> String? = ModelIntegrity::sha256,
 ) {
     private val inner = ModelLoader(store, NoEngineFactory, lookup, debug, verify, digestOf)

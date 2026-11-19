@@ -10,7 +10,7 @@ import org.junit.rules.TemporaryFolder
 
 /**
  * The loader when there is no usable stamp, and the stamp rules that sit beside the
- * stamp path: the stored checksums, a failed delete and the first stamp write. The
+ * stamp path: a model without its stored checksums, a failed delete and the first stamp write. The
  * helpers are the ones in ModelLoaderStampTest.kt.
  */
 class ModelLoaderStampMissingTest {
@@ -140,21 +140,20 @@ class ModelLoaderStampMissingTest {
     }
 
     @Test
-    fun `the stored checksums are still required with a good stamp`() {
+    fun `the stored checksums are not needed with a good stamp`() {
         val rig = StampRig(tmp.newFolder())
         seedStampArchive(rig.store)
         seedStampUnpacked(rig.store)
         writeStampFromFiles(rig.store)
         val checksums = File(rig.store.directoryFor(StampFixture.MODEL), LocalModelStore.CHECKSUMS_FILE)
-        assertTrue("fixture: the stored checksums are removed", checksums.delete())
+        assertFalse("fixture: no checksums file exists", checksums.exists())
 
-        val refused = stampRefusedOf(rig.loader.load(StampFixture.MODEL))
+        val ready = stampReadyOf(rig.loader.load(StampFixture.MODEL))
 
-        assertEquals("the refusal", ModelLoader.Refusal.CHECKSUMS_UNREADABLE, refused.refusal)
-        assertEquals("the sentence", ModelMessages.NOT_VERIFIED_YET, refused.detail)
+        assertEquals("the digest is the stamp's archive digest", StampFixture.DIGEST, ready.model.digest)
         assertEquals("the archive must not be hashed", 0, rig.calls.verify)
         assertEquals("no unpacked file may be hashed", 0, rig.calls.digest)
-        assertEquals("the engine must not be created", 0, rig.calls.create)
+        assertEquals("the engine is created once", 1, rig.calls.create)
         assertTrue("the stamp stays", stampFileOf(rig.store).isFile)
     }
 }

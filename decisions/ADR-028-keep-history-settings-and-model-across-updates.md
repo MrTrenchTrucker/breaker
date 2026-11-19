@@ -21,9 +21,9 @@ The project owner's loss is therefore NOT FOUND, and is not a known code defect.
 What the code in main does today (checked at main f2887786):
 - **Speech model:** `LocalModelStore(File(filesDir, "models"))`
   (`BreakerCompositionRoot.kt`). `ModelLoader` deletes a model at once when its
-  check fails (the archive does not match its pin or the upstream list:
-  `Refusal.VERIFICATION_REFUSED`); unreadable checksums keep the model
-  (`Refusal.CHECKSUMS_UNREADABLE`).
+  check fails (the archive does not match its pinned SHA-256 or byte size:
+  `Refusal.VERIFICATION_REFUSED`); a `.checksums` file that an earlier version left in
+  a model folder is never read and does not stop a load (built after that check, not compiled or run).
 - **Settings:** `SettingsFileStore(File(filesDir, "settings.properties"), ...)`
   (`BreakerCompositionRoot.kt`).
 - **History:** SQLite, file name `breaker_history.db`

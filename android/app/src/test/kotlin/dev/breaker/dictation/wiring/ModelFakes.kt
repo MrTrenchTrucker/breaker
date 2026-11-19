@@ -126,4 +126,5 @@ internal fun modelEntryFor(id: String): ModelEntry =
         sizeMb = 1,
         licence = "test",
         hosted = false,
+        sizeBytes = 1_048_576L,
     )

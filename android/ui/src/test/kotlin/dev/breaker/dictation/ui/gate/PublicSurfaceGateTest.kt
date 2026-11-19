@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /*
- * Sixteen declarations, offered on purpose.
+ * Seventeen declarations, offered on purpose.
  *
  * This module hands an app eight views, a switch to implement, six controls and one status type,
  * and nothing else: the app owns the activity, the manifest entry, the settings store and what
@@ -52,6 +52,12 @@ private const val ABOUT_CONTROL_FILE = "AboutControl.kt"
 /** The About control, as written in its file. */
 private const val SETTLED_ABOUT_CONTROL = "interface AboutControl"
 
+/** The file of the offered speech model row, which the app passes in to the entries. */
+private const val SPEECH_MODEL_CHOICE_FILE = "SpeechModelChoice.kt"
+
+/** The offered speech model row, as written in its file. */
+private const val SETTLED_SPEECH_MODEL_CHOICE = "data class SpeechModelChoice(val id: String, val label: String, val rating: Int, val sizeMb: Int)"
+
 /** The first declaration allowed to be offered. */
 private const val ENTRY_FUNCTION = "createSettingsView"
 
@@ -66,14 +72,18 @@ private const val SETTLED_ENTRY =
         "modelReady: () -> Boolean, downloadLine: () -> String?, " +
         "onDownloadModel: () -> Unit, onThemeChanged: (() -> Unit)? = null, " +
         "sessionLive: (() -> Boolean)? = null, onSignIn: (() -> Unit)? = null, " +
-        "serverAddressStatus: (() -> dev.breaker.dictation.ui.screen.settings.ServerAddressStatus)? = null): android.view.View"
+        "serverAddressStatus: (() -> dev.breaker.dictation.ui.screen.settings.ServerAddressStatus)? = null, " +
+        "offeredModels: (() -> List<dev.breaker.dictation.ui.SpeechModelChoice>)? = null, " +
+        "installedModel: ((String) -> Boolean)? = null, downloadingModelId: (() -> String?)? = null, " +
+        "onDownloadModelId: ((String) -> Unit)? = null, onDeleteModel: ((String) -> Unit)? = null, " +
+        "onUseModel: ((String) -> Unit)? = null): android.view.View"
 
 private const val SETTLED_HISTORY = "fun createHistoryView(context: android.content.Context, " +
     "history: dev.breaker.dictation.core.port.HistoryStore, settings: dev.breaker.dictation.core.port.SettingsStore, older: dev.breaker.dictation.core.port.OlderHistory? = null): android.view.View"
 private const val SETTLED_HOW_IT_WORKS = "fun createHowItWorksView(context: android.content.Context, " +
     "settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 private const val SETTLED_ABOUT = "fun createAboutView(context: android.content.Context, " +
-    "settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
+    "settings: dev.breaker.dictation.core.port.SettingsStore, modelNotices: List<String>? = null): android.view.View"
 private const val SETTLED_SWITCH = "interface BreakerSwitch"
 private const val SETTLED_MODEL_CONTROL = "interface ModelStepControl : DownloadControl"
 private const val SETTLED_DOWNLOAD_CONTROL = "interface DownloadControl"
@@ -130,6 +140,7 @@ private val SETTLED_SURFACE = setOf(
     AUTH_ENTRY_FILE to SETTLED_SIGN_IN_VIEW, AUTH_ENTRY_FILE to SETTLED_SIGN_IN_CONTROL,
     SERVER_ADDRESS_STATUS_FILE to SETTLED_SERVER_ADDRESS_STATUS,
     ABOUT_CONTROL_FILE to SETTLED_ABOUT_CONTROL,
+    SPEECH_MODEL_CHOICE_FILE to SETTLED_SPEECH_MODEL_CHOICE,
 )
 
 private fun isSettled(offered: List<Pair<String, String>>): Boolean =
@@ -149,10 +160,10 @@ class PublicSurfaceGateTest {
     fun `the entry functions, the switch and the model control are the only declarations offered`() {
         assertEquals(
             "declarations offered outside $ENTRY_FILE, $FIRST_RUN_FILE, $HOME_ENTRY_FILE, $SWITCH_FILE, $MODEL_CONTROL_FILE and $DOWNLOAD_CONTROL_FILE: $OFFERED",
-            setOf(ENTRY_FILE, FIRST_RUN_FILE, HOME_ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE, DOWNLOAD_CONTROL_FILE, AUTH_ENTRY_FILE, SERVER_ADDRESS_STATUS_FILE, ABOUT_CONTROL_FILE),
+            setOf(ENTRY_FILE, FIRST_RUN_FILE, HOME_ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE, DOWNLOAD_CONTROL_FILE, AUTH_ENTRY_FILE, SERVER_ADDRESS_STATUS_FILE, ABOUT_CONTROL_FILE, SPEECH_MODEL_CHOICE_FILE),
             OFFERED.map { it.first }.toSet(),
         )
-        assertEquals("declarations offered: $OFFERED", 16, OFFERED.size)
+        assertEquals("declarations offered: $OFFERED", 17, OFFERED.size)
     }
 
     @Test
@@ -196,7 +207,7 @@ class PublicSurfaceGateTest {
     @Test
     fun `every other file marks its declarations internal or private`() {
         val marked = MAIN_SOURCES
-            .filter { (path, _) -> path != ENTRY_FILE && path != HOME_ENTRY_FILE && path != FIRST_RUN_FILE && path != SWITCH_FILE && path != MODEL_CONTROL_FILE && path != DOWNLOAD_CONTROL_FILE && path != AUTH_ENTRY_FILE && path != SERVER_ADDRESS_STATUS_FILE && path != ABOUT_CONTROL_FILE }
+            .filter { (path, _) -> path != ENTRY_FILE && path != HOME_ENTRY_FILE && path != FIRST_RUN_FILE && path != SWITCH_FILE && path != MODEL_CONTROL_FILE && path != DOWNLOAD_CONTROL_FILE && path != AUTH_ENTRY_FILE && path != SERVER_ADDRESS_STATUS_FILE && path != ABOUT_CONTROL_FILE && path != SPEECH_MODEL_CHOICE_FILE }
             .flatMap { (path, text) -> topLevelDeclarationsIn(text).map { path to it } }
         assertTrue("no other file in the module declares anything at the top level", marked.isNotEmpty())
         val unmarked = marked.filterNot { (_, declaration) ->

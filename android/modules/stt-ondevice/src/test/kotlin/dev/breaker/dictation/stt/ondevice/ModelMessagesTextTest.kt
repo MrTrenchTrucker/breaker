@@ -20,7 +20,6 @@ class ModelMessagesTextTest {
         assertEquals("MODEL_UNKNOWN", "That model is not available.", ModelMessages.MODEL_UNKNOWN)
         assertEquals("MODEL_WRONG_FAMILY", "The on-device engine cannot run that model.", ModelMessages.MODEL_WRONG_FAMILY)
         assertEquals("MODEL_NOT_INSTALLED", "The model is not installed. Download it first.", ModelMessages.MODEL_NOT_INSTALLED)
-        assertEquals("NOT_VERIFIED_YET", "The model could not be checked right now.", ModelMessages.NOT_VERIFIED_YET)
         assertEquals(
             "CHECK_FAILED_DELETED",
             "The model file failed its check and was deleted. Download it again.",
@@ -41,16 +40,6 @@ class ModelMessagesTextTest {
     @Test
     fun `the sentences of a model that cannot be installed read exactly as written`() {
         assertEquals("SAVE_FAILED", "The model could not be saved on the phone.", ModelMessages.SAVE_FAILED)
-        assertEquals(
-            "CHECKSUMS_DOWNLOAD_FAILED",
-            "The checksum list could not be downloaded.",
-            ModelMessages.CHECKSUMS_DOWNLOAD_FAILED,
-        )
-        assertEquals(
-            "CHECKSUMS_UNREADABLE_DOWNLOADED",
-            "The downloaded checksum list could not be read.",
-            ModelMessages.CHECKSUMS_UNREADABLE_DOWNLOADED,
-        )
         assertEquals("MODEL_DOWNLOAD_FAILED", "The model could not be downloaded.", ModelMessages.MODEL_DOWNLOAD_FAILED)
         assertEquals(
             "DOWNLOAD_FAILED_CHECK",
@@ -82,19 +71,16 @@ class ModelMessagesTextTest {
             ModelMessages.MODEL_UNKNOWN,
             ModelMessages.MODEL_WRONG_FAMILY,
             ModelMessages.MODEL_NOT_INSTALLED,
-            ModelMessages.NOT_VERIFIED_YET,
             ModelMessages.CHECK_FAILED_DELETED,
             ModelMessages.CHECK_FAILED_NOT_DELETED,
             ModelMessages.ENGINE_COULD_NOT_START,
             ModelMessages.SAVE_FAILED,
-            ModelMessages.CHECKSUMS_DOWNLOAD_FAILED,
-            ModelMessages.CHECKSUMS_UNREADABLE_DOWNLOADED,
             ModelMessages.MODEL_DOWNLOAD_FAILED,
             ModelMessages.DOWNLOAD_FAILED_CHECK,
             ModelMessages.DOWNLOAD_FAILED_CHECK_NOT_DELETED,
             ModelMessages.COULD_NOT_DELETE,
         )
-        assertEquals("every sentence must be listed", 14, all.size)
+        assertEquals("every sentence must be listed", 11, all.size)
         assertEquals("two sentences have the same text: $all", all.size, all.toSet().size)
     }
 }

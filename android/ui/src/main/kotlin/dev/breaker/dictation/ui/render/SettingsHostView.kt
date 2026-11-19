@@ -9,9 +9,12 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import dev.breaker.dictation.ui.DownloadControl
 import dev.breaker.dictation.ui.render.controls.DownloadBarView
+import dev.breaker.dictation.ui.screen.ModelActions
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.settings.ModelRow
+import dev.breaker.dictation.ui.screen.settings.ModelRowItem
 import dev.breaker.dictation.ui.screen.settings.Rendered
+import dev.breaker.dictation.ui.screen.settings.modelControlId
 import dev.breaker.dictation.ui.screen.settings.SettingsIds
 import dev.breaker.dictation.ui.screen.settings.SettingsIntentHandler
 import dev.breaker.dictation.ui.screen.settings.ServerAddressStatus
@@ -50,6 +53,13 @@ import dev.breaker.dictation.ui.theme.Themes
  * @param sessionLive answers whether the session is live; the signed-out block shows when not.
  * @param onSignIn asks the app to start signing in; called when the signed-out block's Sign in is tapped.
  * @param serverAddressStatus answers the app's reading of the stored server addresses, or null for no line; read once per drawing.
+ * @param offeredModels answers the offered speech models, with their id, label, rating and size; the app passes them, since this module does not read the settings module. Empty keeps the one Download button.
+ * @param installedModel answers whether the model with that id is on the phone.
+ * @param heldModelId answers the id of the model in use (the app's stored choice), or null when none is held.
+ * @param downloadingModelId answers the id of the model that is downloading now, or null.
+ * @param onDownloadModelId asks the app to download the model with that id.
+ * @param onDeleteModel asks the app to delete the model with that id; the model in use is never passed.
+ * @param onUseModel asks the app to save the model with that id as the model in use.
  */
 internal class SettingsHostView(
     context: Context,
@@ -62,6 +72,13 @@ internal class SettingsHostView(
     private val sessionLive: () -> Boolean,
     private val onSignIn: () -> Unit,
     private val serverAddressStatus: (() -> ServerAddressStatus)?,
+    private val offeredModels: () -> List<ModelRowItem> = { emptyList() },
+    private val installedModel: (String) -> Boolean = { false },
+    private val heldModelId: () -> String? = { null },
+    private val downloadingModelId: () -> String? = { null },
+    private val onDownloadModelId: (String) -> Unit = {},
+    private val onDeleteModel: (String) -> Unit = {},
+    private val onUseModel: (String) -> Unit = {},
 ) : ScrollView(context), DownloadControl {
     /**
      * The single redraw path.
@@ -113,12 +130,32 @@ internal class SettingsHostView(
     /** Whether the signed-out block should show, re-read on every drawing. */
     private fun signedOut(): Boolean = !sessionLive()
 
-    /** The speech model row as it stands: whether the model is ready, and the sentence for a download. */
-    private fun rowNow(): ModelRow = ModelRow(ready = modelReady(), line = downloadLine())
+    /** The speech model row as it stands: whether the model is ready, the sentence for a download, and one row per offered model. */
+    private fun rowNow(): ModelRow = ModelRow(ready = modelReady(), line = downloadLine(), rows = modelRowsNow())
+
+    /**
+     * One row per offered model: the app's facts about it (id, label, rating, size) with whether it is on the
+     * phone, whether it is the model in use, and the download sentence under the model that is downloading.
+     */
+    private fun modelRowsNow(): List<ModelRowItem> {
+        val inUse = heldModelId()
+        val downloading = downloadingModelId()
+        return offeredModels().map { offered ->
+            offered.copy(
+                installed = installedModel(offered.id),
+                inUse = offered.id == inUse,
+                line = if (offered.id == downloading) downloadLine() else null,
+            )
+        }
+    }
+
+    /** The button the progress bar sits under: the downloading model's button, or the one button of the single-model row. */
+    private fun downloadingButtonId(): String =
+        downloadingModelId()?.let { modelControlId(it, "download") } ?: SettingsIds.DOWNLOAD_ID
 
     /** Puts the download bar right after the download button, when the button is in the drawn column. */
     private fun placeBar(column: View) {
-        val button = findTagged(column, SettingsIds.DOWNLOAD_ID) ?: return
+        val button = findTagged(column, downloadingButtonId()) ?: return
         val row = button.parent as? LinearLayout ?: return
         (downloadBar.parent as? ViewGroup)?.removeView(downloadBar)
         row.addView(
@@ -140,6 +177,13 @@ internal class SettingsHostView(
         when {
             intent == ScreenIntent.Back -> (context as? android.app.Activity)?.onBackPressed()
             intent is ScreenIntent.Setup && intent.action == SettingsIds.DOWNLOAD_ACTION -> onDownloadModel()
+            intent is ScreenIntent.Setup && intent.action == ModelActions.MODEL_DOWNLOAD -> onDownloadModelId(intent.id)
+            // A delete of the model in use is not passed on: it falls through to the handler, which refuses it.
+            intent is ScreenIntent.Setup && intent.action == ModelActions.MODEL_DELETE && intent.id != heldModelId() -> onDeleteModel(intent.id)
+            intent is ScreenIntent.Setup && intent.action == ModelActions.MODEL_USE -> {
+                onUseModel(intent.id)
+                refresh()
+            }
             intent is ScreenIntent.Home && intent.action == HomeActions.SIGN_IN -> onSignIn()
             else -> {
                 handler.showing(rowNow())
@@ -184,7 +228,8 @@ internal class SettingsHostView(
      * laid out has no size to scroll to.
      */
     override fun focusDownload(): Boolean {
-        if (findTagged(this, SettingsIds.DOWNLOAD_ID) == null) return false
+        val id = downloadControlIdFor(modelRowsNow(), heldModelId()) ?: return false
+        if (findTagged(this, id) == null) return false
         if (isLaidOut) {
             revealDownload()
         } else {
@@ -215,7 +260,19 @@ internal class SettingsHostView(
 
     /** Scrolls the download button into view, measured now that the view has been laid out. */
     private fun revealDownload() {
-        val button = findTagged(this, SettingsIds.DOWNLOAD_ID) ?: return
+        val id = downloadControlIdFor(modelRowsNow(), heldModelId()) ?: return
+        val button = findTagged(this, id) ?: return
         button.requestRectangleOnScreen(Rect(0, 0, button.width, button.height), true)
     }
+}
+
+/**
+ * The id of the download control that focus and reveal go to: with rows, the selected model's control when that
+ * model is not on the phone, else the first offered model that is not on the phone, and null when every offered
+ * model is on the phone. With no rows it is the one id of the single download button.
+ */
+internal fun downloadControlIdFor(rows: List<ModelRowItem>, selectedId: String?): String? {
+    if (rows.isEmpty()) return SettingsIds.DOWNLOAD_ID
+    val chosen = rows.firstOrNull { it.id == selectedId && !it.installed } ?: rows.firstOrNull { !it.installed }
+    return chosen?.let { modelControlId(it.id, "download") }
 }

@@ -6,7 +6,7 @@ import java.io.File
 /**
  * A verified, on-device sherpa-onnx model ready for transcription.
  *
- * [modelId] is the registry id (e.g. "tiny"), [directory] is the directory that
+ * [modelId] is the registry id (a lowercase id the registry lists), [directory] is the directory that
  * holds the unpacked model files, and [digest] is the SHA-256 hex string that pins
  * the verified archive; the archive is checked against it when it is installed,
  * and a load trusts the unpacked files through their install stamp instead.

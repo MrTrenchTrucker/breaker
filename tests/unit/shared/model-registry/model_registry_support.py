@@ -29,6 +29,7 @@ if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
 import gen_model_registry  # noqa: E402
+import model_registry_fields  # noqa: E402
 
 RegistryError = gen_model_registry.RegistryError
 check_models = gen_model_registry.check_models
@@ -67,6 +68,18 @@ def entry(eid):
             f"model_registry tests: models.yaml carries no entry with id "
             f"{eid!r} (it has {sorted(by_id)})")
     return by_id[eid]
+
+
+# Archives upstream's checksum.txt has no line for: our own pin is the only
+# check on them, so the upstream cross-check has nothing to compare and skips
+# them. The set is the generator's own allow-list, read, not retyped here.
+NO_UPSTREAM_LINE = model_registry_fields.NO_UPSTREAM_LINE
+
+
+def entries_with_upstream_line(entries):
+    """`entries` without the ones whose archive upstream publishes no line
+    for (parakeet): the cross-check against the fixture skips exactly those."""
+    return [e for e in entries if e["archive_name"] not in NO_UPSTREAM_LINE]
 
 
 def entry_block(eid):
