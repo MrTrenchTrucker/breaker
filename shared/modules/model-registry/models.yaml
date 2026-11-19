@@ -215,28 +215,32 @@ keyword_models:
   - id: kws-gigaspeech-3m
     family: sherpa-onnx
     params: 3.3M
-    size_mb: 15
-    url: https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/191975328
-    sha256: 2e6ac2577310bfa2f4b6b5fab0478b868c9d0b2cb2c51b3e13b50581b588864d
+    size_mb: 17
+    url: https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/166405338
+    sha256: f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a
     tamper_verified: false
     license: Apache-2.0
     hosted: false
-    archive_name: sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile.tar.bz2
-    size_bytes: 15667804
-    asset_id: 191975328
+    archive_name: sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2
+    size_bytes: 17626723
+    asset_id: 166405338
     notes: >-
       A keyword spotter (open vocabulary, English, BPE tokens, one stream at a
-      time), the mobile build of the 2024-01-01 model, released in the
+      time), the FULL build of the 2024-01-01 model, released in the
       kws-models release. The app does not download or load it yet. params 3.3M
       is only the number in the upstream model name, not a count measured here.
-      size_mb 15 is the MiB rounding of 15,667,804 bytes (14.94 MiB). The model
+      size_mb 17 is the MiB rounding of 17,626,723 bytes (16.81 MiB). The model
       README states Apache License 2.0. No upstream source revision is recorded
       for this entry, so upstream_commit is left out rather than invented, and
-      tamper_verified is false: the tamper test has not been run on its real
-      archive. Provenance is weaker than the speech entries: the archive's
-      sha256 was downloaded and hashed and equals the line of the release's
-      checksum.txt (asset 761308399), but that checksum.txt asset was uploaded
-      or updated on 2026-11-18, years after the model asset (updated
-      2024-09-11), so it is a weaker witness than the upstream file the speech
-      entries are checked against. Details in
+      tamper_verified is false: the tamper test has not been run on this archive.
+      hosted stays false: the model is not served from the Breaker container.
+      WHY THE FULL BUILD, NOT THE MOBILE ONE: the mobile build's encoder fails
+      to decode in sherpa-onnx 1.13.8 - its bundled test wavs with its own test
+      keywords raise `Reshape node '/downsample/Reshape_1'`, 8/8 attempts, fp32
+      and int8 encoder.
+      The FULL archive's own sha256 was downloaded and hashed and equals the
+      line of the release's checksum.txt (asset 765665621; the old id
+      761308399 now 404s), uploaded or updated on 2026-11-18, years after the
+      model asset (updated 2024-09-11), so its provenance is weaker than the
+      speech entries'. Details in
       fixtures/upstream-checksum-excerpt.txt.

@@ -142,7 +142,7 @@ class UnknownAndKeywordKeyTest(unittest.TestCase):
     def test_the_committed_keyword_entry_is_unchanged_and_accepted(self):
         kw = gmr.check_registry(ts.models_text())[1]
         self.assertEqual(["kws-gigaspeech-3m"], [e["id"] for e in kw])
-        self.assertEqual(15667804, kw[0]["size_bytes"])
+        self.assertEqual(17626723, kw[0]["size_bytes"])
 
 
 if __name__ == "__main__":

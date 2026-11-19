@@ -24,20 +24,20 @@ sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2	9c559283e8498d3fe95913
 # --- Keyword-spotting model (a second release, a second source) ---
 #
 # Source: k2-fsa/sherpa-onnx release "kws-models" (published 2024-03-11), the
-# checksum.txt asset, asset id 761308399 (read from the release API on
-# 2026-11-18).
+# checksum.txt asset. The id the release lists today is 765665621; the id
+# first recorded here, 761308399, now returns 404.
 # Full upstream file at read time: 639 bytes, sha256
 # 284637b2b9fec1287aca10315dcc960710c6ec14224fb1dfa9fe427e77eb6c18.
-# Asset id -> filename for the line below (from the release API, 2026-11-18):
-#   191975328 -> sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile.tar.bz2
+# Asset id -> filename for the line below:
+#   166405338 -> sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2
 #
 # CAVEAT: this checksum.txt asset was uploaded or updated on 2026-11-18, years
 # after the model asset it lists (the model asset was updated 2024-09-11), so
 # its provenance is weaker than the checksum.txt of the speech models above.
 # The model archive itself was downloaded and hashed; its sha256 equals the
-# line below. The release's checksum.txt lists five archives; only the mobile
+# line below. The release's checksum.txt lists five archives; only the FULL
 # gigaspeech line is carried here.
 #
 # The line below is the upstream line (filename <TAB> sha256).
 
-sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile.tar.bz2	2e6ac2577310bfa2f4b6b5fab0478b868c9d0b2cb2c51b3e13b50581b588864d
+sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2	f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a

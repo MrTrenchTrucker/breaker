@@ -28,7 +28,7 @@ class FixtureFactsTest(unittest.TestCase):
         self.asset_map, self.lines = ts.fixture_data()
 
     def test_the_fixture_holds_the_checksum_txt_facts(self):
-        for fact in ("761308399", "639 bytes", CHECKSUM_TXT_SHA, "kws-models"):
+        for fact in ("765665621", "639 bytes", CHECKSUM_TXT_SHA, "kws-models"):
             self.assertIn(fact, self.text)
 
     def test_the_mobile_gigaspeech_line_is_a_data_line_exactly_once(self):
@@ -36,7 +36,7 @@ class FixtureFactsTest(unittest.TestCase):
         self.assertIn(f"{KW_NAME}\t{KW_SHA}\n", self.text)
 
     def test_the_header_maps_the_asset_id_to_the_archive_name(self):
-        self.assertEqual(KW_NAME, self.asset_map["191975328"])
+        self.assertEqual(KW_NAME, self.asset_map["166405338"])
 
     def test_the_caveat_about_the_2026_11_18_upload_is_stated(self):
         flat = re.sub(r"\s*\n#\s*", " ", self.text)
@@ -49,7 +49,7 @@ class FixtureFactsTest(unittest.TestCase):
         notes = " ".join(l.strip() for l in ts.entry_block(KW_ID))
         self.assertIn("2026-11-18", notes)
         self.assertIn("weaker", notes)
-        self.assertIn("761308399", notes)
+        self.assertIn("765665621", notes)
 
     def test_the_entry_sha_equals_the_fixture_line_through_the_shared_check(self):
         _, kw = gmr.check_registry(ts.models_text())

@@ -22,13 +22,13 @@ class KeywordProfileTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
-    private val top = "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile"
+    private val top = "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01"
     private val encoder = "encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx"
     private val encoderPlain = "encoder-epoch-12-avg-2-chunk-16-left-64.onnx"
     private val decoder = "decoder-epoch-12-avg-2-chunk-16-left-64.onnx"
     private val joiner = "joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx"
 
-    private val sizes = mapOf(encoder to 4_000_908L, encoderPlain to 11_525_206L, decoder to 1_063_189L, joiner to 163_380L)
+    private val sizes = mapOf(encoder to 4_807_159L, encoderPlain to 12_174_219L, decoder to 1_063_189L, joiner to 163_380L)
 
     private fun profile(): ExtractionProfile {
         val found = ExtractionProfiles.forModel(KEYWORD_MODEL_ID)
@@ -111,15 +111,15 @@ class KeywordProfileTest {
             limits,
         )
         val written = sizes.filterKeys { it != encoderPlain }.values.sum() + 5_006L
-        assertEquals("written total of the four files", 5_232_483L, written)
+        assertEquals("written total of the four files", 6_038_734L, written)
         assertTrue(written < limits.maxWrittenBytes && limits.maxWrittenBytes < 2L * written)
         val largest = sizes.values.max()
-        assertEquals("largest entry is the plain encoder", 11_525_206L, largest)
+        assertEquals("largest entry is the plain encoder", 12_174_219L, largest)
         assertTrue(largest < limits.maxEntryBytes && limits.maxEntryBytes < 2L * largest)
-        val listed = 17_003_754L
+        val listed = 20_126_636L
         assertTrue(listed < limits.maxStreamBytes && limits.maxStreamBytes < 2L * listed)
-        assertTrue("longest name is 109 characters", "$top/$encoder".length < limits.maxPathLength)
-        assertEquals(109, "$top/$encoder".length)
+        assertTrue("longest name is 102 characters", "$top/$encoder".length < limits.maxPathLength)
+        assertEquals(102, "$top/$encoder".length)
         assertTrue("depth of a recording is 3", 3 < limits.maxDepth)
     }
 

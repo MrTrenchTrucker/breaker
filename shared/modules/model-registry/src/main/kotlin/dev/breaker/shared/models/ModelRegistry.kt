@@ -159,14 +159,14 @@ object ModelRegistry {
     val KWS_GIGASPEECH_3M: ModelEntry = ModelEntry(
         id = "kws-gigaspeech-3m",
         family = ModelFamily.SHERPA_ONNX,
-        url = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/191975328",
-        sha256 = "2e6ac2577310bfa2f4b6b5fab0478b868c9d0b2cb2c51b3e13b50581b588864d",
-        sizeMb = 15,
+        url = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/166405338",
+        sha256 = "f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a",
+        sizeMb = 17,
         licence = "Apache-2.0",
         hosted = false,
-        archiveName = "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile.tar.bz2",
-        sizeBytes = 15667804L,
-        assetId = 191975328L,
+        archiveName = "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2",
+        sizeBytes = 17626723L,
+        assetId = 166405338L,
     )
 
     val ALL: List<ModelEntry> = listOf(SMALL, TINY, BASE, MEDIUM, PARAKEET)

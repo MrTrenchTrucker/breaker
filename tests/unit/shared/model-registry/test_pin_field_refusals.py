@@ -48,7 +48,7 @@ class AssetIdMustMatchTheUrlTest(unittest.TestCase):
         self.assertIn("differs from the asset the url names (42)", msg)
 
     def test_a_keyword_asset_id_that_differs_is_refused(self):
-        msg = refused_kw("asset_id: 191975328", "asset_id: 191975329")
+        msg = refused_kw("asset_id: 166405338", "asset_id: 166405339")
         self.assertIn("differs from the asset the url names", msg)
 
     def test_a_non_numeric_or_zero_asset_id_is_refused(self):
@@ -77,7 +77,7 @@ class SizeBytesTest(unittest.TestCase):
         self.assertEqual(1, next(x for x in e if x["id"] == "tiny")["size_bytes"])
 
     def test_a_keyword_size_of_zero_is_refused_too(self):
-        msg = refused_kw("size_bytes: 15667804", "size_bytes: 0")
+        msg = refused_kw("size_bytes: 17626723", "size_bytes: 0")
         self.assertIn("positive integer", msg)
 
 
@@ -97,7 +97,7 @@ class ZeroAndNegativeSizeTest(unittest.TestCase):
         self.assertIn("size_bytes '-1' must be a positive integer", msg)
 
     def test_a_keyword_size_bytes_of_minus_one_is_refused(self):
-        msg = refused_kw("size_bytes: 15667804", "size_bytes: -1")
+        msg = refused_kw("size_bytes: 17626723", "size_bytes: -1")
         self.assertIn("size_bytes '-1' must be a positive integer", msg)
 
     def test_asset_id_zero_and_minus_one_are_refused(self):
@@ -178,8 +178,8 @@ class SpeechOnlyFieldsTest(unittest.TestCase):
         for line in ("kind: streaming", "offered: false", "label: Good",
                      "rating: 1"):
             with self.subTest(line=line):
-                msg = refused_kw("    size_bytes: 15667804\n",
-                                 "    size_bytes: 15667804\n    " + line + "\n")
+                msg = refused_kw("    size_bytes: 17626723\n",
+                                 "    size_bytes: 17626723\n    " + line + "\n")
                 self.assertIn("belongs to a speech entry only", msg)
 
     def test_a_speech_entry_missing_a_required_new_field_is_refused(self):
@@ -192,7 +192,7 @@ class SpeechOnlyFieldsTest(unittest.TestCase):
                 self.assertIn(f"required field '{field}' is missing", msg)
 
     def test_a_keyword_entry_missing_the_pin_is_refused(self):
-        msg = refused_kw("    size_bytes: 15667804\n", "")
+        msg = refused_kw("    size_bytes: 17626723\n", "")
         self.assertIn("required field 'size_bytes' is missing", msg)
 
 

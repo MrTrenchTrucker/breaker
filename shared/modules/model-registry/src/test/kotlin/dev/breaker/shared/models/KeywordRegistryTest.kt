@@ -51,18 +51,18 @@ class KeywordRegistryTest {
         assertEquals(keywordId, e.id)
         assertEquals(ModelFamily.SHERPA_ONNX, e.family)
         assertEquals(
-            "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/191975328",
+            "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/166405338",
             e.url,
         )
         assertEquals(
-            "2e6ac2577310bfa2f4b6b5fab0478b868c9d0b2cb2c51b3e13b50581b588864d",
+            "f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a",
             e.sha256,
         )
-        assertEquals(15, e.sizeMb)
+        assertEquals(17, e.sizeMb)
         assertEquals("Apache-2.0", e.licence)
         assertEquals(false, e.hosted)
         assertEquals(
-            "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile.tar.bz2",
+            "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2",
             e.archiveName,
         )
     }

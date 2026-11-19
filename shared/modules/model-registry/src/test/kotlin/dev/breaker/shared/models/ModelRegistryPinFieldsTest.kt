@@ -127,8 +127,8 @@ class ModelRegistryPinFieldsTest {
     @Test
     fun theKeywordEntryCarriesItsPinAndNoSpeechPresentation() {
         val e = ModelRegistry.KWS_GIGASPEECH_3M
-        assertEquals(15667804L, e.sizeBytes)
-        assertEquals(191975328L, e.assetId)
+        assertEquals(17626723L, e.sizeBytes)
+        assertEquals(166405338L, e.assetId)
         assertFalse(e.offered)
         assertNull(e.label)
         assertNull(e.rating)

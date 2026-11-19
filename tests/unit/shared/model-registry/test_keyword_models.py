@@ -61,8 +61,8 @@ class ParsesAndGeneratesTest(unittest.TestCase):
         self.assertEqual("3.3M", e["params"])
 
     def test_the_size_is_the_mib_rounding_of_the_pinned_byte_size(self):
-        self.assertEqual(KW_SIZE_MB, round(15667804 / 1048576))
-        self.assertIn("15,667,804", "\n".join(ts.entry_block(KW_ID)))
+        self.assertEqual(KW_SIZE_MB, round(17626723 / 1048576))
+        self.assertIn("17,626,723", "\n".join(ts.entry_block(KW_ID)))
 
     def test_generate_writes_the_keyword_constants_to_a_temp_file(self):
         fd, path = tempfile.mkstemp(suffix=".kt")

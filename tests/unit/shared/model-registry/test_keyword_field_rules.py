@@ -20,8 +20,8 @@ from keyword_support import (KW_ID, KW_NAME, KW_PREFIX, KW_SHA, accepted_kw,
                              refused_kw, replace_once)
 
 KW_URL_LINE = ("url: https://api.github.com/repos/k2-fsa/sherpa-onnx"
-               "/releases/assets/191975328")
-ASSET_PATH_TAIL = "/repos/k2-fsa/sherpa-onnx/releases/assets/191975328"
+               "/releases/assets/166405338")
+ASSET_PATH_TAIL = "/repos/k2-fsa/sherpa-onnx/releases/assets/166405338"
 
 
 def url_refusal(url):
@@ -29,7 +29,7 @@ def url_refusal(url):
 
 
 class KeywordSizeRuleTest(unittest.TestCase):
-    OLD = "size_mb: 15"
+    OLD = "size_mb: 17"
 
     def test_the_first_valid_size_is_accepted(self):
         self.assertEqual(1, accepted_kw(self.OLD, "size_mb: 1")["size_mb"])
@@ -178,7 +178,7 @@ class KeywordOtherFieldRulesTest(unittest.TestCase):
         text = ts.models_text()
         at = text.index("\nkeyword_models:\n") + 1
         head, tail = text[:at], text[at:]
-        tail = replace_once(tail, "    size_mb: 15\n", "")
+        tail = replace_once(tail, "    size_mb: 17\n", "")
         msg = ts.refuses(head + tail)
         self.assertIn("required field 'size_mb' is missing", msg)
         self.assertTrue(msg.startswith(KW_PREFIX), msg)
