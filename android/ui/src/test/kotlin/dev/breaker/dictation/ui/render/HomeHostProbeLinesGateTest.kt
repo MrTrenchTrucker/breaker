@@ -7,36 +7,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /*
- * Gate for the diagnostic probe lines in HomeHostView: the draw line, the window-focus line with its two words in
- * the right branches, the re-parent line of the mic slot, and the gate that keeps every probe line silent unless the
- * big mic is recording. Each rule runs first on a made-up source that obeys it, which must stay quiet, then on a
- * mutant built from the real source with one replace, which must be reported; only then is the real source asserted
- * quiet. Comments are removed and string literals are kept, because the rule is about the text of the lines.
+ * Gate that the diagnostic probe is absent from HomeHostView: no probe function, no call to it, no probe log tag and
+ * no Log import. The probe is a diagnostic kit that is removed before release, so the release source must hold none of
+ * it. Each rule first runs on a made-up source that obeys it, which must stay quiet, then on a mutant built from the
+ * real source with one insert, which must be reported; only then is the real source asserted quiet. Comments are removed
+ * and string literals are kept, because the rule is about the text of the source.
  */
 internal class HomeHostProbeLinesGateTest {
     private val host: String = mainSourceOf("render/HomeHostView.kt")
 
-    private val drawLine = "probeLogged(\"draw \${SystemClock.uptimeMillis()}\")"
-    private val focusLine = "probeLogged(\"windowFocus \${SystemClock.uptimeMillis()} \${if (hasWindowFocus) \"focused\" else \"unfocused\"}\")"
-    private val reparentLine = "probeLogged(\"attachMicSlot re-parent \${SystemClock.uptimeMillis()} recording=true\")"
-    private val recordingGate = "if (!recording) return"
-    private val logCall = "Log.d(\"BreakerMicProbe\", line)"
+    /** The text the source must not hold, each with the label a problem names it by. */
+    private val banned: List<Pair<Regex, String>> = listOf(
+        Regex("probeLogged") to "the probe function or one of its calls",
+        Regex("BreakerMicProbe") to "the probe log tag",
+        Regex("""android\.util\.Log\b""") to "the Log import",
+        Regex("""\bLog\.""") to "a Log call",
+    )
 
-    /** [text] with comments removed and every run of white space dropped, so a line compares however it is wrapped. */
-    private fun flat(text: String): String = withoutComments(text).replace(Regex("""\s+"""), "")
-
-    /** The flat body of the function whose header is [header], braces included; fails by name when it is not there. */
-    private fun bodyOf(source: String, header: String): String {
-        val text = flat(source)
-        val start = text.indexOf(flat(header))
-        assertTrue("ui: probe: the function is not in the host source: $header", start >= 0)
-        val open = text.indexOf('{', start)
-        var depth = 0
-        for (at in open until text.length) {
-            if (text[at] == '{') depth++
-            if (text[at] == '}' && --depth == 0) return text.substring(open, at + 1)
+    /** One problem for each banned text that [source] holds once its comments are removed; none when it holds none. */
+    private fun problems(source: String): List<String> {
+        val text = withoutComments(source)
+        return banned.mapNotNull { (rule, label) ->
+            if (rule.containsMatchIn(text)) "HomeHostView still holds $label" else null
         }
-        throw AssertionError("ui: probe: the function never closes: $header")
     }
 
     /** [text] with [old] replaced by [new]; fails unless [old] is in [text] exactly once, so a mutant can never be a no-op. */
@@ -51,85 +44,34 @@ internal class HomeHostProbeLinesGateTest {
     private fun assertQuiet(what: String, problems: List<String>) =
         assertEquals("ui: probe: control: $what must not be reported", emptyList<String>(), problems)
 
-    /** The problems with a function that must hold one exact probe line. */
-    private fun holds(source: String, header: String, line: String, what: String): List<String> =
-        if (bodyOf(source, header).contains(flat(line))) emptyList() else listOf("$what does not hold its probe line")
-
-    private val drawHeader = "private fun draw(state: HomeState) {"
-    private val focusHeader = "override fun onWindowFocusChanged(hasWindowFocus: Boolean) {"
-    private val slotHeader = "private fun attachMicSlot(root: View) {"
-    private val probeHeader = "private fun probeLogged(line: String) {"
-
-    private fun drawProblems(source: String) = holds(source, drawHeader, drawLine, "draw")
-
-    private fun focusProblems(source: String) = holds(source, focusHeader, focusLine, "onWindowFocusChanged")
-
-    private fun reparentProblems(source: String) = holds(source, slotHeader, reparentLine, "attachMicSlot")
-
-    /** The problems with the probe gate: the recording test comes first, then the log call. */
-    private fun gateProblems(source: String): List<String> {
-        val body = bodyOf(source, probeHeader)
-        val gate = body.indexOf(flat(recordingGate))
-        val call = body.indexOf(flat(logCall))
-        return listOfNotNull(
-            "probeLogged does not return unless the big mic is recording".takeIf { gate < 0 },
-            "probeLogged does not log through Log.d with the probe tag".takeIf { call < 0 },
-            "probeLogged must test recording before it logs".takeIf { gate >= 0 && call >= 0 && gate > call },
-        )
-    }
-
-    // --- Sources that obey the rules, for the quiet controls --------------------------------------
-
+    /** A made-up source that obeys the rule, for the quiet control. */
     private val good = """
         private fun draw(state: HomeState) {
-            $drawLine
+            val screen = handler.show(state)
+            show(screen)
         }
-        override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
-            $focusLine
-        }
-        private fun attachMicSlot(root: View) {
-            $reparentLine
-        }
-        private fun probeLogged(line: String) {
-            $recordingGate
-            $logCall
+        override fun refresh() {
+            draw(merged(drawn))
         }
     """
 
-    // --- Tests ------------------------------------------------------------------------------------
+    /** A function header that is in the real source exactly once; the planted lines go after it. */
+    private val anchor = "override fun refresh() {"
 
-    /** A failure here means a redraw is no longer logged, so the probe cannot show how often Home redraws during a take. */
-    @Test fun `draw logs its time`() {
-        assertQuiet("the obeying source", drawProblems(good))
-        assertFires("a deleted draw line", drawProblems(replaceOnce(host, drawLine, "")), "draw does not hold")
-        assertFires("a draw line without its time", drawProblems(replaceOnce(host, drawLine, "probeLogged(\"draw\")")), "draw does not hold")
-        assertEquals("ui: HomeHostView.kt draw must log its time", emptyList<String>(), drawProblems(host))
+    /** A failure here means the probe function, or a call to it, is back in the release source of HomeHostView. */
+    @Test fun `the probe function and its calls are absent`() {
+        assertQuiet("the obeying source", problems(good))
+        assertFires("a planted probe call", problems(replaceOnce(host, anchor, "$anchor\n        probeLogged(\"refresh\")")), "the probe function")
+        assertFires("the helper declaration back", problems(replaceOnce(host, anchor, "private fun probeLogged(line: String) {}\n    $anchor")), "the probe function")
+        assertEquals("ui: HomeHostView.kt must not hold the probe function or any call to it", emptyList<String>(), problems(host))
     }
 
-    /** A failure here means the window-focus line lost its time or has its two words in the wrong branches. */
-    @Test fun `window focus logs its time and the right word`() {
-        assertQuiet("the obeying source", focusProblems(good))
-        val swapped = "if (hasWindowFocus) \"unfocused\" else \"focused\""
-        assertFires("the two words swapped", focusProblems(replaceOnce(host, "if (hasWindowFocus) \"focused\" else \"unfocused\"", swapped)), "onWindowFocusChanged does not hold")
-        assertFires("a deleted focus line", focusProblems(replaceOnce(host, focusLine, "")), "onWindowFocusChanged does not hold")
-        assertFires("a focus line without its time", focusProblems(replaceOnce(host, "windowFocus \${SystemClock.uptimeMillis()} ", "windowFocus ")), "onWindowFocusChanged does not hold")
-        assertEquals("ui: HomeHostView.kt onWindowFocusChanged must log its time and the right word", emptyList<String>(), focusProblems(host))
-    }
-
-    /** A failure here means the re-parent of the mic slot is no longer logged as a recording event. */
-    @Test fun `the mic slot logs its re-parent as recording`() {
-        assertQuiet("the obeying source", reparentProblems(good))
-        assertFires("the recording word changed", reparentProblems(replaceOnce(host, "re-parent \${SystemClock.uptimeMillis()} recording=true", "re-parent \${SystemClock.uptimeMillis()} recording=false")), "attachMicSlot does not hold")
-        assertFires("a deleted re-parent line", reparentProblems(replaceOnce(host, reparentLine, "")), "attachMicSlot does not hold")
-        assertEquals("ui: HomeHostView.kt attachMicSlot must log its re-parent as recording", emptyList<String>(), reparentProblems(host))
-    }
-
-    /** A failure here means a probe line is logged while the big mic is not recording, which would put probe noise into every normal session. */
-    @Test fun `probe lines are silent unless the big mic is recording`() {
-        assertQuiet("the obeying source", gateProblems(good))
-        assertFires("a deleted recording gate", gateProblems(replaceOnce(host, recordingGate, "")), "does not return unless")
-        assertFires("a gate after the log call", gateProblems(replaceOnce(replaceOnce(host, recordingGate, ""), logCall, "$logCall\n        $recordingGate")), "must test recording before")
-        assertFires("a changed tag", gateProblems(replaceOnce(host, logCall, "Log.d(\"Other\", line)")), "does not log through Log.d")
-        assertEquals("ui: HomeHostView.kt probeLogged must test recording before it logs", emptyList<String>(), gateProblems(host))
+    /** A failure here means the probe log tag, the Log import or a Log call is back in the release source of HomeHostView. */
+    @Test fun `the probe log tag and the Log import are absent`() {
+        assertQuiet("the obeying source", problems(good))
+        assertFires("a planted Log call with the probe tag", problems(replaceOnce(host, anchor, "$anchor\n        Log.d(\"BreakerMicProbe\", \"refresh\")")), "the probe log tag")
+        assertFires("a planted Log call with another tag", problems(replaceOnce(host, anchor, "$anchor\n        Log.d(\"Other\", \"refresh\")")), "a Log call")
+        assertFires("a planted Log import", problems(replaceOnce(host, "import android.content.Context", "import android.content.Context\nimport android.util.Log")), "the Log import")
+        assertEquals("ui: HomeHostView.kt must not hold the probe log tag, a Log import or a Log call", emptyList<String>(), problems(host))
     }
 }
