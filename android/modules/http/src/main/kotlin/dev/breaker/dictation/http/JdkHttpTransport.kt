@@ -69,7 +69,7 @@ class JdkHttpTransport internal constructor(
             val body = CappedBody(sourceOf(connection, status), request.limits.maxReplyBytes, announced) {
                 connection.disconnect()
             }
-            return StreamReply(status, connection.getHeaderField("Location"), connection.contentType, announced, body)
+            return StreamReply(status, connection.getHeaderField("Location"), connection.contentType, announced, body, replyHeaders(connection))
         } catch (failure: Throwable) {
             connection.disconnect()
             throw failure
