@@ -66,6 +66,13 @@ class LocalModelStore(
         /** Suffix of the work directory (inside the staging directory) while a model is being unpacked. */
         const val EXTRACTING_SUFFIX: String = ".extracting"
 
+        /**
+         * Suffix of the previous archive's backup (inside the staging directory) during a
+         * re-install. It is deliberately not the `.download` suffix, so the stale-staging sweep
+         * cannot remove a backup that a rollback still needs.
+         */
+        const val BACKUP_SUFFIX: String = ".backup"
+
         /** Suffix of the temporary stamp file, in the same folder as the stamp. */
         const val TEMP_SUFFIX: String = ".tmp"
 
@@ -327,5 +334,38 @@ class LocalModelStore(
         if (!isSafeName(modelId)) return false
         if (name !in profile.files) return false
         return discardFailedDownload(File(extractedDirectory(modelId), name))
+    }
+
+    /**
+     * The backup of the previous archive during a re-install: `<root>/.staging/<id>.backup`.
+     *
+     * It lives in the staging directory, never in the model directory, so it is outside `files/`
+     * (where exactly four names are pinned) and outside every name the store lists: [modelFiles]
+     * and [installedModelIds] only read model directories, and [isInstalled] keys off the archive
+     * inside one. It is NOT counted by `staleStagingBytes` and NOT removed by `sweepStaleStaging`
+     * (both in InstallSupport.kt filter on the `.download` suffix), so a backup left by a crash
+     * holds bytes the free-space check does not see and survives [delete]; [removeStaleBackup]
+     * clears it at the next install of the same id.
+     */
+    internal fun backupFile(modelId: String): File =
+        File(stagingDirectory(), modelId + BACKUP_SUFFIX)
+
+    /**
+     * Removes a backup left by an earlier crash so it cannot block the rename-aside of a new
+     * re-install. Returns true when no backup remains. When it returns false the backup is still
+     * in the way, so the caller's rename-aside fails and the install is refused with MOVE_FAILED.
+     */
+    internal fun removeStaleBackup(modelId: String): Boolean =
+        discardFailedDownload(backupFile(modelId))
+
+    /**
+     * Puts the previous archive back after a rename-aside that did not lead to a usable install.
+     * Returns true when the archive is back in place, or when there was nothing to restore. The
+     * caller must leave the destination empty first: renameTo onto an existing target fails on
+     * some file systems. Both paths are inside the models root, so this is a same-filesystem rename.
+     */
+    internal fun restoreBackup(modelId: String): Boolean {
+        val backup = backupFile(modelId)
+        return if (!backup.exists()) true else backup.renameTo(archiveFile(modelId))
     }
 }

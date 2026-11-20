@@ -58,7 +58,7 @@ class ModelInstaller(
      */
     sealed class InstallResult {
         /** The model was installed and verified; [digest] is the verified SHA-256. */
-        data class Installed(val modelId: String, val digest: String) : InstallResult()
+        data class Installed(val modelId: String, val digest: String, val stampFailed: Boolean = false) : InstallResult()
 
         /**
          * The install was refused; [refusal] categorises why. [detail] is a
@@ -226,22 +226,27 @@ class ModelInstaller(
                 leftOnDisk = !removed,
             )
         }
-        // Files unpacked from an earlier install must not outlive the archive they
-        // came from, so they are removed before the archive is replaced.
-        if (!store.removeExtracted(entry.id)) {
+        // OPTION B: rename the old archive aside to a backup, move the staged
+        // archive in, and only then remove the old unpacked files. If the
+        // staged move fails, restore the backup so the previous model stays
+        // whole. If the removal fails, the backup restores the previous
+        // ARCHIVE only: remove is deleteRecursively, so a part-way failure
+        // leaves files/ partly removed and the loader answers not-installed
+        // until a re-install heals it.
+        store.removeStaleBackup(entry.id)
+        if (archiveFile.exists() && !archiveFile.renameTo(store.backupFile(entry.id))) {
             val removed = store.discardFailedDownload(staged)
             return refuse(
                 Refusal.MOVE_FAILED,
                 ModelMessages.SAVE_FAILED,
-                "cannot remove the earlier unpacked files of '${entry.id}'",
+                "cannot move the earlier archive aside of '${entry.id}'",
                 leftOnDisk = !removed,
             )
         }
-        // Delete any existing file at the destination - renameTo fails on
-        // some filesystems when the target already exists, and re-installing
-        // over a previously installed model must not fail with MOVE_FAILED.
-        if (archiveFile.exists()) archiveFile.delete()
         if (!staged.renameTo(archiveFile)) {
+            // The staged move failed: put the old archive back so the
+            // previous model is still usable.
+            store.restoreBackup(entry.id)
             val removed = store.discardFailedDownload(staged)
             return refuse(
                 Refusal.MOVE_FAILED,
@@ -250,6 +255,28 @@ class ModelInstaller(
                 leftOnDisk = !removed,
             )
         }
+        // The staged archive is in place. Remove the old unpacked files: they
+        // must not outlive the archive they came from. If this fails, the new
+        // archive goes back to the staging path and the backup restores the
+        // previous ARCHIVE. It does not restore files the removal already
+        // deleted: a part-way failure leaves files/ partly removed, so the
+        // loader answers not-installed until a re-install heals it.
+        if (!store.removeExtracted(entry.id)) {
+            // The destination must be empty before the backup is renamed back:
+            // renameTo onto an existing target fails on some file systems.
+            archiveFile.renameTo(staged)
+            store.restoreBackup(entry.id)
+            val removed = store.discardFailedDownload(staged)
+            return refuse(
+                Refusal.MOVE_FAILED,
+                ModelMessages.SAVE_FAILED,
+                "cannot remove the earlier unpacked files of '${entry.id}'",
+                leftOnDisk = !removed,
+            )
+        }
+        // The old archive is no longer needed; drop the backup. A leftover
+        // backup from a crash is removed at the next install of this model.
+        store.discardFailedDownload(store.backupFile(entry.id))
 
         // Step 6: verify at final location
         // Repeats the step 3 staging check (size and sha256) on the same bytes as defence in depth.
@@ -297,7 +324,8 @@ class ModelInstaller(
     /**
      * Measures the four unpacked files of [entry] and writes their stamp, then reports the
      * install as Installed. When a file cannot be measured or the stamp cannot be written, the
-     * whole model is deleted and the install is refused, the same way a failed metadata write is.
+     * model is KEPT: the install reports Installed with [stampFailed] true, writes one debug
+     * line, and never refuses or deletes. The loader retries the stamp on the next start.
      */
     private fun recordStamp(entry: ModelEntry, digest: String, profile: ExtractionProfile): InstallResult {
         val directory = store.extractedDirectory(entry.id)
@@ -309,13 +337,8 @@ class ModelInstaller(
             false
         }
         if (!written) {
-            val removed = store.delete(entry.id)
-            return refuse(
-                Refusal.STAGING_FAILED,
-                ModelMessages.SAVE_FAILED,
-                "cannot record the unpacked-file stamp",
-                leftOnDisk = !removed,
-            )
+            debug.debug("could not record the unpacked-file stamp for '${entry.id}'")
+            return InstallResult.Installed(entry.id, digest, stampFailed = true)
         }
         return InstallResult.Installed(entry.id, digest)
     }

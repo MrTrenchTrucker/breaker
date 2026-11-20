@@ -95,17 +95,30 @@ class ModelInstallerStampTest : ModelInstallerUnpackFixture() {
     }
 
     @Test
-    fun `a stamp that cannot be measured deletes the model and refuses with the save sentence`() {
+    fun `a stamp that cannot be measured keeps the model and reports the stamp as failed`() {
         val store = newStore()
+        val sink = ArrayList<String>()
         val unmeasurable: (File) -> String? = { file ->
             if (file.name == tinyNames[2]) null else Fixtures.independentSha256(file.readBytes())
         }
-        val refused = refusedOf(install(store, digestOf = unmeasurable))
-        assertEquals(ModelInstaller.Refusal.STAGING_FAILED, refused.refusal)
-        assertEquals(ModelMessages.SAVE_FAILED, refused.detail)
-        assertFalse("the delete worked, so nothing is left on disk", refused.leftOnDisk)
-        assertFalse("the archive is gone", store.isInstalled("tiny"))
-        assertFalse("the model folder is gone", store.directoryFor("tiny").exists())
+        val installed = installedOf(
+            ModelInstaller(
+                store,
+                ArchiveFetcher(tinyBytes),
+                ModelDebugSink { sink.add(it) },
+                Seams().extractor(),
+                unmeasurable,
+                usableSpace = { Long.MAX_VALUE },
+            ).install(entry("tiny", tinyPin, tinyBytes.size.toLong())),
+        )
+        assertTrue("the stamp failure is reported, not refused", installed.stampFailed)
+        assertEquals("the digest is the verified one", tinyPin, installed.digest)
+        assertTrue("the archive is still installed", store.isInstalled("tiny"))
+        assertTrue("the archive bytes are unchanged", tinyBytes.contentEquals(store.archiveFile("tiny").readBytes()))
+        assertFilesHold(store, tinyNames, withStamp = false) { TarFixtures.contentOf(it, 48) }
+        assertNull("no stamp was written", store.readStamp("tiny"))
+        assertEquals("exactly one debug line", 1, sink.size)
+        assertTrue("the line: $sink", sink.single().contains("could not record the unpacked-file stamp for 'tiny'"))
     }
 
     @Test
