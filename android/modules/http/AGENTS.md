@@ -2,13 +2,13 @@
 
 ## Purpose
 
-The one HTTP client for calls from the phone to the Local Server and to the update host. It sends a GET or a POST, reads the reply under a reply-size cap that the caller names, and never writes a header or a body to a log, a string form or an error message. The module holds both reply shapes: a bytes reply for small bodies (the send call) and a stream reply for model and app downloads (the open call). Both calls are part of the module.
+The one HTTP client for calls from the phone to the Local Server and to the update host. It sends a GET, a POST, a PUT or a DELETE, reads the reply under a reply-size cap that the caller names, and never writes a header or a body to a log, a string form or an error message. The module holds both reply shapes: a bytes reply for small bodies (the send call) and a stream reply for model and app downloads (the open call). Both calls are part of the module.
 
 The decision that sets this module is "one HTTP client for server calls": one module, no hidden defaults, two reply shapes, and one address rule. ADR-034 decides that the app accepts an http server address, and this module now accepts plain http for the configured server only (built). The address setter (the ui module's address rule), the settings line about an unencrypted connection and the server address row of the settings screen are built. Model download hosts stay https only.
 
 ## Owns
 
-- GET, POST and DELETE, with request headers and an optional request body of known length. A body is always sent with a fixed length; there is no chunked upload.
+- GET, POST, PUT and DELETE, with request headers and an optional request body of known length. A body is always sent with a fixed length; there is no chunked upload.
 - No redirect following: a 3xx is returned as a reply and never followed.
 - No cache on any request.
 - The address rule, ServerAddressRule: an https address is accepted for any host when its scheme is ASCII and equal to "https" ignoring ASCII case only, it has a host, it holds no whitespace and no control character, and its authority (the text between "://" and the first '/', '?' or '#') has no at sign; a host holding a non-ASCII character is refused (punycode is the caller's job). A plain http address is accepted only for the configured server: the configured address must itself be http, with the same host and the same effective port, a missing port meaning 80; a trailing dot is not stripped, an IPv6 literal is compared as written after ASCII lower-casing, and a port outside 1 to 65535 is refused. Every other address, and every plain http address when no configured server is given, is refused before any connection. Model download hosts stay https only.
@@ -33,8 +33,8 @@ The decision that sets this module is "one HTTP client for server calls": one mo
 - interface HttpTransport, with two functions: send(request: CallRequest): BytesReply and open(request: CallRequest): StreamReply. Both throw java.io.IOException.
 - class JdkHttpTransport : HttpTransport, public, with a no-argument constructor (no configured server: every plain http address is refused) and a second constructor that takes a provider, () -> String, of the configured server address. The provider is read on every request, https included, before the header check, and is never kept. It is built on HttpURLConnection only. The app builds it with the stored-address provider in the wiring (AuthServiceWiring.kt, PullChainWiring.kt, OlderRowsWiring.kt and BreakerApp.kt), while ServerLlmFormatter in the format module still uses the no-argument constructor.
 - object ServerAddressRule, public, with one function permits(address: String, configuredServer: String): Boolean. It is pure: no network, no state, no logging. It says whether the module may call the address given the configured server address.
-- enum CallMethod { GET, POST, DELETE }.
-- class CallRequest(method: CallMethod, url: String, headers: List<Pair<String, String>>, body: ByteArray?, limits: CallLimits). A GET with a body is refused at construction with IllegalArgumentException. toString prints the method only.
+- enum CallMethod { GET, POST, PUT, DELETE }.
+- class CallRequest(method: CallMethod, url: String, headers: List<Pair<String, String>>, body: ByteArray?, limits: CallLimits). A GET or DELETE with a body is refused at construction with IllegalArgumentException. toString prints the method only.
 - class CallLimits(connectTimeoutMs: Int, readTimeoutMs: Int, maxReplyBytes: Long). It has no default values. Its constants are MAX_TIMEOUT_MS = 600_000, MAX_BYTES_REPLY = 16_777_216 (the send call ceiling) and MAX_STREAM_REPLY = 1_073_741_824 (the open call ceiling). Each timeout must be from 1 to MAX_TIMEOUT_MS, and the reply cap from 1 to MAX_STREAM_REPLY. A violation throws IllegalArgumentException with a fixed message that holds no input.
 - The send call also refuses a reply cap above MAX_BYTES_REPLY with IllegalArgumentException, before any connection.
 - class BytesReply(status: Int, body: ByteArray, headers: List<Pair<String, String>>), and a two-argument constructor that gives no headers. headers holds every reply header of a send as one (name, value) pair per value; the status line is left out. toString prints the status only.
@@ -61,7 +61,7 @@ The module uses the JDK HttpURLConnection only. The main code has no third-party
 - No cache on any request.
 - A status from 100 up is a reply on both calls, never an exception. A status from 200 to 399 has its body read from the input stream, so a 3xx keeps its body, since no redirect is followed. A status of 400 or more has its body read from the error stream, or from an empty stream when there is none. A status from 100 to 199, which the platform normally consumes itself, is read like a status of 400 or more, so its body is the error stream or, as the platform leaves that empty below 400, an empty body. Every body is read under the same cap, and the open call hands over the same stream. A status below 100 is a plain IOException with a fixed message, thrown before any body is read, and the connection is released.
 - A connection problem is an IOException that is not an HttpRefusal.
-- The request body is sent with a known length. A GET has no body.
+- The request body is sent with a known length. A GET or DELETE has no body.
 - Send call: an announced length above the reply cap throws HttpRefusal REPLY_TOO_LARGE before any body byte is read. A body that reaches the cap plus one byte throws HttpRefusal REPLY_TOO_LARGE. A body that ends before its announced length throws HttpRefusal LENGTH_MISMATCH.
 - Open call: a read from the StreamReply that would pass the reply cap throws HttpRefusal REPLY_TOO_LARGE. A body that ends before its announced length throws HttpRefusal LENGTH_MISMATCH. Closing the reply closes the stream and drops the connection.
 - No header or body appears in toString, in an exception message, in a cause or in any log. The main code has no log or print call.

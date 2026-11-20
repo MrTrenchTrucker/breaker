@@ -51,7 +51,7 @@ Every request names its own connect timeout, read timeout and reply cap. Nothing
 
 - Timeouts: 1 to 600_000 ms each (`CallLimits.MAX_TIMEOUT_MS`).
 - Reply cap for `send`: above 0 and up to 16_777_216 bytes, 16 MiB (`CallLimits.MAX_BYTES_REPLY`). Reply cap for `open`: above 0 and up to 1_073_741_824 bytes, 1 GiB (`CallLimits.MAX_STREAM_REPLY`).
-- A limit outside its range, a `send` cap above 16 MiB, or a GET with a body throws `IllegalArgumentException` before any connection. That is a programming error, not a refusal.
+- A limit outside its range, a `send` cap above 16 MiB, or a GET or DELETE with a body throws `IllegalArgumentException` before any connection. That is a programming error, not a refusal.
 
 There is no whole-call deadline; a caller that needs one wraps the call. The module does not own the meaning of a call or any JSON, the server address, tokens or sessions, or retry and queueing.
 
