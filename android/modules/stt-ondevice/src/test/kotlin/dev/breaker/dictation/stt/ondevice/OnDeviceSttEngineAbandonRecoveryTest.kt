@@ -1,6 +1,7 @@
 package dev.breaker.dictation.stt.ondevice
 
 import dev.breaker.dictation.core.model.SttResult
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import org.junit.After
@@ -15,8 +16,9 @@ import org.junit.rules.Timeout
  * The decode-deadline brick, end to end, on a REAL clock.
  *
  * A fake recognizer whose decode BLOCKS until the test releases it, and a
- * 1 ms decode deadline (the production [DecodeDeadline.afterAudio], with the
- * limit overridden to 1 ms). The sequence the engine must produce:
+ * decode deadline with a stateful limit: 1 ms for the abandoned take, then the
+ * production limit for the recovery take after the abandoned decode has returned.
+ * The sequence the engine must produce:
  *
  *  - take 1: the deadline wins while the native call is still blocked, so the
  *    slot returns [ErrorMapping.decodeTimedOut] and the decode is abandoned;
@@ -73,7 +75,17 @@ class OnDeviceSttEngineAbandonRecoveryTest {
         val later = CountingRecognizer()
         val loader = QueueLoader(listOf(parked, later))
         val watcher = newSlotWatcher()
-        val deadline = DecodeDeadline.afterAudio(limitMs = { 1L })
+        // Take 1 must race a REAL 1 ms deadline against the blocked native call; that
+        // is the behaviour under test and it stays. The recovery take must not race the
+        // same 1 ms against a dispatcher hand-off, which a slow runner can lose. The
+        // limit therefore has state: 1 ms until the abandoned decode has returned, then
+        // the production limit for the clip. AtomicBoolean because the limit is read on
+        // the deadline's Dispatchers.Default timer thread while the test thread flips it,
+        // and kotlin.jvm.Volatile cannot annotate a local variable.
+        val recovered = AtomicBoolean(false)
+        val deadline = DecodeDeadline.afterAudio(limitMs = { audioMs ->
+            if (recovered.get()) decodeLimitMs(audioMs) else 1L
+        })
         val decodeWorkers = RecordingWorkers()
         workers.add(decodeWorkers)
         val engine = track(OnDeviceSttEngine(loader, watcher, deadline, decodeWorkers))
@@ -110,6 +122,10 @@ class OnDeviceSttEngineAbandonRecoveryTest {
             "the abandoned state must clear once the native call returned",
             engine.abandonedDecodeRunning,
         )
+
+        // The abandoned decode has returned and the slot is free. The recovery take is
+        // not the one under the 1 ms deadline, so it gets the production limit.
+        recovered.set(true)
 
         // Take 3: the slot is free again and the engine decodes a fresh recognizer.
         val third = engine.transcribe(clipRequest())

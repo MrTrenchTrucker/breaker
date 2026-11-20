@@ -130,13 +130,15 @@ class ModelInstallerUnpackReinstallTest : ModelInstallerUnpackFixture() {
     }
 
     @Test
-    fun `a re-install replaces the unpacked files including names the new archive no longer has`() {
+    fun `a re-install moves the staged archive in while the earlier unpacked files are still there`() {
         val store = newStore()
         installedOf(run(tinyBytes, store))
         File(store.extractedDirectory("tiny"), "old-name.onnx").writeBytes(byteArrayOf(1, 2, 3))
         val second = TarFixtures.tinyArchive { name -> TarFixtures.contentOf("v2-$name", 48) }
         assertFalse("fixture: the second archive differs", second.contentEquals(tinyBytes))
-
+        // The observer wraps the STAGED file, so the one renameTo it sees is the staged move into
+        // the archive path. The rename-aside of the earlier archive is on the real archiveFile and
+        // is NOT wrapped, so it is not counted here.
         var filesAtMove: Boolean? = null
         val observing: (File) -> File = { real ->
             object : File(real.path) {
@@ -147,7 +149,7 @@ class ModelInstallerUnpackReinstallTest : ModelInstallerUnpackFixture() {
             }
         }
         installedOf(run(second, store, wrap = observing))
-        assertEquals("the old files are removed before the new archive is moved in", false, filesAtMove)
+        assertEquals("the earlier unpacked files are still there when the staged archive is moved in", true, filesAtMove)
         // The stamp is expected here: the second install unpacked again and recorded a new stamp.
         assertFilesHold(store, TarFixtures.TINY_FILES, withStamp = true) { TarFixtures.contentOf("v2-$it", 48) }
         assertArrayEquals(second, store.archiveFile("tiny").readBytes())

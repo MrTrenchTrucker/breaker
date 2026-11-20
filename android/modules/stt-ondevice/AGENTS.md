@@ -196,9 +196,15 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
 - The installer unpacks after the second check and the metadata writes, then writes the stamp, and only then reports
   `Installed`. On any refusal it deletes the whole model directory; a failed delete is reported
   through the could-not-delete sentence variant (`leftOnDisk`). A model with no profile is refused
-  before anything is downloaded. An install over an existing one removes the earlier unpacked files
-  before the archive is replaced; if that removal fails, the install is refused and the downloaded
-  file is discarded. `ModelInstaller` takes the extractor as its new last constructor parameter,
+  before anything is downloaded. A re-install over an installed model keeps the previous model usable
+  until the new archive is in place: the old archive is renamed aside to the backup name of the previous
+  archive, the staged archive is moved in, and the old unpacked files are removed only after that move,
+  so a failed move restores the previous model whole, while a failed removal restores its archive but not
+  necessarily its files: `remove` is `deleteRecursively`, so a part-way failure leaves a partly removed
+  `files/` and the loader answers not-installed until a re-install heals it; a failure after the swap
+  (final verify refused, metadata write, unpack rejected, stamp) still
+  deletes the whole model as today and is out of this slice (hand-traced only: not yet run in a Gradle
+  build, not tried on a phone). `ModelInstaller` takes the extractor as its new last constructor parameter,
   with the real one as the default.
 - New installer refusal values: `UNSUPPORTED_MODEL`, `EXTRACT_REFUSED`, `EXTRACT_FAILED`, `NO_SPACE`.
   Three new user sentences: the archive could not be unpacked safely, the phone could not unpack it,
@@ -211,10 +217,40 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   engine factory the `files/` directory.
 - After the unpack, the installer writes a stamp, the file `.unpacked-stamp` in `files/`. It records the
   archive digest and, for each of the four files, its size, modified time and SHA-256. It is written only
-  after the archive verified and the unpack succeeded, so a refused install never writes one. If the
-  stamp cannot be measured or written, the install is refused and the model is deleted. A torn or
-  malformed stamp reads as absent. The loader (through `LocalModelStore.readStamp`) and the word stream
+  after the archive verified and the unpack succeeded, so a refused install never writes one. A stamp that
+  cannot be measured or written now keeps the model: the install answers `Installed` with `stampFailed =
+  true`, writes one debug line, and neither refuses nor deletes (hand-traced only: not yet run in a Gradle
+  build, not tried on a phone). The retry on the next start already exists in the loader: it reads the stamp
+  at `ModelLoader.kt:165`, verifies the archive once when the stamp is absent at `ModelLoader.kt:178`,
+  checks the unpacked files at `ModelLoader.kt:196`, writes a first stamp at `ModelLoader.kt:203`, and that
+  write is best effort in `writeFirstStamp`, `ModelLoader.kt:320-328`. A torn or malformed stamp reads as
+  absent. The loader (through `LocalModelStore.readStamp`) and the word stream
   factory both read it through `UnpackedStamp.read`.
+- The backup of a replaced archive is `<root>/.staging/<id>.backup`: it lives in the staging
+  directory, never in the model directory and never in `files/`. The store therefore never offers it
+  as a model file and never counts it as one: `modelFiles` and `installedModelIds` read only model
+  directories, and `isInstalled` keys off the archive at its canonical path inside one, so a backup
+  left by a crash changes no store answer and the model counts as installed only when that archive is
+  really there. `files/` itself still holds exactly the four pinned names
+  (`LocalModelStoreFourNamesTest`). Nor is the backup part of the stale-staging accounting:
+  `staleStagingBytes` (`InstallSupport.kt:49`) and `sweepStaleStaging` (`InstallSupport.kt:62`) both
+  filter on the `.download` suffix, so a backup left by a crash is neither counted by the free-space
+  check nor removed by the stale-staging sweep - it holds bytes the free-space check does not see and
+  does not reclaim. `delete(modelId)` removes the model directory only, so a backup survives a delete
+  and stays orphaned until the next install of that same id. That install clears it first:
+  `removeStaleBackup` runs at the start of the re-install step, before the rename-aside, so at most one
+  backup of one model is ever kept. When the stale backup cannot be removed, the rename-aside that
+  follows fails and the install is refused with `MOVE_FAILED` after one debug line. The swap is two
+  renames on the same file system, because staging is inside the models root, so neither is a copy;
+  `renameTo` onto an existing name is not a replace on every file system, so the caller empties the
+  destination before `restoreBackup` renames the backup back to the archive path. Two renames are not
+  one transaction (hand-traced only: not yet run in a Gradle build, not tried on a phone).
+- The word-stream window, as a plain statement with its status: `SherpaOnnxWordStreamFactory.create`
+  refuses a model with no stamp (`SherpaOnnxWordStreamFactory.kt:59-61`, `:67`), so a model kept without a
+  stamp after a stamp failure loads through `ModelLoader` and gets its stamp written on that first load,
+  while a word-stream create before that first load still refuses (hand-traced only: not yet run in a
+  Gradle build, not tried on a phone; pinned by `SherpaOnnxWordStreamFactoryStampTest.kt:87` and by the
+  invariant on card lines 315-316). The factory is not changed in this slice.
 
 **Model lifecycle:**
 - Models from `shared/model-registry` (sizes + SHA-256 + per-model license terms).
@@ -529,9 +565,11 @@ Decided in ADR-050. Both of its build changes are in the code: this module and t
 - `isExtracted` is true only when the model has an unpack profile, `files/` is a directory, and each
   of the profile's four names is a regular file of at least one byte in it; other files there do
   not matter. A model with no profile is never extracted. A removal of the earlier unpacked files
-  that fails part-way is refused by the installer, and the old archive and a partly removed
-  `files/` stay; when fewer than the four names remain, the loader now answers not-installed and
-  keeps the archive. The check looks at names, file kind and size above zero only: it does not
+  runs only after the new archive is in place; if it fails, the installer restores the previous
+  archive from the backup, but not necessarily its files: `remove` is `deleteRecursively`, so a part-way
+  failure leaves a partly removed `files/`; when fewer than the four names remain the loader answers
+  not-installed and keeps the archive, and installing again heals it
+  (`ModelInstallerUnpackReinstallTest:189`). The check looks at names, file kind and size above zero only: it does not
   hash the four files (see the next bullet), and the locator checks the same four again before the
   engine opens them.
 - The loader hashes the archive only on a load with no usable stamp. With a stamp it hashes the four unpacked
@@ -582,6 +620,11 @@ Decided in ADR-050. Both of its build changes are in the code: this module and t
   thread and allowing one install at a time belong to the app wiring, not to this module.
   `install()` now also unpacks inside the same blocking call, so the whole call must stay off the UI
   thread; how long the unpack takes on a phone has not been measured.
+- The installer is not re-entrant: two overlapping installs of one model would race on the same backup
+  name and on `files/`, and the module adds no lock for that (hand-traced only: not yet run in a Gradle
+  build, not tried on a phone). The app holds the single-flight guard: one installer instance, built in
+  `wiring/ModelSupport.kt`, and a compare-and-set at `wiring/ModelSupport.kt:205` that admits one
+  download at a time. No lock is added in this slice.
 - Not exercised yet: the real TLS handshake, Android's own `HttpURLConnection` behaviour (the tests
   run on the JDK's) and a full-size download on mobile data. A device check is owed before anyone
   says downloads work.
