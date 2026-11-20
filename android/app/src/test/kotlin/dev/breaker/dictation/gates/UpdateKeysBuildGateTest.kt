@@ -32,7 +32,7 @@ internal class UpdateKeysBuildGateTest {
     private val checkLine: String = "tasks.matching { it.name == \"assembleRelease\" || it.name == \"bundleRelease\" }.configureEach { dependsOn(checkUpdateKeys) }"
     private val warnWord: Regex = Regex("\\.\\s*warn\\b")
     private val warnCall: Regex = Regex("\\blogger\\s*\\.\\s*warn\\s*\\(\\s*updateKeysUnsetWarning\\s*\\)")
-    private val unsetBranch: Regex = Regex("\\bif\\s*\\(\\s*source\\s*==\\s*null\\s*\\)\\s*\\{\\s*logger\\s*\\.\\s*warn\\s*\\(\\s*updateKeysUnsetWarning\\s*\\)\\s*\\}\\s*else\\s*\\{")
+    private val unsetArm: Regex = Regex("\\bif\\s*\\(\\s*source\\s*==\\s*null\\s*\\)\\s*\\{\\s*if\\s*\\(\\s*releaseArtifactRequested\\s*\\)\\s*\\{\\s*throw\\s+GradleException\\s*\\(\\s*updateKeysRequiredSentence\\s*\\)\\s*\\}\\s*else\\s*\\{\\s*logger\\s*\\.\\s*warn\\s*\\(\\s*updateKeysUnsetWarning\\s*\\)\\s*\\}\\s*\\}\\s*else\\s*\\{")
     private val throwWord: Regex = Regex("\\bthrow\\b")
     private val copyKeyPath: Regex = Regex("\\bupdateKeysSource\\s*\\?\\.\\s*let\\s*\\{\\s*file\\s*->\\s*keyFilePath\\s*\\.\\s*set\\s*\\(\\s*file\\s*\\.\\s*absolutePath\\s*\\)\\s*\\}")
     private val copyTask: Regex = Regex("\\bval\\s+copyUpdateKeys\\s+by\\s+tasks\\s*\\.\\s*registering\\s*\\(\\s*CopyUpdateKeysTask\\s*::\\s*class\\s*\\)\\s*\\{")
@@ -79,7 +79,7 @@ internal class UpdateKeysBuildGateTest {
     private class Plant(val label: String, val old: String, val replacement: String, val fragment: String)
 
     private val firing: List<Plant> = listOf(
-        Plant("unset arm throws again", "logger.warn(updateKeysUnsetWarning)", "throw GradleException(updateKeysSentence)", "does not only warn"), Plant("warning missing", "logger.warn(updateKeysUnsetWarning)", "println(updateKeysUnsetWarning)", "warning"),
+        Plant("unset arm throws again", "logger.warn(updateKeysUnsetWarning)", "throw GradleException(updateKeysSentence)", "warn otherwise"), Plant("warning missing", "logger.warn(updateKeysUnsetWarning)", "println(updateKeysUnsetWarning)", "warning"),
         Plant("warning carries a path", "logger.warn(updateKeysUnsetWarning)", "logger.warn(updateKeysUnsetWarning + project.rootDir)", "logger.warn"), Plant("warning text carries a path", "and the app will refuse every update\"", "and the app will refuse every update at \${project.rootDir}\"", "warning text"),
         Plant("key path set when unset", "updateKeysSource?.let { file -> keyFilePath.set(file.absolutePath) }", "keyFilePath.set((updateKeysSource ?: File(\".\")).absolutePath)", "outside the set branch"), Plant("copy task is another class", "registering(CopyUpdateKeysTask::class)", "registering(OtherCopyTask::class)", "declared task class"),
         Plant("symbolic link check removed", "Files.isSymbolicLink(source.toPath()) || ", "", "symbolic link"), Plant("regular file check removed", " || !source.isFile) null", ") null", "not a regular file"),
@@ -172,9 +172,14 @@ internal class UpdateKeysBuildGateTest {
         if (text.lines().any { it.contains("mergeReleaseAssets") }) found.add("mergeReleaseAssets is named, but the copy is ordered by its declared output, not by a dependsOn")
         if (count(code, dependsCopy) != 0) found.add("copyUpdateKeys is a dependsOn target, but the release wiring is the variant API")
         if (rawLines.count { it.contains("logger.warn") } != 1 || count(code, warnWord) != 1 || count(code, warnCall) != 1) found.add("the warning is not one logger.warn with the fixed text alone")
-        val branches: List<MatchResult> = unsetBranch.findAll(code).toList()
+        val branches: List<MatchResult> = unsetArm.findAll(code).toList()
         val throws: List<MatchResult> = throwWord.findAll(code).toList()
-        if (branches.size != 1 || throws.size != 1 || throws[0].range.first < branches[0].range.last) found.add("the unset arm does not only warn: a throw is outside the set arm or the warning is missing")
+        if (branches.size != 1 || throws.size != 2) found.add("the unset arm does not throw by name and warn otherwise: the by-name throw or the warning is missing, or a third throw appeared")
+        if (branches.size == 1 && throws.size == 2) {
+            val arm: IntRange = branches[0].range
+            if (throws[0].range.first < arm.first || throws[0].range.last > arm.last) found.add("the by-name throw is not inside the unset arm")
+            if (throws[1].range.first < arm.last) found.add("the named-bad-file throw is not after the unset arm")
+        }
         if (count(code, textRead) != 1) found.add("a symbolic link or a file that is not a regular file is read")
         if (count(code, nameBinding) != 1) found.add("a named file that is missing is counted as unset")
         if (count(code, blankTest) != 2) found.add("a blank value is counted as set")

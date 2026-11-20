@@ -132,15 +132,28 @@ val updateKeysProperty = "breakerUpdateKeysFile"
 val updateKeysVariable = "BREAKER_UPDATE_KEYS_FILE"
 val updateKeysSentence = "the release build needs the owner's update key file: set the Gradle property $updateKeysProperty or the environment variable $updateKeysVariable to a file with one base64 public key on a line"
 val updateKeysUnsetWarning = "no update key file is set, so this release build pins no update key and the app will refuse every update"
+val updateKeysRequiredSentence = "the release artifact was requested by name but no update key file is set: set the Gradle property $updateKeysProperty or the environment variable $updateKeysVariable to a file with one base64 public key on a line, or build through the lifecycle task instead"
 val updatePropertyValue: String? = providers.gradleProperty(updateKeysProperty).orNull?.trim()?.takeIf { it.isNotEmpty() }
 val updateVariableValue: String? = providers.environmentVariable(updateKeysVariable).orNull?.trim()?.takeIf { it.isNotEmpty() }
 val updateKeysSource: File? = (updatePropertyValue ?: updateVariableValue)?.let { File(it) }
+
+// Whether the release artifact was asked for BY NAME (assembleRelease or bundleRelease as the last path
+// segment of a requested task), rather than reached through the build lifecycle. Read once here, at
+// configuration time, so the check below closes over a plain Boolean and nothing in it reads the project.
+val releaseArtifactRequested: Boolean = gradle.startParameter.taskNames.any { requested ->
+    val lastSegment: String = requested.substringAfterLast(':')
+    lastSegment == "assembleRelease" || lastSegment == "bundleRelease"
+}
 
 val checkUpdateKeys by tasks.registering {
     doLast {
         val source: File? = updateKeysSource
         if (source == null) {
-            logger.warn(updateKeysUnsetWarning)
+            if (releaseArtifactRequested) {
+                throw GradleException(updateKeysRequiredSentence)
+            } else {
+                logger.warn(updateKeysUnsetWarning)
+            }
         } else {
             val text: String? = if (Files.isSymbolicLink(source.toPath()) || !source.isFile) null else source.readText(Charsets.UTF_8)
             val lines: List<String> = (text?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() && !it.startsWith("#") }) ?: emptyList()
