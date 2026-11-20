@@ -101,6 +101,9 @@ internal interface HistoryDatabase {
     /** True when a tombstone of ANY reason is stored for [id]. */
     fun hasTombstone(id: String): Boolean
 
+    /** Reads the row with [clientId], or null when no row is stored for that id. No text is logged. */
+    fun rowById(clientId: String): TranscriptionRow?
+
     /** How many transcriptions are on file. Tombstones are not counted. */
     fun countTranscriptions(): Int
 

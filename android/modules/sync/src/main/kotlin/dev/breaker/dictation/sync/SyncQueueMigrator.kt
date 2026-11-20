@@ -27,6 +27,22 @@ internal fun runOnUpgrade(exec: (sql: String) -> Unit, oldVersion: Int, newVersi
             exec(SyncQueueSql.MIGRATE_V2_TO_V3)
             exec(SyncQueueSql.MIGRATE_V3_TO_V4)
         }
+        oldVersion == 4 && newVersion == 5 -> exec(SyncQueueSql.MIGRATE_V4_TO_V5)
+        oldVersion == 3 && newVersion == 5 -> {
+            exec(SyncQueueSql.MIGRATE_V3_TO_V4)
+            exec(SyncQueueSql.MIGRATE_V4_TO_V5)
+        }
+        oldVersion == 2 && newVersion == 5 -> {
+            exec(SyncQueueSql.MIGRATE_V2_TO_V3)
+            exec(SyncQueueSql.MIGRATE_V3_TO_V4)
+            exec(SyncQueueSql.MIGRATE_V4_TO_V5)
+        }
+        oldVersion == 1 && newVersion == 5 -> {
+            exec(SyncQueueSql.MIGRATE_V1_TO_V2)
+            exec(SyncQueueSql.MIGRATE_V2_TO_V3)
+            exec(SyncQueueSql.MIGRATE_V3_TO_V4)
+            exec(SyncQueueSql.MIGRATE_V4_TO_V5)
+        }
         else -> {
             // No other upgrade path exists yet. The queue table is never dropped here: it holds
             // transcriptions that have not been sent yet.

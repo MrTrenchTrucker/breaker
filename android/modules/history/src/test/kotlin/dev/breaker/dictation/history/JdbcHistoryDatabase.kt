@@ -135,6 +135,19 @@ internal class JdbcHistoryDatabase(private val sqlite: DesktopSqlite) : HistoryD
     override fun hasTombstone(id: String): Boolean =
         sqlite.firstColumn(HistorySql.SELECT_TOMBSTONE_BY_ID, id).isNotEmpty()
 
+    override fun rowById(clientId: String): TranscriptionRow? =
+        sqlite.query(HistorySql.SELECT_BY_CLIENT_ID, clientId).map { row ->
+            TranscriptionRow(
+                id = row[0] as String,
+                text = row[1] as String,
+                source = row[2] as String,
+                model = row[3] as String,
+                durationMs = row[4] as Long,
+                createdAt = row[5] as Long,
+                audioPath = row[6] as String?,
+            )
+        }.firstOrNull()
+
     override fun <T> transaction(block: () -> T): T {
         val connection = sqlite.connection
         if (!connection.autoCommit) return block() // nesting joins the outer transaction

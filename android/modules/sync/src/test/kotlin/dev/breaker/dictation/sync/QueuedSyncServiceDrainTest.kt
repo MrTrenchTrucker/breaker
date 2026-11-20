@@ -277,11 +277,12 @@ class QueuedSyncServiceDrainTest {
         assertTrue("android_sync: the delete row is gone", rig.database.queuedIds().isEmpty())
     }
 
-    /** SYNC_R2_B6: a delete answered with a non-permanent refusal (401, 409, 429, 503) stops the drain
-     * with FAILED and does not park the row. */
+    /** SYNC_R2_B6: a delete answered with a non-permanent refusal stops the drain with FAILED
+     * and parks nothing. 401/409/503 carry no wait (SyncReport(0, 1, 0), assertion verbatim);
+     * 429 is a dedicated case that carries its Retry-After on the report. */
     @Test
     fun `a non-permanent refusal on a delete stops the drain and parks nothing`() {
-        for (status in listOf(401, 409, 429, 503)) {
+        for (status in listOf(401, 409, 503)) {
             val r = ServiceRig()
             r.service.enqueueDelete(clientId(61))
             r.uploader.thenThrowDelete(PermanentRefusalException(status, "refused $status"))
@@ -295,6 +296,20 @@ class QueuedSyncServiceDrainTest {
             assertNull("android_sync: status $status: no parked reason", r.database.parkedReason(clientId(61)))
             assertEquals("android_sync: status $status: the row stays queued", listOf(clientId(61)), r.database.queuedIds())
         }
+
+        val r429 = ServiceRig()
+        r429.service.enqueueDelete(clientId(61))
+        r429.uploader.thenThrowDelete(PermanentRefusalException(429, "refused 429", retryAfterSeconds = 90))
+
+        val report429 = r429.push()
+
+        assertEquals("android_sync: status 429 stops the drain with FAILED", SyncReport(0, 1, 0, 90), report429)
+        assertEquals("android_sync: status 429: the delete was attempted once", listOf(clientId(61)), r429.uploader.deleted)
+        assertTrue("android_sync: status 429: nothing was uploaded", r429.uploader.received.isEmpty())
+        assertEquals("android_sync: status 429: nothing is parked", 0, r429.service.parkedCount())
+        assertNull("android_sync: status 429: no parked reason", r429.database.parkedReason(clientId(61)))
+        assertEquals("android_sync: status 429: the row stays queued", listOf(clientId(61)), r429.database.queuedIds())
+        assertEquals("android_sync: status 429: the wait rides the report", 90, report429.retryAfterSeconds)
     }
 
     /** SYNC_R2_B6, other side: a delete answered with a permanent refusal (400, 413) is parked and

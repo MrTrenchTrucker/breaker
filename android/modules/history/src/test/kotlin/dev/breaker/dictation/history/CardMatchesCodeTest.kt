@@ -147,7 +147,7 @@ class CardMatchesCodeTest {
         assertEquals(
             sortedSetOf(
                 "applyRemoteDelete", "applyRemoteRow", "clearAllTombstones", "delete", "list",
-                "pendingTombstoneIds", "pendingTombstoneIdsAfter", "purgeExpired", "retainOnly", "save",
+                "pendingTombstoneIds", "pendingTombstoneIdsAfter", "purgeExpired", "retainOnly", "rowById", "save",
                 "sweepExpiredTombstones",
             ),
             publicMethods.map { it.name }.toSortedSet(),

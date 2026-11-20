@@ -52,7 +52,11 @@ class SqliteSyncQueueDatabaseDeleteRowsSourceTest {
     private fun clearAllProblems(source: String): List<String> {
         val body = AdapterSource.segment(code(source), "clearAll") ?: return listOf("found no function clearAll")
         val problems = mutableListOf<String>()
-        if (!body.contains("SyncQueueSql.DELETE_ALL_QUEUE")) problems += "clearAll does not run SyncQueueSql.DELETE_ALL_QUEUE"
+        // clearAll empties the queue: either directly via DELETE_ALL_QUEUE, or by iterating the shared
+        // CLEAR_ALL_STATEMENTS list (which contains DELETE_ALL_QUEUE). Both satisfy the queue clear.
+        if (!body.contains("SyncQueueSql.DELETE_ALL_QUEUE") && !body.contains("SyncQueueSql.CLEAR_ALL_STATEMENTS")) {
+            problems += "clearAll does not run SyncQueueSql.DELETE_ALL_QUEUE (directly or via CLEAR_ALL_STATEMENTS)"
+        }
         if (body.contains("SyncQueueSql.CLEAR_PULL_CURSOR")) problems += "clearAll runs the pull-cursor clear, not the queue clear"
         return problems
     }
@@ -95,9 +99,13 @@ class SqliteSyncQueueDatabaseDeleteRowsSourceTest {
     /** SYNC_R3: a failure here means clearAll empties the pull cursor instead of the queue. */
     @Test
     fun `clearAll empties the queue table, not the pull cursor`() {
-        assertQuiet("a correct sample", clearAllProblems("class A {\n    override fun clearAll() =\n        helper.writableDatabase.execSQL(SyncQueueSql.DELETE_ALL_QUEUE)\n}\n"))
+        // The shared-list form (the current design): clearAll iterates CLEAR_ALL_STATEMENTS.
+        assertQuiet("the shared-list clear", clearAllProblems("class A {\n    override fun clearAll() {\n        SyncQueueSql.CLEAR_ALL_STATEMENTS.forEach { helper.writableDatabase.execSQL(it) }\n    }\n}\n"))
+        // The direct form still satisfies it (DELETE_ALL_QUEUE named outright).
+        assertQuiet("the direct queue clear", clearAllProblems("class A {\n    override fun clearAll() =\n        helper.writableDatabase.execSQL(SyncQueueSql.DELETE_ALL_QUEUE)\n}\n"))
         val wrongTable = "class A {\n    override fun clearAll() =\n        helper.writableDatabase.execSQL(SyncQueueSql.CLEAR_PULL_CURSOR)\n}\n"
         assertFires("the pull-cursor clear", clearAllProblems(wrongTable), "pull-cursor clear")
+        assertFires("a clearAll that clears neither", clearAllProblems("class A {\n    override fun clearAll() {\n    }\n}\n"), "does not run")
         assertFires("no function", clearAllProblems("class A {}"), "found no function clearAll")
         assertEquals("android_sync: clearAll must empty the queue table", emptyList<String>(), clearAllProblems(AdapterSource.load()))
     }

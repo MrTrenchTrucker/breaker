@@ -12,6 +12,7 @@ internal class ApplyReport(
     val unreadable: Int,
     val removedByPrune: Int,
     val pruned: Boolean,
+    val refusedDelete: Int = 0,
 ) {
     override fun toString(): String =
         "ApplyReport(" +

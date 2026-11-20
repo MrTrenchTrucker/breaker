@@ -32,6 +32,8 @@ import dev.breaker.dictation.wiring.PhraseSendHandler
 import dev.breaker.dictation.wiring.SyncHttpUploader
 import dev.breaker.dictation.wiring.SyncWorker
 import dev.breaker.dictation.wiring.SyncingHistoryStore
+import dev.breaker.dictation.wiring.attach
+import dev.breaker.dictation.wiring.runSaveBackfill
 import dev.breaker.dictation.wiring.backfillAllUserTombstonesChecked
 import dev.breaker.dictation.wiring.boundedPush
 import dev.breaker.dictation.wiring.finishClearIfNeeded
@@ -127,7 +129,7 @@ class BreakerApp : android.app.Application() {
 
     /** The store every save caller reaches: the real store wrapped by the sync decorator. */
     private val decoratedHistoryStore: SyncingHistoryStore by lazy {
-        SyncingHistoryStore(inner = history, syncService = syncService, worker = syncWorker)
+        SyncingHistoryStore(inner = history, syncService = syncService, worker = syncWorker).attach(syncService, syncOn)
     }
 
     /** The app's history: the plain store in release, the decorated store in debug. */
@@ -271,6 +273,7 @@ class BreakerApp : android.app.Application() {
                                     },
                                     sweep = { history.sweepExpiredTombstones() },
                                 )
+                                runSaveBackfill(syncOn, syncService, history) { e -> Log.w("BreakerApp", "start-up re-queued or could not re-queue a saved take", e) }
                             } catch (e: Exception) {
                                 // Swallowed: retried on the next start.
                             }

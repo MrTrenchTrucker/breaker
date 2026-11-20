@@ -1,5 +1,11 @@
 package dev.breaker.dictation.sync
 
+/** One pending-save marker as the page reader returns it: the client id plus the run token
+ * stamped when the marker was written. The walk compares runToken with this process's token
+ * by equality and never touches a marker whose token matches: it is live for this run and is
+ * counted as deferred instead. */
+public data class PendingSaveMarker(val clientId: String, val runToken: Long)
+
 /**
  * The storage the queue sits on. It is also the pull cursor store and the queue probe the
  * pull merge reads: pullCursor/savePullCursor/clearPullCursor and isQueued/queuedIds.
@@ -8,6 +14,7 @@ package dev.breaker.dictation.sync
  * row is removed. This interface holds only the rows. A row is returned as it is
  * stored, and no method here decides whether a row can be pushed.
  */
+
 internal interface SyncQueueDatabase : PullCursorPort, QueueProbe {
 
     /**
@@ -70,6 +77,18 @@ internal interface SyncQueueDatabase : PullCursorPort, QueueProbe {
 
     /** Remove every row from the queue, parked or not. */
     fun clearAll()
+
+    /** Writes a marker for [clientId] stamped with [runToken] (insert-if-absent). True when a
+     * marker was added. `created_at` is System.currentTimeMillis() and is information only. */
+    fun markPendingSave(clientId: String, runToken: Long): Boolean
+
+    /** Removes the marker for [clientId]. True when a marker was removed. */
+    fun clearPendingSave(clientId: String): Boolean
+
+    /** The pending-save markers, oldest first (by client id), paged: page 1 is [after] = null
+     * with [limit] markers; the next page passes the last id as [after]. Each marker carries its
+     * run token so the walk can compare tokens by equality. No text is read, nothing changed. */
+    fun pendingSaveIds(limit: Int, after: String?): List<PendingSaveMarker>
 
     /** How many rows are queued and not parked, waiting to be sent. Parked rows are excluded. */
     fun count(): Int

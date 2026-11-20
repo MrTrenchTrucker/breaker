@@ -173,8 +173,42 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
         helper.writableDatabase.execSQL(SyncQueueSql.CLEAR_PULL_CURSOR)
     }
 
-    override fun clearAll() =
-        helper.writableDatabase.execSQL(SyncQueueSql.DELETE_ALL_QUEUE)
+    override fun clearAll() {
+        SyncQueueSql.CLEAR_ALL_STATEMENTS.forEach { helper.writableDatabase.execSQL(it) }
+    }
+
+    override fun markPendingSave(clientId: String, runToken: Long): Boolean =
+        helper.writableDatabase.compileStatement(SyncQueueSql.MARK_PENDING_SAVE).use { statement ->
+            statement.bindString(1, clientId)
+            statement.bindLong(2, System.currentTimeMillis())
+            statement.bindLong(3, runToken)
+            // executeInsert returns -1 when OR IGNORE skipped the row.
+            statement.executeInsert() != -1L
+        }
+
+    override fun clearPendingSave(clientId: String): Boolean =
+        helper.writableDatabase.compileStatement(SyncQueueSql.CLEAR_PENDING_SAVE).use { statement ->
+            statement.bindString(1, clientId)
+            statement.executeUpdateDelete() > 0
+        }
+
+    override fun pendingSaveIds(limit: Int, after: String?): List<PendingSaveMarker> =
+        when (after) {
+            null -> helper.readableDatabase.rawQuery(SyncQueueSql.SELECT_PENDING_SAVE_PAGE, arrayOf(limit.toString())).use { cursor ->
+                buildList {
+                    while (cursor.moveToNext()) {
+                        add(PendingSaveMarker(cursor.getString(0), cursor.getLong(1)))
+                    }
+                }
+            }
+            else -> helper.readableDatabase.rawQuery(SyncQueueSql.SELECT_PENDING_SAVE_PAGE_AFTER, arrayOf(after, limit.toString())).use { cursor ->
+                buildList {
+                    while (cursor.moveToNext()) {
+                        add(PendingSaveMarker(cursor.getString(0), cursor.getLong(1)))
+                    }
+                }
+            }
+        }
 
     override fun <T> transaction(block: () -> T): T {
         val database = helper.writableDatabase

@@ -292,6 +292,10 @@ class SqliteHistoryStore internal constructor(
     /** How many transcriptions are on file, tombstones excluded. */
     internal fun count(): Int = database.countTranscriptions()
 
+    /** Reads the row with [clientId], or null when no row is stored for that id. Logs nothing. */
+    fun rowById(clientId: String): Transcription? =
+        database.rowById(clientId)?.toTranscriptionOrNull()
+
     /** Release the database handle. */
     internal fun close() = database.close()
 
