@@ -13,10 +13,18 @@ import dev.breaker.shared.tokens.TruckingTokens
  * target is a separate overlay window of the same type as the tile itself; it is not focusable and
  * not touchable. It is drawn from the dark palette in both themes.
  *
- * This object holds the geometry rules only: where the target sits, whether a tile centre is inside
- * it, and the highlight state. It has no Android types, no state and no window.
+ * This object holds the geometry rules: where the target sits, whether a tile centre is inside
+ * it, and the highlight state. It has no Android types and no window. It holds one per-drag flag,
+ * [targetRefused], set from the latest show result and cleared on every drag end and cancel.
  */
 internal object CloseTarget {
+
+    /**
+     * Whether the latest show of the close target during this drag was refused by the window seam.
+     * False until a drag step says otherwise, so a drop with no drag step keeps the geometry rule.
+     * Cleared on every drag end and cancel path. Read on the main looper only.
+     */
+    private var targetRefused: Boolean = false
 
     /**
      * The centre of the target as fractions of the usable bounds.
@@ -87,6 +95,7 @@ internal object CloseTarget {
     internal fun onDragStep(window: TileWindow, theme: ThemeMode) {
         val bounds = window.usableBounds()
         val (cx, cy) = targetCentreInPixels(bounds)
+        val refused: Boolean = run {
         window.showCloseTarget(
             cx,
             cy,
@@ -94,6 +103,8 @@ internal object CloseTarget {
             CloseTargetShape.windowHeightPx(bounds),
             TruckingTokens.DARK,
         )
+        }.not()
+        targetRefused = refused
     }
 
     /**
@@ -116,13 +127,15 @@ internal object CloseTarget {
         onHide: () -> Unit,
         onSave: () -> Unit,
     ) {
+        val refused = targetRefused
+        targetRefused = false
         if (!collapsed) {
             window.hideCloseTarget()
             return
         }
         val cx = tileX + window.tileSizePx() / 2
         val cy = tileY + window.tileSizePx() / 2
-        if (contains(cx, cy, window.usableBounds())) {
+        if (contains(cx, cy, window.usableBounds()) && !refused) {
             onCloseRequested?.invoke()
             window.setBusyPulse(false)
             window.setPulse(false)
@@ -138,6 +151,7 @@ internal object CloseTarget {
      * Cancel a drag: hide the close target.
      */
     internal fun onDragCancel(window: TileWindow) {
+        targetRefused = false
         window.hideCloseTarget()
     }
 
