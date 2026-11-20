@@ -65,8 +65,24 @@ internal class JdbcSyncQueueDatabase(private val sqlite: DesktopSqlite) : SyncQu
     override fun removeSeq(seq: Long): Boolean = sqlite.exec(SyncQueueSql.DELETE_BY_SEQ, seq.toString()) > 0
 
     override fun clearAll() {
-        sqlite.exec(SyncQueueSql.DELETE_ALL_QUEUE)
+        SyncQueueSql.CLEAR_ALL_STATEMENTS.forEach { sqlite.exec(it) }
     }
+
+    override fun markPendingSave(clientId: String, runToken: Long): Boolean =
+        sqlite.exec(SyncQueueSql.MARK_PENDING_SAVE, clientId, System.currentTimeMillis(), runToken) > 0
+
+    override fun clearPendingSave(clientId: String): Boolean =
+        sqlite.exec(SyncQueueSql.CLEAR_PENDING_SAVE, clientId) > 0
+
+    override fun pendingSaveIds(limit: Int, after: String?): List<PendingSaveMarker> =
+        when (after) {
+            null -> sqlite.query(SyncQueueSql.SELECT_PENDING_SAVE_PAGE, limit.toString()).map {
+                PendingSaveMarker(it[0] as String, it[1] as Long)
+            }
+            else -> sqlite.query(SyncQueueSql.SELECT_PENDING_SAVE_PAGE_AFTER, after, limit.toString()).map {
+                PendingSaveMarker(it[0] as String, it[1] as Long)
+            }
+        }
 
     override fun count(): Int = (sqlite.query(SyncQueueSql.COUNT_QUEUE).single()[0] as Long).toInt()
 

@@ -14,6 +14,7 @@ internal class PendingCounts(
     val failed: Int,
     val skipped: Int,
     val retryAfterSeconds: Int?,
+    val aborted: Int = 0,
 )
 
 /** The list positions of the rows skipped in the last pass that decoded a list. No text, no id. */
@@ -53,10 +54,11 @@ internal class PendingConversion(
     private var failed = 0
     private var skipped = 0
     private var retryAfterSeconds: Int? = null
+    private var aborted = 0
 
     /** The numbers so far, a fresh copy on every read. */
     val counts: PendingCounts
-        get() = PendingCounts(converted, unconvertible, failed, skipped, retryAfterSeconds)
+        get() = PendingCounts(converted, unconvertible, failed, skipped, retryAfterSeconds, aborted)
 
     /** The positions of the rows skipped in the last pass that decoded a list, a fresh copy. */
     val skips: PendingSkips
@@ -70,6 +72,7 @@ internal class PendingConversion(
         try {
             passOnce()
         } catch (t: Throwable) {
+            aborted++
         }
     }
 

@@ -282,8 +282,8 @@ class PendingConversionTest {
     fun `the counts hold numbers only, whatever the refusal said`() {
         // Permitted re-point (row-level skip ruling): the counts gain the number skipped.
         assertEquals(
-            "android_sync: the counts class has four Int fields and one Int? field, no text",
-            listOf("int", "int", "int", "int", "java.lang.Integer"),
+            "android_sync: the counts class has five Int fields and one Int? field, no text",
+            listOf("int", "int", "int", "int", "int", "java.lang.Integer"),
             PendingCounts::class.java.declaredFields.map { it.type.name }.sorted(),
         )
         val rig = PendingRig()

@@ -285,8 +285,8 @@ class PendingConversionSkipTest {
             PendingSkips::class.java.declaredFields.map { it.type.name }.sorted(),
         )
         assertEquals(
-            "android_sync: the counts are four Ints and one Int?",
-            listOf("int", "int", "int", "int", "java.lang.Integer"),
+            "android_sync: the counts are five Ints and one Int?",
+            listOf("int", "int", "int", "int", "int", "java.lang.Integer"),
             PendingCounts::class.java.declaredFields.map { it.type.name }.sorted(),
         )
         val rig = rigOver(pendingList(listOf("\"SECRETMARKER\"", badBox(1))))

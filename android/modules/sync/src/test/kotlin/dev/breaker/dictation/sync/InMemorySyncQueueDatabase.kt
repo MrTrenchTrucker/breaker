@@ -66,6 +66,9 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
     /** The parked reasons stored by client id. */
     val parkedReasons = mutableMapOf<String, String>()
 
+    /** The pending-save markers: client id -> run token. Insert-if-absent semantics. */
+    private val pendingSaves = mutableMapOf<String, Long>()
+
     /** Makes the next insert fail with [cause]; with [afterWriting] the row is stored first. */
     fun failNextInsert(cause: RuntimeException, afterWriting: Boolean = true) {
         plannedInsert = PlannedWrite(cause, afterWriting)
@@ -217,6 +220,21 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
     }
 
     override fun parkedReason(clientId: String): String? = parkedReasons[clientId]
+
+    override fun markPendingSave(clientId: String, runToken: Long): Boolean {
+        if (pendingSaves.containsKey(clientId)) return false
+        pendingSaves[clientId] = runToken
+        return true
+    }
+
+    override fun clearPendingSave(clientId: String): Boolean = pendingSaves.remove(clientId) != null
+
+    override fun pendingSaveIds(limit: Int, after: String?): List<PendingSaveMarker> =
+        pendingSaves.entries
+            .filter { after == null || it.key > after }
+            .sortedBy { it.key }
+            .take(limit)
+            .map { PendingSaveMarker(it.key, it.value) }
 
     /** True when a row with [clientId] is in the queue table. Parked rows count. */
     override fun isQueued(clientId: String): Boolean = entries.any { it.clientId == clientId }

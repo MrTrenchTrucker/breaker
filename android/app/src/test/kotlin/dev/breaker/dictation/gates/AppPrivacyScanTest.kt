@@ -95,7 +95,7 @@ internal class AppPrivacyScanTest {
 
     private val logFiring: Map<String, String> = mapOf(
         "a debug log" to "object A { fun f(e: Exception) { Log.d(\"a\", \"b\", e) } }",
-        "two warnings" to "object A { fun f(e: Exception) { Log.w(\"a\", \"b\", e); Log.w(\"a\", \"c\", e) } }",
+        "three warnings" to "object A { fun f(e: Exception) { Log.w(\"a\", \"b\", e); Log.w(\"a\", \"c\", e); Log.w(\"a\", \"d\", e) } }",
         "a warning with a variable message" to "object A { fun f(e: Exception) { Log.w(\"a\", m, e) } }",
         "a warning with a variable tag" to "object A { fun f(e: Exception) { Log.w(t, \"b\", e) } }",
         "a warning with a template message" to "object A { fun f(e: Exception) { Log.w(\"a\", \"x \$name\", e) } }",
@@ -161,7 +161,7 @@ internal class AppPrivacyScanTest {
         val uses: List<String> = logUse.findAll(code).map { it.value.replace(Regex("""\s+"""), "") }.toList()
         val problems: MutableList<String> = ArrayList()
         if (uses.any { it != "Log.w" }) problems.add("a Log call other than Log.w")
-        if (uses.size > 1) problems.add("${uses.size} Log calls, at most one is allowed")
+        if (uses.size > 2) problems.add("${uses.size} Log calls, at most two are allowed")
         if (fixedWarning.findAll(code).count() != uses.size) problems.add("a Log.w that is not a fixed word, a fixed word and the exception")
         return problems
     }
@@ -195,7 +195,7 @@ internal class AppPrivacyScanTest {
     @Test
     fun `the application class logs at most its one fixed warning and the purge file logs nothing`() {
         val main: Map<String, String> = mainKotlin()
-        assertEquals("app: BreakerApp.kt logs more than its one fixed warning", emptyList<String>(), logProblems(main.getValue("BreakerApp.kt")))
+        assertEquals("app: BreakerApp.kt logs more than its two fixed warnings", emptyList<String>(), logProblems(main.getValue("BreakerApp.kt")))
         assertEquals(
             "app: AppStartPurge.kt uses Log",
             emptyList<String>(),

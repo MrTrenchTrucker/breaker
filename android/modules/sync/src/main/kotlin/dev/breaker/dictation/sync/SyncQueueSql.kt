@@ -14,8 +14,25 @@ internal object SyncQueueSql {
     /** The cursor table, in the same file as the queue. */
     const val TABLE_PULL_CURSOR: String = "sync_pull_cursor"
 
-    /** Bumped only when a statement below changes in a way that needs a migration. Version 4 adds the kind column to the queue. Version 3 added the cursor table. */
-    const val SCHEMA_VERSION: Int = 4
+    /** The pending-save marker table: one row per stuck save, never text. `created_at` is
+     * information only (the wall-clock when the marker was written); the walk never orders by it.
+     * `run_token` is the process-start token the marker was stamped with and the walk compares
+     * run tokens by equality: a backward wall-clock jump must not make a live marker look old. */
+    const val TABLE_PENDING_SAVE: String = "pending_save"
+
+    /** The pending-save marker table: one row per stuck save. `created_at` is information only;
+     * `run_token` is the process-start token stamped at write time, compared by equality. */
+    const val CREATE_PENDING_SAVE: String =
+        "CREATE TABLE IF NOT EXISTS $TABLE_PENDING_SAVE (" +
+            "client_id TEXT NOT NULL PRIMARY KEY, " +
+            "created_at INTEGER NOT NULL, " +
+            "run_token INTEGER NOT NULL" +
+        ")"
+
+    /** Bumped only when a statement below changes in a way that needs a migration. Version 4 adds
+     * the kind column to the queue. Version 3 added the cursor table. Version 5 adds the
+     * pending_save marker table (created_at information only, run_token compared by equality). */
+    const val SCHEMA_VERSION: Int = 5
 
     /** The name the database is opened under, inside the app-private directory. */
     const val DATABASE_NAME: String = "breaker_sync.db"
@@ -60,7 +77,7 @@ internal object SyncQueueSql {
             "next_cursor TEXT NOT NULL)"
 
     /** Every statement that creates the schema, in the order it runs. */
-    val CREATE_ALL: List<String> = listOf(CREATE_QUEUE, CREATE_PULL_CURSOR)
+    val CREATE_ALL: List<String> = listOf(CREATE_QUEUE, CREATE_PULL_CURSOR, CREATE_PENDING_SAVE)
 
     /** The columns of a queue row, in the order the SELECT statements return them. */
     const val QUEUE_COLUMNS: String = "seq, client_id, text, source, model, duration_ms, created_at, kind"
@@ -195,4 +212,38 @@ internal object SyncQueueSql {
 
     /** Removes every row from the queue table, parked or not. */
     const val DELETE_ALL_QUEUE: String = "DELETE FROM $TABLE_QUEUE"
+
+    /** Writes a marker for [client_id] stamped with [run_token] (insert-if-absent). The bind
+     * order is client_id, created_at, run_token. `created_at` is information only. */
+    const val MARK_PENDING_SAVE: String =
+        "INSERT OR IGNORE INTO $TABLE_PENDING_SAVE (client_id, created_at, run_token) VALUES (?, ?, ?)"
+
+    /** Removes the marker for [client_id], or none when there is none. One bind at index 1. */
+    const val CLEAR_PENDING_SAVE: String = "DELETE FROM $TABLE_PENDING_SAVE WHERE client_id = ?"
+
+    /** Page 1 of the pending-save markers, oldest first (by client id), at most [limit].
+     * Returns client_id and run_token so the walk can compare each marker's token with this
+     * process's token by equality. One bind: the limit. */
+    const val SELECT_PENDING_SAVE_PAGE: String =
+        "SELECT client_id, run_token FROM $TABLE_PENDING_SAVE ORDER BY client_id LIMIT ?"
+
+    /** The next page: markers above [after], oldest first, at most [limit]. Returns client_id
+     * and run_token. Binds: after, limit. */
+    const val SELECT_PENDING_SAVE_PAGE_AFTER: String =
+        "SELECT client_id, run_token FROM $TABLE_PENDING_SAVE WHERE client_id > ? ORDER BY client_id LIMIT ?"
+
+    /** Removes every row from the pending_save table. */
+    const val DELETE_ALL_PENDING_SAVE: String = "DELETE FROM $TABLE_PENDING_SAVE"
+
+    /** The ONE shared list of sign-out clear statements. BOTH implementations — SqliteSyncQueueDatabase
+     * (the Android adapter) and JdbcSyncQueueDatabase (the JVM twin) — iterate this list in `clearAll`,
+     * in this order, so neither holds clear SQL of its own and a statement added here clears in both.
+     * Order: the queue first, then the pending-save markers. */
+    val CLEAR_ALL_STATEMENTS: List<String> = listOf(DELETE_ALL_QUEUE, DELETE_ALL_PENDING_SAVE)
+
+    /** Migration from schema version 4 to 5: adds the pending_save marker table. It is the same
+     * CREATE TABLE IF NOT EXISTS text (now with the run_token column), so it cannot touch a queue
+     * row and running it twice is harmless. MIGRATE_V4_TO_V5 is still CREATE_PENDING_SAVE: no
+     * extra migration step. */
+    const val MIGRATE_V4_TO_V5: String = CREATE_PENDING_SAVE
 }

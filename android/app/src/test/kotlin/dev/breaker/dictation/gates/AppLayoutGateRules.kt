@@ -36,7 +36,7 @@ open class AppLayoutGateRules {
         "wiring/AuthHttpAdapter.kt", "wiring/AuthFailureLine.kt",
         "wiring/AuthServiceWiring.kt", "wiring/AccountKeyPortsWiring.kt",
         "wiring/SignOutHandler.kt",
-        "wiring/Backfill.kt",
+        "wiring/Backfill.kt", "wiring/SaveBackfillWiring.kt",
         "wiring/ServerTargetWiring.kt",
         "wiring/SessionSeal.kt",
         "wiring/AesSessionSeal.kt",

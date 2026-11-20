@@ -24,6 +24,7 @@ internal class PullApplier(
         var refusedByTombstone = 0
         var skippedQueued = 0
         var deleted = 0
+        var refusedDelete = 0
         var unreadable = 0
         var removedByPrune = 0
         var pruned = false
@@ -31,7 +32,7 @@ internal class PullApplier(
         if (result.outcome !is PullOutcome.Ok) {
             return ApplyReport(
                 stored, refusedByTombstone, skippedQueued, deleted,
-                unreadable, removedByPrune, pruned,
+                unreadable, removedByPrune, pruned, refusedDelete,
             )
         }
         for (record in result.outcome.records) {
@@ -42,8 +43,11 @@ internal class PullApplier(
                     unreadable++
                     continue
                 }
-                deleted++
-                sink.applyRemoteDelete(record.clientId, deletedAtMs)
+                if (sink.applyRemoteDelete(record.clientId, deletedAtMs)) {
+                    deleted++
+                } else {
+                    refusedDelete++
+                }
             } else {
                 keep.add(record.clientId)
                 if (queue.isQueued(record.clientId)) {
@@ -83,7 +87,7 @@ internal class PullApplier(
         }
         return ApplyReport(
             stored, refusedByTombstone, skippedQueued, deleted,
-            unreadable, removedByPrune, pruned,
+            unreadable, removedByPrune, pruned, refusedDelete,
         )
     }
 

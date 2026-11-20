@@ -169,4 +169,10 @@ internal object HistorySql {
     val SELECT_TOMBSTONE_BY_ID: String = "SELECT 1 FROM $TABLE_TOMBSTONES WHERE id = ?"
 
     val COUNT_TRANSCRIPTIONS: String = "SELECT COUNT(*) FROM $TABLE_TRANSCRIPTIONS"
+
+    /** Reads one row by client id. Returns null when the row is absent. */
+    val SELECT_BY_CLIENT_ID: String = """
+        SELECT $TRANSCRIPTION_COLUMNS FROM $TABLE_TRANSCRIPTIONS
+        WHERE id = ?
+    """.trimIndent()
 }

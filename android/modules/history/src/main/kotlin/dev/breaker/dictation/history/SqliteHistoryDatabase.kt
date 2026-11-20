@@ -196,6 +196,11 @@ internal class SqliteHistoryDatabase(
             if (cursor.moveToNext()) cursor.getInt(0) else 0
         }
 
+    override fun rowById(clientId: String): TranscriptionRow? =
+        helper.readableDatabase.rawQuery(HistorySql.SELECT_BY_CLIENT_ID, arrayOf(clientId)).use { cursor ->
+            if (!cursor.moveToNext()) null else cursor.toTranscriptionRow()
+        }
+
     override fun <T> transaction(block: () -> T): T {
         val database = helper.writableDatabase
         database.beginTransaction()

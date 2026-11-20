@@ -47,7 +47,7 @@ import kotlinx.coroutines.sync.Mutex
  * The storage seam is internal, so the class is built only through [create].
  */
 class QueuedSyncService internal constructor(
-    private val database: SyncQueueDatabase,
+    internal val database: SyncQueueDatabase,
     private val uploader: SyncUploader,
     private val probe: ConnectivityProbe,
     private val pullTransport: PullTransport? = null,
@@ -69,7 +69,6 @@ class QueuedSyncService internal constructor(
         } else null
 
     private val drain = Mutex()
-
     /** The key version the server refused with a 409, read and written only under [drain]. */
     private val refusedVersion = RefusedKeyVersion()
 
@@ -77,12 +76,10 @@ class QueuedSyncService internal constructor(
     private val pushRow = PushRow(database, uploader, recordKeys, refusedVersion)
 
     /** The re-seal pass that runs after the pull, or null without a pull transport or a port. */
-    private val migration: RecordMigration? = if (pullTransport != null && recordKeys != null)
-        RecordMigration(pullTransport, database, uploader, recordKeys, refusedVersion) else null
+    private val migration: RecordMigration? = if (pullTransport != null && recordKeys != null) RecordMigration(pullTransport, database, uploader, recordKeys, refusedVersion) else null
 
     /** The pending-sealed conversion that runs after the migration, or null without a transport or a port. */
-    private val pendingConversion: PendingConversion? = if (pendingTransport != null && recordKeys != null)
-        PendingConversion(pendingTransport, database, uploader, recordKeys, refusedVersion) else null
+    private val pendingConversion: PendingConversion? = if (pendingTransport != null && recordKeys != null) PendingConversion(pendingTransport, database, uploader, recordKeys, refusedVersion) else null
 
     /**
      * Queue [transcription] for the next push and return once it is committed.
@@ -188,7 +185,12 @@ class QueuedSyncService internal constructor(
                         try {
                             uploader.delete(entry.clientId)
                         } catch (e: PermanentRefusalException) {
-                            if (!PermanentRefusalException.isPermanentRefusal(e.status)) throw e
+                            if (!PermanentRefusalException.isPermanentRefusal(e.status)) {
+                                // Non-permanent refusal on a delete: stop with FAILED; a 429
+                                // carries its Retry-After seconds on the report.
+                                if (e.status == PermanentRefusalException.RATE_LIMITED_429) retryAfterSeconds = e.retryAfterSeconds
+                                throw e
+                            }
                             // A permanent refusal about this delete row: park it, keep its reason,
                             // count it in this drain's parked count, and move on to the next row.
                             database.transaction {
@@ -267,9 +269,7 @@ class QueuedSyncService internal constructor(
     fun pendingCount(): Int = database.count()
 
     /** Release the queue's database handle. */
-    fun close() {
-        database.close()
-    }
+    fun close() = database.close()
 
     companion object {
         /**

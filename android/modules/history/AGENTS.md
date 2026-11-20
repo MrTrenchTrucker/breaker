@@ -18,6 +18,8 @@ SQLite transcription history, 30-day TTL cleanup, tombstones.
 
 - `SqliteHistoryStore` — built only via `SqliteHistoryStore.create(context, clock)`; implements `core.HistoryStore`;
   exposes `purgeExpired(): PurgeReport` and `sweepExpiredTombstones(): Int`.
+  `rowById(clientId): Transcription?` reads one live row by id, null when absent; reads no text beyond the row.
+  The sync save-backfill walk calls it across modules to re-queue a stuck save. Built and unit-tested, not tried on a phone.
 - `PurgeReport` — the report `purgeExpired()` returns.
 
 **Internal (not public):** `RetentionPolicy`, `Tombstone`, `TombstonePurgeReport`,
@@ -28,6 +30,7 @@ deferred to a later phase. The store's other methods (`count`, `close` and the
 internal form of the tombstone sweep) are internal too;
 `sweepExpiredTombstones`, `pendingTombstoneIds`, `pendingTombstoneIdsAfter` and `clearAllTombstones` are public;
 `applyRemoteRow`, `applyRemoteDelete` and `retainOnly` are public, as the PullSink calls this store implements.
+`rowById` is public — the sync save-backfill walk reads one live row by id through it.
 
 **Storage:** SQLite via the Android platform API (android.database.sqlite), no Room dependency. Table `transcriptions`:
 `id, text, source (local|server), model, duration_ms, created_at, audio_path (nullable, off by default)`.
